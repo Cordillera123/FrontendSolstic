@@ -9,6 +9,7 @@ import TransactionsWindow from '../components/Windows/TransactionsWindow';
 import ClientsWindow from '../components/Windows/ClientsWindow';
 import ParameWindows from '../components/Windows/ParameWindows';
 import AsgiPerWindows from '../components/Windows/AsgiPerWindows';
+import UsuParamWindow from '../components/Windows/UsuParamWindow';
 
 
 // Componente por defecto para desarrollo
@@ -48,6 +49,7 @@ export const componentMap = {
   'SettingsWindow': SettingsWindow,
   'TransactionsWindow': TransactionsWindow,
   'ClientsWindow': ClientsWindow,
+  'UsuParamWindow': UsuParamWindow,
   
   // Componentes específicos por funcionalidad
   'ClientRegistry': (props) => <ClientsWindow {...props} subModule="registry" />,
@@ -140,6 +142,11 @@ export const componentConfig = {
     width: 700,
     height: 500,
     title: 'Configuración',
+  },
+  'UsuParamWindow': {
+    width: 700,
+    height: 500,
+    title: 'Parametriacion de usuarios',
   },
 };
 
