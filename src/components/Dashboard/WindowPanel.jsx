@@ -8,6 +8,7 @@ import SettingsWindow from '../Windows/SettingsWindow';
 import TransactionsWindow from '../Windows/TransactionsWindow';
 import ParameWindows from '../Windows/ParameWindows';
 import AsgiPerWindows from '../Windows/AsgiPerWindows';
+import UsuParamWindow from '../Windows/UsuParamWindow';
 
 const WindowPanel = ({ 
   window, 
@@ -225,6 +226,8 @@ const getWindowContent = () => {
     
     case 'TransactionsWindow':
       return <TransactionsWindow data={window.data} />;
+    case 'UsuParamWindow':
+      return <UsuParamWindow data={window.data} />;
     
     default:
       // Contenido por defecto
