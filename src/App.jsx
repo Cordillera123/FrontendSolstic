@@ -9,20 +9,30 @@ import Dashboard from './components/Dashboard/Dashboard';
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      {/* ✅ Agregar basename para manejar la base URL correctamente */}
+      <Router basename="/FrontendSolstic">
         <Routes>
-          {/* Ruta pública: Login */}
+          {/* ✅ Ruta raíz - redirigir a login si no está autenticado */}
+          <Route 
+            path="/" 
+            element={<Navigate to="/login" replace />} 
+          />
+          
+          {/* ✅ Ruta pública: Login */}
           <Route path="/login" element={<Login />} />
           
-          {/* Rutas protegidas */}
+          {/* ✅ Rutas protegidas con Outlet pattern */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            {/* Aquí puedes añadir más rutas protegidas si las necesitas */}
+            {/* ✅ Dashboard con wildcard para sub-rutas */}
+            <Route path="/dashboard/*" element={<Dashboard />} />
+            
+            {/* ✅ Aquí puedes añadir más rutas protegidas */}
+            {/* <Route path="/usuarios" element={<Usuarios />} /> */}
+            {/* <Route path="/reportes" element={<Reportes />} /> */}
           </Route>
           
-          {/* Redirecciones */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          {/* ✅ Catch-all - redirigir rutas no encontradas */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
     </AuthProvider>
