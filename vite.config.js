@@ -5,17 +5,15 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    react(), 
-    tailwindcss() // ✅ Solo una declaración de Tailwind
+    react(),
+    tailwindcss()
   ],
-  base: '/FrontendSolstic/', // ✅ Base path para producción
-  
-  // ✅ Configuración del servidor de desarrollo
+  base: '/FrontendSolstic/',
+
   server: {
     port: 5173,
     host: true,
-    open: '/FrontendSolstic/', // ✅ Abrir directamente en la ruta correcta
-    // ✅ Configurar fallback para SPA routing
+    open: '/FrontendSolstic/',
     historyApiFallback: {
       index: '/FrontendSolstic/index.html',
       rewrites: [
@@ -23,19 +21,16 @@ export default defineConfig({
       ]
     }
   },
-  
-  // ✅ Configuración para preview (producción)
+
   preview: {
     port: 4173,
     host: true,
     open: '/FrontendSolstic/'
   },
-  
-  // ✅ Configuración de build
+
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    // ✅ Optimizaciones adicionales
     rollupOptions: {
       output: {
         manualChunks: {

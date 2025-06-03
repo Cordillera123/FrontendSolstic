@@ -1,4 +1,4 @@
-// src/config/componentMapping.js - Mapeo de componentes del sistema
+// src/config/componentMapping.js - LIMPIO Y FUNCIONAL
 import React from 'react';
 
 // Importar componentes de ventanas
@@ -10,7 +10,7 @@ import ClientsWindow from '../components/Windows/ClientsWindow';
 import ParameWindows from '../components/Windows/ParameWindows';
 import AsgiPerWindows from '../components/Windows/AsgiPerWindows';
 import UsuParamWindow from '../components/Windows/UsuParamWindow';
-
+import ConfigWindow from '../components/Windows/ConfigWindow';
 
 // Componente por defecto para desarrollo
 const DefaultWindow = ({ title, data, componentName }) => {
@@ -39,59 +39,52 @@ const DefaultWindow = ({ title, data, componentName }) => {
 
 // Mapeo de componentes por nombre
 export const componentMap = {
-  // Componentes de ventanas directas (desde la base de datos)
   'ParameWindows': ParameWindows,
   'AsgiPerWindows': AsgiPerWindows,
-  
-  // Componentes por módulos principales
   'AccountsWindow': AccountsWindow,
   'ReportsWindow': ReportsWindow,
   'SettingsWindow': SettingsWindow,
   'TransactionsWindow': TransactionsWindow,
   'ClientsWindow': ClientsWindow,
   'UsuParamWindow': UsuParamWindow,
-  
-  // Componentes específicos por funcionalidad
+  'ConfigWindow': ConfigWindow,
+
+  // Componentes con props de submódulo
   'ClientRegistry': (props) => <ClientsWindow {...props} subModule="registry" />,
   'ClientSearch': (props) => <ClientsWindow {...props} subModule="search" />,
   'ClientCorporate': (props) => <ClientsWindow {...props} subModule="corporate" />,
-  
+
   'SavingsAccounts': (props) => <AccountsWindow {...props} subModule="savings" />,
   'CreditAccounts': (props) => <AccountsWindow {...props} subModule="credit" />,
   'FixedTermAccounts': (props) => <AccountsWindow {...props} subModule="fixed-term" />,
-  
+
   'DepositsTransactions': (props) => <TransactionsWindow {...props} subModule="deposits" />,
   'WithdrawalsTransactions': (props) => <TransactionsWindow {...props} subModule="withdrawals" />,
   'TransfersTransactions': (props) => <TransactionsWindow {...props} subModule="transfers" />,
-  
+
   'FinancialReports': (props) => <ReportsWindow {...props} subModule="financial" />,
   'ClientReports': (props) => <ReportsWindow {...props} subModule="clients" />,
   'OperationsReports': (props) => <ReportsWindow {...props} subModule="operations" />,
-  
-  // Componente por defecto
+
   'Default': DefaultWindow,
 };
+
 console.log('ComponentMap loaded:', componentMap);
 console.log('ParameWindows in map:', componentMap.ParameWindows);
-// Función para obtener el componente correcto
+
 export const getComponent = (componentName, fallbackTitle = 'Ventana') => {
-  console.log('Getting component:', componentName); // ✅ AGREGAR ESTE LOG
-  
+  console.log('Getting component:', componentName);
   if (!componentName) {
     return (props) => <DefaultWindow {...props} title={fallbackTitle} componentName="Sin definir" />;
   }
-  
   const Component = componentMap[componentName];
-  console.log('Component found:', Component); // ✅ AGREGAR ESTE LOG
-  
+  console.log('Component found:', Component);
   if (!Component) {
     return (props) => <DefaultWindow {...props} title={fallbackTitle} componentName={componentName} />;
   }
-  
   return Component;
 };
 
-// Configuración de ventanas por defecto
 export const defaultWindowConfig = {
   width: 800,
   height: 600,
@@ -102,7 +95,6 @@ export const defaultWindowConfig = {
   centered: false,
 };
 
-// Configuraciones específicas por tipo de componente
 export const componentConfig = {
   'ParameWindows': {
     width: 1000,
@@ -144,13 +136,21 @@ export const componentConfig = {
     title: 'Configuración',
   },
   'UsuParamWindow': {
-    width: 700,
-    height: 500,
-    title: 'Parametriacion de usuarios',
+    width: 1000,
+    height: 700,
+    minWidth: 800,
+    minHeight: 600,
+    title: 'Parametrización de Usuarios',
+  },
+  'ConfigWindow': {
+    width: 1000,
+    height: 700,
+    minWidth: 800,
+    minHeight: 600,
+    title: 'Configuración del Sistema',
   },
 };
 
-// Función para obtener la configuración de una ventana
 export const getWindowConfig = (componentName) => {
   const config = componentConfig[componentName] || {};
   return {
@@ -159,7 +159,6 @@ export const getWindowConfig = (componentName) => {
   };
 };
 
-// Función para mapear datos de la API a props del componente
 export const mapApiDataToProps = (menuData, submenuData = null, optionData = null) => {
   return {
     menuData,

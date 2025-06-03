@@ -5,7 +5,7 @@ import Icon from '../UI/Icon';
 import AsgiPerUsWindows from './AsgiPerUsWindows';
 
 // ===== COMPONENTES MEMOIZADOS =====
-const TabButton = memo(({ tabId, label, icon, isActive, onClick }) => (
+const TabButton = memo(({ label, icon, isActive, onClick }) => (
     <button
         className={`flex items-center px-4 py-2 rounded-t-lg border-b-2 transition-all ${
             isActive
@@ -248,7 +248,7 @@ const SubmenuTreeItem = memo(({ submenu, menuId, togglePermission, savingPermiss
     );
 });
 
-const AsgiPerWindows = ({ data }) => {
+const AsgiPerWindows = () => {
     // ===== ESTADOS PARA PESTAÑAS =====
     const [activeTab, setActiveTab] = useState('profiles');
 
@@ -485,14 +485,12 @@ const AsgiPerWindows = ({ data }) => {
             <div className="mb-6">
                 <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
                     <TabButton
-                        tabId="profiles"
                         label="Permisos por Perfil"
                         icon="Shield"
                         isActive={activeTab === 'profiles'}
                         onClick={() => handleTabChange('profiles')}
                     />
                     <TabButton
-                        tabId="users"
                         label="Permisos por Usuario"
                         icon="User"
                         isActive={activeTab === 'users'}

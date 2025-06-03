@@ -1,8 +1,9 @@
-// services/apiService.js - CORREGIDO SIN RECARGAS
+// services/apiService.js - CORREGIDO Y LIMPIO
+
 import axios from 'axios';
 
 // Configuración base de axios
-const API_BASE_URL = 'http://127.0.0.1:8000/api'; // Cambiar por tu URL correcta
+const API_BASE_URL = 'http://192.168.200.51/api'; // Cambiar por tu URL correcta
 
 // Crear instancia de axios
 const apiClient = axios.create({
@@ -27,31 +28,26 @@ apiClient.interceptors.request.use(
   }
 );
 
-// ✅ INTERCEPTOR CORREGIDO - SIN REDIRECCIÓN AUTOMÁTICA
+// Interceptor de respuesta - SIN REDIRECCIÓN AUTOMÁTICA
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // ✅ CRÍTICO: NO redirigir automáticamente
-    // Dejar que el AuthContext maneje los errores 401
+    // Solo limpiar localStorage en errores 401, sin redirigir
     if (error.response?.status === 401) {
       console.log('🔒 apiService: Token inválido detectado, será manejado por AuthContext');
-      // ✅ Solo limpiar localStorage, SIN redirigir
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user_data');
       localStorage.removeItem('user_permissions');
-      
-      // ✅ NO hacer window.location.href = '/login'
-      // El AuthContext y React Router manejarán la navegación
     }
     
-    // ✅ Siempre rechazar el error para que lo manejen los componentes
+    // Siempre rechazar el error para que lo manejen los componentes
     return Promise.reject(error);
   }
 );
 
-// ===== SERVICIOS DE AUTENTICACIÓN CORREGIDOS =====
+// ===== SERVICIOS DE AUTENTICACIÓN =====
 export const authService = {
-  // ✅ Login corregido con mejor manejo de errores
+  // Login
   async login(credentials) {
     try {
       console.log('📡 apiService.login: Enviando request...');
@@ -86,17 +82,15 @@ export const authService = {
     } catch (error) {
       console.error('❌ apiService.login: Error capturado:', error);
       
-      // ✅ Mejorar el manejo de errores específicos
       let errorMessage = 'Error de conexión';
       let errorDetails = {};
       
       if (error.response) {
-        // Error del servidor
         console.log('📍 Error del servidor:', error.response.status, error.response.data);
         errorMessage = error.response.data?.message || `Error del servidor (${error.response.status})`;
         errorDetails = error.response.data?.errors || {};
         
-        // ✅ Mensajes específicos por código de estado
+        // Mensajes específicos por código de estado
         switch (error.response.status) {
           case 401:
             errorMessage = 'Credenciales inválidas';
@@ -117,11 +111,9 @@ export const authService = {
             errorMessage = error.response.data?.message || `Error ${error.response.status}`;
         }
       } else if (error.request) {
-        // Error de red
         console.log('📍 Error de red:', error.request);
         errorMessage = 'Error de conexión con el servidor';
       } else {
-        // Error de configuración
         console.log('📍 Error de configuración:', error.message);
         errorMessage = 'Error inesperado';
       }
@@ -134,7 +126,7 @@ export const authService = {
     }
   },
 
-  // ✅ Logout corregido
+  // Logout
   async logout() {
     try {
       console.log('🚪 apiService.logout: Cerrando sesión...');
@@ -142,9 +134,8 @@ export const authService = {
       console.log('✅ apiService.logout: Logout exitoso en servidor');
     } catch (error) {
       console.error('❌ apiService.logout: Error en servidor:', error);
-      // Continuar con la limpieza local aunque falle el servidor
     } finally {
-      // ✅ Siempre limpiar localStorage
+      // Siempre limpiar localStorage
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user_data');
       localStorage.removeItem('user_permissions');
@@ -152,7 +143,7 @@ export const authService = {
     }
   },
 
-  // ✅ Obtener información del usuario actual
+  // Obtener información del usuario actual
   async getCurrentUser() {
     try {
       const response = await apiClient.get('/user');
@@ -169,14 +160,14 @@ export const authService = {
     }
   },
 
-  // ✅ Verificar si el usuario está autenticado
+  // Verificar si el usuario está autenticado
   isAuthenticated() {
     const token = localStorage.getItem('auth_token');
     const userData = localStorage.getItem('user_data');
     return !!(token && userData);
   },
 
-  // ✅ Obtener datos del usuario desde localStorage
+  // Obtener datos del usuario desde localStorage
   getUserData() {
     try {
       const userData = localStorage.getItem('user_data');
@@ -188,7 +179,7 @@ export const authService = {
     }
   },
 
-  // ✅ Obtener permisos del usuario desde localStorage
+  // Obtener permisos del usuario desde localStorage
   getUserPermissions() {
     try {
       const permissions = localStorage.getItem('user_permissions');
@@ -414,7 +405,7 @@ export const adminService = {
     },
   },
 
-  // ===== USUARIOS =====
+  // Usuarios
   usuarios: {
     // Listar usuarios con filtros
     async getAll(params = {}) {
@@ -562,7 +553,64 @@ export const adminService = {
     },
   },
 
-  // ===== PERMISOS =====
+  // Perfiles
+  perfiles: {
+    async getAll() {
+      try {
+        const response = await apiClient.get('/perfiles');
+        return {
+          status: 'success',
+          data: response.data.data || response.data
+        };
+      } catch (error) {
+        console.error('Error in perfiles.getAll:', error);
+        throw error;
+      }
+    },
+
+    async create(perfilData) {
+      try {
+        const response = await apiClient.post('/perfiles', perfilData);
+        return {
+          status: 'success',
+          message: 'Perfil creado correctamente',
+          data: response.data
+        };
+      } catch (error) {
+        console.error('Error in perfiles.create:', error);
+        throw error;
+      }
+    },
+
+    async update(perfilId, perfilData) {
+      try {
+        const response = await apiClient.put(`/perfiles/${perfilId}`, perfilData);
+        return {
+          status: 'success',
+          message: 'Perfil actualizado correctamente',
+          data: response.data
+        };
+      } catch (error) {
+        console.error('Error in perfiles.update:', error);
+        throw error;
+      }
+    },
+
+    async delete(perfilId) {
+      try {
+        const response = await apiClient.delete(`/perfiles/${perfilId}`);
+        return {
+          status: 'success',
+          message: 'Perfil eliminado correctamente'
+        };
+      } catch (error) {
+        console.error('Error in perfiles.delete:', error);
+        throw error;
+      }
+    }
+  },
+
+  // Permisos
   permissions: {
     // Obtener todos los perfiles
     async getProfiles() {
@@ -628,7 +676,7 @@ export const adminService = {
 
 // ===== UTILIDADES =====
 export const apiUtils = {
-  // ✅ Manejar errores de API mejorado
+  // Manejar errores de API
   handleApiError(error) {
     console.error('🔍 apiUtils.handleApiError:', error);
     

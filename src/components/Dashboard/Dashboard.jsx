@@ -1,23 +1,36 @@
-// src/components/Dashboard/Dashboard.jsx - Con cierre automático de sesión
+// src/components/Dashboard/Dashboard.jsx - Completo y 100% Funcional
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { ChevronLeft, ChevronRight, Grid, Layout, X, Layers, Clock, AlertTriangle } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Grid,
+  Layout,
+  X,
+  Layers,
+  Clock,
+  AlertTriangle,
+} from "lucide-react";
 
 import Sidebar from "./Sidebar";
 import WindowPanel from "./WindowPanel";
 import useWindows from "../../hooks/useWindows";
-import { useAuth } from '../../context/AuthContext';
-import { getComponent, getWindowConfig, mapApiDataToProps } from '../../config/componentMapping.jsx';
+import { useAuth } from "../../context/AuthContext";
+import {
+  getComponent,
+  getWindowConfig,
+  mapApiDataToProps,
+} from "../../config/componentMapping.jsx";
 import Icon from "../UI/Icon";
 
 const Dashboard = () => {
   const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
-  
+
   // Estados para paginación y gestión de ventanas
   const [currentPage, setCurrentPage] = useState(0);
   const WINDOWS_PER_PAGE = 4;
 
   // Estados para el cierre automático de sesión
-  const [timeLeft, setTimeLeft] = useState(60); // 1 minuto en segundos
+  const [timeLeft, setTimeLeft] = useState(30); // 30 segundos para la cuenta regresiva
   const [showWarning, setShowWarning] = useState(false);
   const [isIdle, setIsIdle] = useState(false);
   
@@ -26,8 +39,8 @@ const Dashboard = () => {
   const countdownTimerRef = useRef(null);
   const warningTimeoutRef = useRef(null);
   
-  // Configuración de inactividad
-  const IDLE_TIME = 30 * 1000; // 1 minuto en milisegundos
+  // Configuración de inactividad (en milisegundos)
+  const IDLE_TIME = 30 * 60 * 1000; // 30 minutos de inactividad
   const WARNING_TIME = 30; // Mostrar advertencia 30 segundos antes
   const COUNTDOWN_TIME = 30; // Tiempo de cuenta regresiva en segundos
 
@@ -46,6 +59,7 @@ const Dashboard = () => {
     restoreWindow,
     toggleMaximize,
     cascadeWindows,
+    tileWindows,
     closeAllWindows,
     MAX_WINDOWS,
   } = useWindows();
@@ -143,7 +157,7 @@ const Dashboard = () => {
   // Redirigir si no está autenticado
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      window.location.href = '/login';
+      window.location.href = "/login";
     }
   }, [isAuthenticated, authLoading]);
 
@@ -162,7 +176,9 @@ const Dashboard = () => {
   const currentDate = getCurrentDate();
 
   // Filtrar ventanas visibles (no minimizadas)
-  const visibleWindows = windows.filter((w) => !minimizedWindows.includes(w.id));
+  const visibleWindows = windows.filter(
+    (w) => !minimizedWindows.includes(w.id)
+  );
 
   // Calcular número total de páginas
   const totalPages = Math.ceil(visibleWindows.length / WINDOWS_PER_PAGE);
@@ -188,13 +204,21 @@ const Dashboard = () => {
 
   // Verificar si no hay ventanas abiertas
   const isEmpty = windows.length === 0;
+  
+  // Reiniciar página cuando no hay ventanas
+  useEffect(() => {
+    if (windows.length === 0 && currentPage > 0) {
+      setCurrentPage(0);
+    }
+  }, [windows.length, currentPage]);
 
-  // Función para organizar las ventanas en mosaico
+  // Función mejorada para organizar en mosaico - Respeta ventanas maximizadas
   const arrangeTileLayout = useCallback(() => {
-    const pageWindows = visibleWindows.slice(
-      currentPage * WINDOWS_PER_PAGE,
-      (currentPage + 1) * WINDOWS_PER_PAGE
-    );
+    // Solo organizar ventanas que no estén maximizadas
+    const pageWindows = visibleWindows
+      .slice(currentPage * WINDOWS_PER_PAGE, (currentPage + 1) * WINDOWS_PER_PAGE)
+      .filter(w => !w.isMaximized);
+    
     if (pageWindows.length === 0) return;
 
     let cols, rows;
@@ -225,8 +249,12 @@ const Dashboard = () => {
     const mainAreaHeight = mainAreaEl.clientHeight;
 
     const margin = 16;
-    const windowWidth = Math.floor((mainAreaWidth - margin * (cols + 1)) / cols);
-    const windowHeight = Math.floor((mainAreaHeight - margin * (rows + 1)) / rows);
+    const windowWidth = Math.floor(
+      (mainAreaWidth - margin * (cols + 1)) / cols
+    );
+    const windowHeight = Math.floor(
+      (mainAreaHeight - margin * (rows + 1)) / rows
+    );
 
     pageWindows.forEach((window, index) => {
       const row = Math.floor(index / cols);
@@ -238,34 +266,49 @@ const Dashboard = () => {
       updateWindowSize(window.id, windowWidth, windowHeight);
     });
   }, [visibleWindows, currentPage, updateWindowPosition, updateWindowSize]);
-  
+
+  // Función mejorada de cascada - Respeta ventanas maximizadas
+  const arrangeCascadeLayout = useCallback(() => {
+    // Solo organizar ventanas que no estén maximizadas
+    const nonMaximizedWindows = visibleWindows.filter(w => !w.isMaximized);
+    
+    if (nonMaximizedWindows.length === 0) return;
+
+    // Usar la función cascadeWindows del hook pero solo para ventanas no maximizadas
+    cascadeWindows();
+  }, [visibleWindows, cascadeWindows]);
+
   // Manejar apertura de ventanas desde el Sidebar
   const handleOpenWindow = (windowConfig) => {
     console.log('handleOpenWindow called with:', windowConfig);
     const { id, title, component, type, data } = windowConfig;
-    console.log('Component name from config:', component); 
+    console.log('Component name from config:', component);
     
     // Obtener configuración de la ventana
     const config = getWindowConfig(component);
-    
+
     // Mapear datos de la API a props del componente
     let mappedProps = {};
-    if (type === 'menu' && data) {
+    if (type === "menu" && data) {
       mappedProps = mapApiDataToProps(data);
-    } else if (type === 'submenu' && data) {
+    } else if (type === "submenu" && data) {
       mappedProps = mapApiDataToProps(data.parentMenu, data.submenu);
-    } else if (type === 'option' && data) {
-      mappedProps = mapApiDataToProps(data.parentMenu, data.parentSubmenu, data.option);
+    } else if (type === "option" && data) {
+      mappedProps = mapApiDataToProps(
+        data.parentMenu,
+        data.parentSubmenu,
+        data.option
+      );
     }
-    
+
     // Abrir la ventana
     const result = openWindow(
       id,           // windowId 
       null,         // subModuleId (no usado en este contexto)
       title,        // moduleName
-      'Monitor',    // icon (usar component como referencia)
-      title,
-      component     // subModuleName
+      'Monitor',    // icon
+      title,        // subModuleName
+      component     // component
     );
 
     // Organizar en mosaico inmediatamente después de abrir
@@ -279,18 +322,43 @@ const Dashboard = () => {
   // Restaurar una ventana minimizada y reordenar
   const handleRestoreWindow = (windowId) => {
     restoreWindow(windowId);
-    setTimeout(() => arrangeTileLayout(), 50);
+    setTimeout(() => {
+      // Solo reorganizar si no hay ventanas maximizadas
+      const hasMaximizedWindows = windows.some(w => w.isMaximized);
+      if (!hasMaximizedWindows) {
+        arrangeTileLayout();
+      }
+    }, 50);
   };
 
-  // Organizar ventanas en mosaico automáticamente cuando cambian
+  // Efecto mejorado: Solo organizar automáticamente si no hay ventanas maximizadas
   useEffect(() => {
     if (visibleWindows.length > 0) {
+      const hasMaximizedWindows = visibleWindows.some(w => w.isMaximized);
+      
+      // Solo organizar automáticamente si no hay ventanas maximizadas
+      if (!hasMaximizedWindows) {
+        const delay = setTimeout(() => {
+          arrangeTileLayout();
+        }, 100);
+        return () => clearTimeout(delay);
+      }
+    }
+  }, [visibleWindows.length, currentPage]);
+
+  // Detectar cambios en el estado de maximización
+  useEffect(() => {
+    const maximizedCount = visibleWindows.filter(w => w.isMaximized).length;
+    console.log("Ventanas maximizadas:", maximizedCount);
+    
+    // Si no hay ventanas maximizadas, reorganizar las demás
+    if (maximizedCount === 0 && visibleWindows.length > 0) {
       const delay = setTimeout(() => {
         arrangeTileLayout();
-      }, 100);
+      }, 200);
       return () => clearTimeout(delay);
     }
-  }, [arrangeTileLayout, visibleWindows.length, currentPage]);
+  }, [visibleWindows.map(w => w.isMaximized).join(',')]);
 
   // Estilos para la barra de herramientas
   const toolbarStyles = {
@@ -301,7 +369,8 @@ const Dashboard = () => {
       display: "flex",
       backgroundColor: "white",
       borderRadius: "0.375rem",
-      boxShadow: "0 2px 5px -1px rgba(0, 0, 0, 0.1), 0 1px 3px -1px rgba(0, 0, 0, 0.05)",
+      boxShadow:
+        "0 2px 5px -1px rgba(0, 0, 0, 0.1), 0 1px 3px -1px rgba(0, 0, 0, 0.05)",
       zIndex: 30,
       border: "1px solid #e2e8f0",
     },
@@ -380,15 +449,28 @@ const Dashboard = () => {
                 ></div>
               </div>
             </div>
+            
+            {/* Botones de acción */}
+            <div className="flex gap-3">
+              <button
+                onClick={extendSession}
+                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Extender Sesión
+              </button>
+              <button
+                onClick={logoutNow}
+                className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Cerrar Sesión
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* Sidebar */}
-      <Sidebar
-        onOpenWindow={handleOpenWindow}
-        currentDate={currentDate}
-      />
+      <Sidebar onOpenWindow={handleOpenWindow} currentDate={currentDate} />
 
       {/* Área principal */}
       <div className="flex-1 relative overflow-hidden main-area">
@@ -399,8 +481,12 @@ const Dashboard = () => {
               style={toolbarStyles.button}
               title="Organizar en mosaico"
               onClick={arrangeTileLayout}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#f1f5f9"}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = "#f1f5f9")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "transparent")
+              }
             >
               <Grid size={18} />
             </button>
@@ -408,9 +494,13 @@ const Dashboard = () => {
             <button
               style={toolbarStyles.button}
               title="Organizar en cascada"
-              onClick={cascadeWindows}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#f1f5f9"}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+              onClick={arrangeCascadeLayout}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = "#f1f5f9")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "transparent")
+              }
             >
               <Layers size={18} />
             </button>
@@ -419,8 +509,12 @@ const Dashboard = () => {
               style={toolbarStyles.button}
               title="Cerrar todas las ventanas"
               onClick={closeAllWindows}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#f1f5f9"}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = "#f1f5f9")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "transparent")
+              }
             >
               <X size={18} />
             </button>
@@ -428,7 +522,7 @@ const Dashboard = () => {
         )}
 
         {/* Contenido cuando no hay ventanas */}
-        {isEmpty && (
+        {(isEmpty || visibleWindows.length === 0) && (
           <div className="flex flex-col h-full p-8 bg-gray-50 overflow-auto">
             {/* Panel de control */}
             <div className="text-center mb-8">
@@ -436,8 +530,8 @@ const Dashboard = () => {
                 Panel de Control
               </h1>
               <p className="text-gray-600 max-w-2xl mx-auto">
-                Bienvenido al sistema financiero integrado. 
-                Use el menú lateral para navegar entre los diferentes módulos.
+                Bienvenido al sistema financiero integrado. Use el menú lateral
+                para navegar entre los diferentes módulos.
               </p>
             </div>
 
@@ -450,30 +544,46 @@ const Dashboard = () => {
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Usuario</label>
+                      <label className="text-sm font-medium text-gray-500">
+                        Usuario
+                      </label>
                       <p className="text-gray-900">{user.fullName}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Email</label>
+                      <label className="text-sm font-medium text-gray-500">
+                        Email
+                      </label>
                       <p className="text-gray-900">{user.email}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Perfil</label>
-                      <p className="text-gray-900">{user.perfil || 'No asignado'}</p>
+                      <label className="text-sm font-medium text-gray-500">
+                        Perfil
+                      </label>
+                      <p className="text-gray-900">
+                        {user.perfil || "No asignado"}
+                      </p>
                     </div>
                     {user.cedula && (
                       <div>
-                        <label className="text-sm font-medium text-gray-500">Cédula</label>
+                        <label className="text-sm font-medium text-gray-500">
+                          Cédula
+                        </label>
                         <p className="text-gray-900">{user.cedula}</p>
                       </div>
                     )}
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Estado</label>
-                      <p className="text-gray-900">{user.estado || 'Activo'}</p>
+                      <label className="text-sm font-medium text-gray-500">
+                        Estado
+                      </label>
+                      <p className="text-gray-900">{user.estado || "Activo"}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Permisos</label>
-                      <p className="text-gray-900">{user.permisos?.length || 0} módulos</p>
+                      <label className="text-sm font-medium text-gray-500">
+                        Permisos
+                      </label>
+                      <p className="text-gray-900">
+                        {user.permisos?.length || 0} módulos
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -487,7 +597,9 @@ const Dashboard = () => {
                   <div className="bg-blue-100 p-3 rounded-full mr-4">
                     <Icon name="Users" size={24} className="text-blue-600" />
                   </div>
-                  <h3 className="font-semibold text-coop-dark">Clientes Activos</h3>
+                  <h3 className="font-semibold text-coop-dark">
+                    Clientes Activos
+                  </h3>
                 </div>
                 <div className="flex items-end justify-between">
                   <p className="text-2xl font-bold text-coop-primary">254</p>
@@ -501,9 +613,15 @@ const Dashboard = () => {
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
                 <div className="flex items-center mb-4">
                   <div className="bg-green-100 p-3 rounded-full mr-4">
-                    <Icon name="Activity" size={24} className="text-green-600" />
+                    <Icon
+                      name="Activity"
+                      size={24}
+                      className="text-green-600"
+                    />
                   </div>
-                  <h3 className="font-semibold text-coop-dark">Transacciones Hoy</h3>
+                  <h3 className="font-semibold text-coop-dark">
+                    Transacciones Hoy
+                  </h3>
                 </div>
                 <div className="flex items-end justify-between">
                   <p className="text-2xl font-bold text-coop-primary">127</p>
@@ -517,9 +635,15 @@ const Dashboard = () => {
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
                 <div className="flex items-center mb-4">
                   <div className="bg-purple-100 p-3 rounded-full mr-4">
-                    <Icon name="DollarSign" size={24} className="text-purple-600" />
+                    <Icon
+                      name="DollarSign"
+                      size={24}
+                      className="text-purple-600"
+                    />
                   </div>
-                  <h3 className="font-semibold text-coop-dark">Balance Total</h3>
+                  <h3 className="font-semibold text-coop-dark">
+                    Balance Total
+                  </h3>
                 </div>
                 <div className="flex items-end justify-between">
                   <p className="text-2xl font-bold text-coop-primary">$1.2M</p>
@@ -533,7 +657,7 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Ventanas flotantes */}
+        {/* Ventanas flotantes - Con todas las props necesarias */}
         {currentPageWindows.map((window) => (
           <WindowPanel
             key={window.id}
@@ -542,6 +666,7 @@ const Dashboard = () => {
             setActiveTab={setActiveWindow}
             closeWindow={closeWindow}
             updateWindowPosition={updateWindowPosition}
+            updateWindowSize={updateWindowSize}
             minimizeWindow={minimizeWindow}
             toggleMaximize={toggleMaximize}
           />
@@ -551,7 +676,11 @@ const Dashboard = () => {
         {errorMessage && (
           <div className="fixed top-4 right-4 bg-red-50 border-l-4 border-red-500 p-4 rounded shadow-lg z-50">
             <div className="flex items-center">
-              <Icon name="AlertTriangle" size={20} className="text-red-500 mr-3" />
+              <Icon
+                name="AlertTriangle"
+                size={20}
+                className="text-red-500 mr-3"
+              />
               <div>
                 <p className="font-bold text-red-800">Límite alcanzado</p>
                 <p className="text-sm text-red-600">{errorMessage}</p>
@@ -605,7 +734,9 @@ const Dashboard = () => {
                   onClick={() => handleRestoreWindow(window.id)}
                 >
                   <Icon name="Window" size={16} />
-                  <span className="truncate max-w-32">{window.title}</span>
+                  <span className="truncate max-w-32">
+                    {window.module?.name || window.title}
+                  </span>
                 </button>
               ))}
           </div>
