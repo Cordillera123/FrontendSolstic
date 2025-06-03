@@ -4,11 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "lint:css": "stylelint 'src/**/*.css'",
-    "lint:js": "eslint src/",
-    "lint": "npm run lint:css && npm run lint:js",
     "dev": "vite",
     "build": "vite build",
+    "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -33,14 +31,10 @@
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
     "@vitejs/plugin-react-swc": "^3.9.0",
-    "eslint": "^9.27.0",
-    "eslint-plugin-jsx-a11y": "^6.10.2",
-    "eslint-plugin-react": "^7.37.5",
+    "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
-    "stylelint": "^16.19.1",
-    "stylelint-config-standard": "^38.0.0",
     "vite": "^6.3.5"
   }
 }

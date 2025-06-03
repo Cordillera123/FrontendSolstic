@@ -1,8 +1,10 @@
+
+
 // services/apiService.js
 import axios from 'axios';
 
 // Configuración base de axios - IMPORTANTE: Usar la misma URL en todo el sistema
-const API_BASE_URL = 'http://192.168.200.47:8000/api'; // Cambiar por tu URL correcta
+const API_BASE_URL = 'http://127.0.0.1:8000/api'; // Cambiar por tu URL correcta
 
 // Crear instancia de axios
 const apiClient = axios.create({
@@ -436,7 +438,7 @@ export const adminService = {
     },
 
     // ===== MÉTODOS DE PERMISOS (si los implementas más tarde) =====
-    
+
     // Obtener permisos del usuario
     async getPermissions(id) {
       try {
@@ -656,6 +658,7 @@ export const adminService = {
       }
     }
   },
+
 };
 
 // ===== UTILIDADES =====

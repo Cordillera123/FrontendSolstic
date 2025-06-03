@@ -5,7 +5,7 @@ import Icon from '../UI/Icon';
 import AsgiPerUsWindows from './AsgiPerUsWindows';
 
 // ===== COMPONENTES MEMOIZADOS =====
-const TabButton = memo(({ tabId, label, icon, isActive, onClick }) => (
+const TabButton = memo(({ label, icon, isActive, onClick }) => (
     <button
         className={`flex items-center px-4 py-2 rounded-t-lg border-b-2 transition-all ${
             isActive
@@ -77,7 +77,7 @@ const PermissionCheckbox = memo(({ checked, onChange, disabled, label, level = 0
     );
 });
 
-const AsgiPerWindows = ({ data }) => {
+const AsgiPerWindows = () => {
     // ===== ESTADOS PARA PESTAÑAS =====
     const [activeTab, setActiveTab] = useState('profiles');
 
