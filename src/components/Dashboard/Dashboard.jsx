@@ -1,3 +1,4 @@
+
 // src/components/Dashboard/Dashboard.jsx - Completo y 100% Funcional
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -8,6 +9,11 @@ import {
   X,
   Layers,
 } from "lucide-react";
+
+// src/components/Dashboard/Dashboard.jsx - Con cierre automático de sesión
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { ChevronLeft, ChevronRight, Grid, Layout, X, Layers, Clock, AlertTriangle } from "lucide-react";
+
 
 import Sidebar from "./Sidebar";
 import WindowPanel from "./WindowPanel";
@@ -21,11 +27,31 @@ import {
 import Icon from "../UI/Icon";
 
 const Dashboard = () => {
+
   const { user, isAuthenticated, loading: authLoading } = useAuth();
+
+=======
+  const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
+  
 
   // Estados para paginación y gestión de ventanas
   const [currentPage, setCurrentPage] = useState(0);
   const WINDOWS_PER_PAGE = 4;
+
+  // Estados para el cierre automático de sesión
+  const [timeLeft, setTimeLeft] = useState(60); // 1 minuto en segundos
+  const [showWarning, setShowWarning] = useState(false);
+  const [isIdle, setIsIdle] = useState(false);
+  
+  // Referencias para los timers
+  const idleTimerRef = useRef(null);
+  const countdownTimerRef = useRef(null);
+  const warningTimeoutRef = useRef(null);
+  
+  // Configuración de inactividad
+  const IDLE_TIME = 30 * 1000; // 1 minuto en milisegundos
+  const WARNING_TIME = 30; // Mostrar advertencia 30 segundos antes
+  const COUNTDOWN_TIME = 30; // Tiempo de cuenta regresiva en segundos
 
   // Hook personalizado para gestión de ventanas
   const {
@@ -46,6 +72,96 @@ const Dashboard = () => {
     closeAllWindows,
     MAX_WINDOWS,
   } = useWindows();
+
+  // Función para resetear el timer de inactividad
+  const resetIdleTimer = useCallback(() => {
+    setIsIdle(false);
+    setShowWarning(false);
+    setTimeLeft(COUNTDOWN_TIME);
+    
+    // Limpiar timers existentes
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+    }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+    }
+    if (warningTimeoutRef.current) {
+      clearTimeout(warningTimeoutRef.current);
+    }
+    
+    // Configurar nuevo timer de inactividad
+    idleTimerRef.current = setTimeout(() => {
+      setIsIdle(true);
+      setShowWarning(true);
+      setTimeLeft(COUNTDOWN_TIME);
+      
+      // Iniciar cuenta regresiva
+      countdownTimerRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            // Cerrar sesión automáticamente
+            logout();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }, IDLE_TIME);
+  }, [logout]);
+
+  // Eventos que resetean el timer de inactividad
+  const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+  
+  // Configurar listeners de actividad
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    // Función throttled para evitar demasiadas llamadas
+    let lastActivity = 0;
+    const throttledReset = () => {
+      const now = Date.now();
+      if (now - lastActivity > 1000) { // Throttle a 1 segundo
+        lastActivity = now;
+        resetIdleTimer();
+      }
+    };
+
+    // Agregar listeners
+    activityEvents.forEach(event => {
+      document.addEventListener(event, throttledReset, true);
+    });
+
+    // Inicializar timer
+    resetIdleTimer();
+
+    // Cleanup
+    return () => {
+      activityEvents.forEach(event => {
+        document.removeEventListener(event, throttledReset, true);
+      });
+      
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+      }
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+      }
+      if (warningTimeoutRef.current) {
+        clearTimeout(warningTimeoutRef.current);
+      }
+    };
+  }, [isAuthenticated, resetIdleTimer]);
+
+  // Función para extender la sesión
+  const extendSession = () => {
+    resetIdleTimer();
+  };
+
+  // Función para cerrar sesión inmediatamente
+  const logoutNow = () => {
+    logout();
+  };
 
   // Redirigir si no está autenticado
   useEffect(() => {
@@ -173,9 +289,15 @@ const Dashboard = () => {
 
   // Manejar apertura de ventanas desde el Sidebar
   const handleOpenWindow = (windowConfig) => {
+
     console.log("handleOpenWindow called with:", windowConfig);
     const { id, title, component, type, data } = windowConfig;
     console.log("Component name from config:", component);
+=======
+    console.log('handleOpenWindow called with:', windowConfig);
+    const { id, title, component, type, data } = windowConfig;
+    console.log('Component name from config:', component); 
+
     
     // Obtener configuración de la ventana
     const config = getWindowConfig(component);
@@ -196,21 +318,34 @@ const Dashboard = () => {
 
     // Abrir la ventana
     const result = openWindow(
+
       id, // windowId
       null, // subModuleId (no usado en este contexto)
       title, // moduleName
       "Monitor", // icon
       title, // subModuleName
       component // component
+=======
+      id,           // windowId 
+      null,         // subModuleId (no usado en este contexto)
+      title,        // moduleName
+      'Monitor',    // icon (usar component como referencia)
+      title,
+      component     // subModuleName
+
     );
 
     // Organizar en mosaico inmediatamente después de abrir (solo si no hay ventanas maximizadas)
     if (result && result.success) {
       setTimeout(() => {
+
         const hasMaximizedWindows = windows.some(w => w.isMaximized);
         if (!hasMaximizedWindows) {
           arrangeTileLayout();
         }
+=======
+        arrangeTileLayout();
+
       }, 100);
     }
   };
@@ -289,6 +424,13 @@ const Dashboard = () => {
     },
   };
 
+  // Formatear tiempo para mostrar
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   // Mostrar loading si la autenticación está cargando
   if (authLoading) {
     return (
@@ -302,10 +444,53 @@ const Dashboard = () => {
   }
 
   return (
+
     <div
       className="flex h-screen bg-coop-light overflow-hidden"
       style={{ backgroundColor: "#f0f9ff" }}
     >
+=======
+    <div className="flex h-screen bg-coop-light overflow-hidden" style={{ backgroundColor: "#f0f9ff" }}>
+      {/* Modal de advertencia de inactividad */}
+      {showWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-mx mx-4">
+            <div className="flex items-center mb-4">
+              <div className="bg-orange-100 p-3 rounded-full mr-4">
+                <Clock size={24} className="text-orange-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Sesión por Expirar</h3>
+                <p className="text-sm text-gray-600">Tu sesión expirará por inactividad</p>
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-orange-600 mb-2">
+                  {formatTime(timeLeft)}
+                </div>
+                <p className="text-gray-600">
+                  Tu sesión se cerrará automáticamente si no realizas ninguna acción.
+                </p>
+              </div>
+              
+              {/* Barra de progreso */}
+              <div className="mt-4 bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-orange-500 h-2 rounded-full transition-all duration-1000"
+                  style={{ 
+                    width: `${(timeLeft / COUNTDOWN_TIME) * 100}%`,
+                    backgroundColor: timeLeft <= 10 ? '#ef4444' : '#f97316'
+                  }}
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {/* Sidebar */}
       <Sidebar onOpenWindow={handleOpenWindow} currentDate={currentDate} />
 

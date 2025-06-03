@@ -1,10 +1,16 @@
 
 
+
 // services/apiService.js
+=======
+// services/apiService.js - CORREGIDO SIN RECARGAS
+
 import axios from 'axios';
+
 
 // Configuración base de axios - IMPORTANTE: Usar la misma URL en todo el sistema
 const API_BASE_URL = 'http://127.0.0.1:8000/api'; // Cambiar por tu URL correcta
+
 
 // Crear instancia de axios
 const apiClient = axios.create({
@@ -29,36 +35,49 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Interceptor para manejar respuestas y errores
+// ✅ INTERCEPTOR CORREGIDO - SIN REDIRECCIÓN AUTOMÁTICA
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    // ✅ CRÍTICO: NO redirigir automáticamente
+    // Dejar que el AuthContext maneje los errores 401
     if (error.response?.status === 401) {
-      // Si el token expiró, limpiar localStorage y redirigir al login
+      console.log('🔒 apiService: Token inválido detectado, será manejado por AuthContext');
+      // ✅ Solo limpiar localStorage, SIN redirigir
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user_data');
       localStorage.removeItem('user_permissions');
-      window.location.href = '/login';
+      
+      // ✅ NO hacer window.location.href = '/login'
+      // El AuthContext y React Router manejarán la navegación
     }
+    
+    // ✅ Siempre rechazar el error para que lo manejen los componentes
     return Promise.reject(error);
   }
 );
 
-// ===== SERVICIOS DE AUTENTICACIÓN =====
+// ===== SERVICIOS DE AUTENTICACIÓN CORREGIDOS =====
 export const authService = {
-  // Login
+  // ✅ Login corregido con mejor manejo de errores
   async login(credentials) {
     try {
+      console.log('📡 apiService.login: Enviando request...');
+      
       const response = await apiClient.post('/login', {
         email: credentials.email,
         password: credentials.password,
       });
 
+      console.log('📥 apiService.login: Respuesta recibida:', response.status);
+
       if (response.data?.access_token) {
+        console.log('✅ apiService.login: Token recibido, guardando datos...');
+        
         // Guardar token y datos del usuario
         localStorage.setItem('auth_token', response.data.access_token);
         localStorage.setItem('user_data', JSON.stringify(response.data.user));
-        localStorage.setItem('user_permissions', JSON.stringify(response.data.permisos));
+        localStorage.setItem('user_permissions', JSON.stringify(response.data.permisos || []));
 
         return {
           success: true,
@@ -66,34 +85,82 @@ export const authService = {
         };
       }
 
+      console.log('❌ apiService.login: No se recibió token');
       return {
         success: false,
         message: response.data?.message || 'Error en el login',
       };
+      
     } catch (error) {
+      console.error('❌ apiService.login: Error capturado:', error);
+      
+      // ✅ Mejorar el manejo de errores específicos
+      let errorMessage = 'Error de conexión';
+      let errorDetails = {};
+      
+      if (error.response) {
+        // Error del servidor
+        console.log('📍 Error del servidor:', error.response.status, error.response.data);
+        errorMessage = error.response.data?.message || `Error del servidor (${error.response.status})`;
+        errorDetails = error.response.data?.errors || {};
+        
+        // ✅ Mensajes específicos por código de estado
+        switch (error.response.status) {
+          case 401:
+            errorMessage = 'Credenciales inválidas';
+            break;
+          case 403:
+            errorMessage = 'Usuario inactivo o sin permisos';
+            break;
+          case 422:
+            errorMessage = error.response.data?.message || 'Datos inválidos';
+            break;
+          case 429:
+            errorMessage = 'Demasiados intentos. Espere unos minutos';
+            break;
+          case 500:
+            errorMessage = 'Error interno del servidor';
+            break;
+          default:
+            errorMessage = error.response.data?.message || `Error ${error.response.status}`;
+        }
+      } else if (error.request) {
+        // Error de red
+        console.log('📍 Error de red:', error.request);
+        errorMessage = 'Error de conexión con el servidor';
+      } else {
+        // Error de configuración
+        console.log('📍 Error de configuración:', error.message);
+        errorMessage = 'Error inesperado';
+      }
+
       return {
         success: false,
-        message: error.response?.data?.message || 'Error de conexión',
-        errors: error.response?.data?.errors || {},
+        message: errorMessage,
+        errors: errorDetails,
       };
     }
   },
 
-  // Logout
+  // ✅ Logout corregido
   async logout() {
     try {
+      console.log('🚪 apiService.logout: Cerrando sesión...');
       await apiClient.post('/logout');
+      console.log('✅ apiService.logout: Logout exitoso en servidor');
     } catch (error) {
-      console.error('Error en logout:', error);
+      console.error('❌ apiService.logout: Error en servidor:', error);
+      // Continuar con la limpieza local aunque falle el servidor
     } finally {
-      // Limpiar localStorage independientemente del resultado
+      // ✅ Siempre limpiar localStorage
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user_data');
       localStorage.removeItem('user_permissions');
+      console.log('🧹 apiService.logout: LocalStorage limpiado');
     }
   },
 
-  // Obtener información del usuario actual
+  // ✅ Obtener información del usuario actual
   async getCurrentUser() {
     try {
       const response = await apiClient.get('/user');
@@ -102,6 +169,7 @@ export const authService = {
         data: response.data,
       };
     } catch (error) {
+      console.error('Error obteniendo usuario actual:', error);
       return {
         success: false,
         message: error.response?.data?.message || 'Error al obtener usuario',
@@ -109,21 +177,35 @@ export const authService = {
     }
   },
 
-  // Verificar si el usuario está autenticado
+  // ✅ Verificar si el usuario está autenticado
   isAuthenticated() {
-    return !!localStorage.getItem('auth_token');
-  },
-
-  // Obtener datos del usuario desde localStorage
-  getUserData() {
+    const token = localStorage.getItem('auth_token');
     const userData = localStorage.getItem('user_data');
-    return userData ? JSON.parse(userData) : null;
+    return !!(token && userData);
   },
 
-  // Obtener permisos del usuario desde localStorage
+  // ✅ Obtener datos del usuario desde localStorage
+  getUserData() {
+    try {
+      const userData = localStorage.getItem('user_data');
+      return userData ? JSON.parse(userData) : null;
+    } catch (error) {
+      console.error('Error parseando user_data:', error);
+      localStorage.removeItem('user_data');
+      return null;
+    }
+  },
+
+  // ✅ Obtener permisos del usuario desde localStorage
   getUserPermissions() {
-    const permissions = localStorage.getItem('user_permissions');
-    return permissions ? JSON.parse(permissions) : [];
+    try {
+      const permissions = localStorage.getItem('user_permissions');
+      return permissions ? JSON.parse(permissions) : [];
+    } catch (error) {
+      console.error('Error parseando user_permissions:', error);
+      localStorage.removeItem('user_permissions');
+      return [];
+    }
   },
 };
 
@@ -340,7 +422,7 @@ export const adminService = {
     },
   },
 
-  // ===== USUARIOS - NUEVO =====
+  // ===== USUARIOS =====
   usuarios: {
     // Listar usuarios con filtros
     async getAll(params = {}) {
@@ -437,7 +519,10 @@ export const adminService = {
       }
     },
 
+
     // ===== MÉTODOS DE PERMISOS (si los implementas más tarde) =====
+
+=======
 
     // Obtener permisos del usuario
     async getPermissions(id) {
@@ -483,112 +568,6 @@ export const adminService = {
     async copyPermissions(id, copyData) {
       try {
         const response = await apiClient.post(`/usuarios/${id}/copy-permissions`, copyData);
-        return response.data;
-      } catch (error) {
-        throw apiUtils.handleApiError(error);
-      }
-    },
-  },
-
-  // ===== PERFILES - ACTUALIZADO =====
-  perfiles: {
-    async getAll() {
-      try {
-        const response = await apiClient.get('/perfiles');
-        return response.data;
-      } catch (error) {
-        throw apiUtils.handleApiError(error);
-      }
-    },
-
-    async getById(id) {
-      try {
-        const response = await apiClient.get(`/perfiles/${id}`);
-        return response.data;
-      } catch (error) {
-        throw apiUtils.handleApiError(error);
-      }
-    },
-
-    async create(data) {
-      try {
-        const response = await apiClient.post('/perfiles', data);
-        return response.data;
-      } catch (error) {
-        throw apiUtils.handleApiError(error);
-      }
-    },
-
-    async update(id, data) {
-      try {
-        const response = await apiClient.put(`/perfiles/${id}`, data);
-        return response.data;
-      } catch (error) {
-        throw apiUtils.handleApiError(error);
-      }
-    },
-
-    async delete(id) {
-      try {
-        const response = await apiClient.delete(`/perfiles/${id}`);
-        return response.data;
-      } catch (error) {
-        throw apiUtils.handleApiError(error);
-      }
-    },
-
-    // Obtener usuarios de un perfil
-    async getUsuarios(id) {
-      try {
-        const response = await apiClient.get(`/perfiles/${id}/usuarios`);
-        return response.data;
-      } catch (error) {
-        throw apiUtils.handleApiError(error);
-      }
-    },
-  },
-
-  // ===== ESTADOS - NUEVO =====
-  estados: {
-    async getAll() {
-      try {
-        const response = await apiClient.get('/estados');
-        return response.data;
-      } catch (error) {
-        throw apiUtils.handleApiError(error);
-      }
-    },
-
-    async getById(id) {
-      try {
-        const response = await apiClient.get(`/estados/${id}`);
-        return response.data;
-      } catch (error) {
-        throw apiUtils.handleApiError(error);
-      }
-    },
-
-    async create(data) {
-      try {
-        const response = await apiClient.post('/estados', data);
-        return response.data;
-      } catch (error) {
-        throw apiUtils.handleApiError(error);
-      }
-    },
-
-    async update(id, data) {
-      try {
-        const response = await apiClient.put(`/estados/${id}`, data);
-        return response.data;
-      } catch (error) {
-        throw apiUtils.handleApiError(error);
-      }
-    },
-
-    async delete(id) {
-      try {
-        const response = await apiClient.delete(`/estados/${id}`);
         return response.data;
       } catch (error) {
         throw apiUtils.handleApiError(error);
@@ -657,31 +636,128 @@ export const adminService = {
         throw apiUtils.handleApiError(error);
       }
     }
+
+=======
   },
+  users: {
+    getAll: (params = {}) => {
+      return axios.get('/usuarios', { params }).then(response => ({
+        status: 'success',
+        data: response.data
+      })).catch(error => {
+        console.error('Error in usuarios.getAll:', error);
+        throw error;
+      });
+    },
+
+    delete: (userId) => {
+      return axios.delete(`/usuarios/${userId}`).then(response => ({
+        status: 'success',
+        message: 'Usuario eliminado correctamente'
+      })).catch(error => {
+        console.error('Error in usuarios.delete:', error);
+        throw error;
+      });
+    },
+
+    getPermissions: (userId) => {
+      return axios.get(`/usuarios/${userId}/permisos`).then(response => ({
+        status: 'success',
+        data: response.data
+      })).catch(error => {
+        console.error('Error in usuarios.getPermissions:', error);
+        throw error;
+      });
+    },
+
+    assignPermissions: (userId, permissionsData) => {
+      return axios.post(`/usuarios/${userId}/permisos`, permissionsData).then(response => ({
+        status: 'success',
+        message: 'Permisos asignados correctamente'
+      })).catch(error => {
+        console.error('Error in usuarios.assignPermissions:', error);
+        throw error;
+      });
+    }
+  },
+
+
+=======
+  perfiles: {
+    getAll: () => {
+      return axios.get('/perfiles').then(response => ({
+        status: 'success',
+        data: response.data.data || response.data // Adaptar según tu API
+      })).catch(error => {
+        console.error('Error in perfiles.getAll:', error);
+        throw error;
+      });
+    },
+
+    create: (perfilData) => {
+      return axios.post('/perfiles', perfilData).then(response => ({
+        status: 'success',
+        message: 'Perfil creado correctamente',
+        data: response.data
+      })).catch(error => {
+        console.error('Error in perfiles.create:', error);
+        throw error;
+      });
+    },
+
+    update: (perfilId, perfilData) => {
+      return axios.put(`/perfiles/${perfilId}`, perfilData).then(response => ({
+        status: 'success',
+        message: 'Perfil actualizado correctamente',
+        data: response.data
+      })).catch(error => {
+        console.error('Error in perfiles.update:', error);
+        throw error;
+      });
+    },
+
+    delete: (perfilId) => {
+      return axios.delete(`/perfiles/${perfilId}`).then(response => ({
+        status: 'success',
+        message: 'Perfil eliminado correctamente'
+      })).catch(error => {
+        console.error('Error in perfiles.delete:', error);
+        throw error;
+      });
+    }
+
+  }
 
 };
 
 // ===== UTILIDADES =====
 export const apiUtils = {
-  // Manejar errores de API
+  // ✅ Manejar errores de API mejorado
   handleApiError(error) {
+    console.error('🔍 apiUtils.handleApiError:', error);
+    
     if (error.response) {
       // El servidor respondió con un código de estado de error
-      return {
+      const errorData = {
         message: error.response.data?.message || 'Error del servidor',
         status: error.response.status,
         errors: error.response.data?.errors || {},
       };
+      
+      console.log('📍 Error del servidor:', errorData);
+      return errorData;
     } else if (error.request) {
       // La request se hizo pero no se recibió respuesta
+      console.log('📍 Error de red:', error.request);
       return {
         message: 'Error de conexión con el servidor',
         status: 0,
       };
     } else {
       // Algo pasó configurando la request
+      console.log('📍 Error de configuración:', error.message);
       return {
-        message: 'Error inesperado',
+        message: error.message || 'Error inesperado',
         status: -1,
       };
     }

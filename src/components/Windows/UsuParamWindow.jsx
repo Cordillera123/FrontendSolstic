@@ -5,7 +5,11 @@ import Icon from "../UI/Icon";
 // ===== COMPONENTES MEMOIZADOS =====
 const TabButton = memo(({ tabId, label, icon, isActive, onClick }) => (
   <button
+
     className={`min-w-[140px] px-4 py-2 rounded-lg text-sm font-medium border-b-2 flex items-center justify-start gap-2 transition-all ${
+=======
+    className={`px-4 py-2 rounded-t-lg border-b-2 transition-all ${
+
       isActive
         ? "bg-white border-blue-500 text-blue-600 shadow-sm"
         : "bg-gray-100 border-transparent text-gray-600 hover:bg-gray-200 hover:text-gray-800"
@@ -13,8 +17,13 @@ const TabButton = memo(({ tabId, label, icon, isActive, onClick }) => (
     onClick={onClick}
     type="button"
   >
+
     <Icon name={icon} size={18} className="text-inherit" />
     <span>{label}</span>
+=======
+    <Icon name={icon} size={16} className="mr-2" />
+    {label}
+
   </button>
 ));
 
@@ -210,6 +219,7 @@ const PerfilCard = memo(
 
           <div className="flex gap-2 ml-4">
             <button
+
               className={`p-2 rounded transition-colors flex items-center ${
                 perfil.per_nivel === 10
                   ? "text-gray-400 cursor-not-allowed"
@@ -229,12 +239,25 @@ const PerfilCard = memo(
                   : "Activar perfil"
               }
               disabled={perfil.per_nivel === 10}
+=======
+              className={`p-2 rounded hover:bg-opacity-20 transition-colors ${
+                perfil.per_activo
+                  ? "text-orange-600 hover:bg-orange-100"
+                  : "text-green-600 hover:bg-green-100"
+              }`}
+              onClick={() => onToggleStatus(perfil.per_id)}
+              type="button"
+              title={perfil.per_activo ? "Desactivar perfil" : "Activar perfil"}
+
             >
               <Icon
                 name={perfil.per_activo ? "ToggleLeft" : "ToggleRight"}
                 size={18}
               />
             </button>
+
+
+=======
 
             <button
               className="text-blue-600 hover:text-blue-800 p-2 rounded hover:bg-blue-50 transition-colors"
@@ -322,8 +345,13 @@ const UsuParamWindow = ({ data, showMessage }) => {
 
       // Intentar diferentes URLs según tu configuración
       const possibleUrls = [
+
         "http://192.168.200.57:8000/api/usuarios",
         "http://localhost:8000/api/usuarios",
+=======
+        "http://192.168.200.47:8000/api/usuarios",
+        "http://192.168.200.47:8000/api/usuarios",
+
       ];
 
       let response = null;
@@ -412,8 +440,13 @@ const UsuParamWindow = ({ data, showMessage }) => {
 
       // Intentar diferentes URLs según tu configuración
       const possibleUrls = [
+
         "http://192.168.200.57:8000/api/perfiles",
         "http://localhost:8000/api/perfiles",
+=======
+        "http://192.168.200.47:8000/api/perfiles",
+        "http://192.168.200.47:8000/api/perfiles",
+
       ];
 
       let response = null;
@@ -470,6 +503,7 @@ const UsuParamWindow = ({ data, showMessage }) => {
       console.log("📋 Lista de perfiles extraída:", perfilesList);
 
       if (Array.isArray(perfilesList)) {
+
         const perfilesFormateados = perfilesList.map((p) => ({
           ...p,
           per_activo: !!p.per_activo, // Asegura que sea booleano
@@ -477,6 +511,10 @@ const UsuParamWindow = ({ data, showMessage }) => {
 
         setPerfiles(perfilesFormateados);
         console.log("✅ Perfiles cargados:", perfilesFormateados.length);
+=======
+        setPerfiles(perfilesList);
+        console.log("✅ Perfiles cargados:", perfilesList.length);
+
       } else {
         console.error("❌ perfilesList no es un array:", perfilesList);
         setPerfiles([]);
@@ -503,8 +541,13 @@ const UsuParamWindow = ({ data, showMessage }) => {
   // ===== FUNCIÓN HELPER PARA OBTENER URL VÁLIDA =====
   const getValidApiUrl = useCallback(async (endpoint) => {
     const possibleUrls = [
+
       `http://192.168.200.57:8000/api/${endpoint}`,
       `http://localhost:8000/api/${endpoint}`,
+=======
+      `http://192.168.200.47:8000/api/${endpoint}`,
+      `http://192.168.200.47:8000/api/${endpoint}`,
+
     ];
 
     const token = localStorage.getItem("auth_token");
@@ -528,7 +571,11 @@ const UsuParamWindow = ({ data, showMessage }) => {
       }
     }
 
+
     return "http://192.168.200.57:8000/api"; // Default fallback
+=======
+    return "http://192.168.200.47:8000/api"; // Default fallback
+
   }, []);
 
   // ===== ACCIONES DE USUARIO =====
@@ -597,12 +644,16 @@ const UsuParamWindow = ({ data, showMessage }) => {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
+
         body: JSON.stringify({
           per_nom: nuevoPerfil.per_nom,
           per_descripcion: nuevoPerfil.per_descripcion,
           per_nivel: nuevoPerfil.per_nivel,
           per_activo: Boolean(nuevoPerfil.per_activo),
         }),
+=======
+        body: JSON.stringify(nuevoPerfil),
+
       });
 
       if (response.ok) {
@@ -632,7 +683,10 @@ const UsuParamWindow = ({ data, showMessage }) => {
   const editarPerfil = useCallback((perfil) => {
     setPerfilEditando(perfil);
     setPerfilEditado({
+
       per_id: perfil.per_id,
+=======
+
       per_nom: perfil.per_nom,
       per_descripcion: perfil.per_descripcion || "",
       per_nivel: perfil.per_nivel,
@@ -659,6 +713,7 @@ const UsuParamWindow = ({ data, showMessage }) => {
             "Content-Type": "application/json",
             Accept: "application/json",
           },
+
           body: JSON.stringify({
             per_nom: perfilEditado.per_nom,
             per_descripcion: perfilEditado.per_descripcion,
@@ -667,6 +722,9 @@ const UsuParamWindow = ({ data, showMessage }) => {
 
             per_id: perfilEditando.per_id,
           }),
+=======
+          body: JSON.stringify(perfilEditado),
+
         }
       );
 

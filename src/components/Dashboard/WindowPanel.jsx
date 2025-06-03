@@ -1,3 +1,4 @@
+
 // Archivo: WindowPanel.jsx - COMPLETO Y CORREGIDO
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
@@ -23,6 +24,25 @@ const WindowPanel = ({
   isActive,
   setActiveTab,
   closeWindow,
+=======
+// Archivo: WindowPanel.jsx
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { X, Minimize2, Maximize2, ChevronDown, RefreshCw, Move } from 'lucide-react';
+import Icon from '../UI/Icon';
+import AccountsWindow from '../Windows/AccountsWindow';
+import ReportsWindow from '../Windows/ReportsWindow';
+import SettingsWindow from '../Windows/SettingsWindow';
+import TransactionsWindow from '../Windows/TransactionsWindow';
+import ParameWindows from '../Windows/ParameWindows';
+import AsgiPerWindows from '../Windows/AsgiPerWindows';
+import UsuParamWindow from '../Windows/UsuParamWindow';
+
+const WindowPanel = ({ 
+  window, 
+  isActive, 
+  setActiveTab, 
+  closeWindow, 
+
   updateWindowPosition,
   updateWindowSize,
   minimizeWindow,
@@ -245,6 +265,7 @@ const WindowPanel = ({
   };
 
   // Función para obtener el contenido de la ventana según el módulo
+
   const getWindowContent = () => {
     const componentName = window.component;
 
@@ -305,6 +326,52 @@ const WindowPanel = ({
                 {JSON.stringify(window, null, 2)}
               </pre>
             </details>
+=======
+  // En WindowPanel.jsx, busca la función getWindowContent y reemplázala por:
+
+const getWindowContent = () => {
+  
+  
+  const componentName = window.component;
+
+  
+  // ✅ Usar los componentes importados directamente
+  switch (componentName) {
+    case 'ParameWindows':
+      return <ParameWindows data={window.data} />;
+    
+    case 'AsgiPerWindows':
+      return <AsgiPerWindows data={window.data} />;
+    
+    case 'AccountsWindow':
+      return <AccountsWindow data={window.data} />;
+    
+    case 'ReportsWindow':
+      return <ReportsWindow data={window.data} />;
+    
+    case 'SettingsWindow':
+      return <SettingsWindow data={window.data} />;
+    
+    case 'TransactionsWindow':
+      return <TransactionsWindow data={window.data} />;
+    case 'UsuParamWindow':
+      return <UsuParamWindow data={window.data} />;
+    
+    default:
+      // Contenido por defecto
+      return (
+        <div className="p-6" style={{ padding: '1.5rem', backgroundColor: '#f0f9ff', height: '100%' }}>
+          <h2 className="text-xl font-bold mb-4 text-gray-800">
+            {window.module.name}
+          </h2>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+            <p className="text-yellow-800 text-sm">
+              Componente: <strong>{componentName || 'No definido'}</strong>
+            </p>
+            <p className="text-yellow-700 text-sm mt-1">
+              Este componente está en desarrollo.
+            </p>
+
           </div>
         );
     }

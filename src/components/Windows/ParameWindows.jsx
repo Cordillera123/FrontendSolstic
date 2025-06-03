@@ -5,6 +5,7 @@ import Icon from '../UI/Icon';
 import { SubmenuForm, SubmenusList, useSubmenuManagement } from './SubmenuComponents';
 import { OptionForm, OptionsList, useOptionManagement } from './OptionComponents';
 // ✅ Componente MenuForm completamente independiente
+// MenuForm mejorado con animaciones y mejoras estéticas
 const MenuForm = React.memo(({
     editingMenu,
     icons,
@@ -14,6 +15,11 @@ const MenuForm = React.memo(({
     showMessage
 }) => {
     console.log('🔵 MenuForm render - editingMenu:', editingMenu?.men_id || 'null');
+
+    // Estados adicionales para animaciones
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formErrors, setFormErrors] = useState({});
+    const [showSuccess, setShowSuccess] = useState(false);
 
     // Estado del formulario con inicialización inmediata
     const [formData, setFormData] = useState(() => {
@@ -59,7 +65,41 @@ const MenuForm = React.memo(({
                 men_ventana_directa: false
             });
         }
-    }, [editingMenu?.men_id]); // Solo depende del ID
+        
+        // Limpiar estados de animación cuando cambie el menú
+        setFormErrors({});
+        setShowSuccess(false);
+        setIsSubmitting(false);
+    }, [editingMenu?.men_id]);
+
+    // Validación en tiempo real
+    const validateField = useCallback((field, value) => {
+        const errors = { ...formErrors };
+        
+        switch (field) {
+            case 'men_nom':
+                if (!value?.trim()) {
+                    errors.men_nom = 'El nombre del menú es requerido';
+                } else if (value.length < 3) {
+                    errors.men_nom = 'El nombre debe tener al menos 3 caracteres';
+                } else {
+                    delete errors.men_nom;
+                }
+                break;
+            case 'men_eje':
+                if (value < 1 || value > 9) {
+                    errors.men_eje = 'El orden debe estar entre 1 y 9';
+                } else {
+                    delete errors.men_eje;
+                }
+                break;
+            default:
+                break;
+        }
+        
+        setFormErrors(errors);
+        return Object.keys(errors).length === 0;
+    }, [formErrors]);
 
     // Manejadores estables con useCallback
     const handleInputChange = useCallback((field, value) => {
@@ -68,97 +108,194 @@ const MenuForm = React.memo(({
             ...prev,
             [field]: value
         }));
-    }, []);
+        
+        // Validar campo en tiempo real
+        validateField(field, value);
+    }, [validateField]);
 
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
 
+        // Validación final
         if (!formData.men_nom?.trim()) {
+            setFormErrors({ men_nom: 'El nombre del menú es requerido' });
             showMessage('error', 'El nombre del menú es requerido');
             return;
         }
 
-        const dataToSend = {
-            ...formData,
-            men_nom: formData.men_nom.trim(),
-            ico_id: formData.ico_id || null,
-            men_componente: formData.men_componente?.trim() || null,
-            men_eje: parseInt(formData.men_eje) || 1,
-            men_ventana_directa: Boolean(formData.men_ventana_directa)
-        };
+        // Activar estado de carga
+        setIsSubmitting(true);
+        setFormErrors({});
 
-        onSave(dataToSend, editingMenu);
+        try {
+            const dataToSend = {
+                ...formData,
+                men_nom: formData.men_nom.trim(),
+                ico_id: formData.ico_id || null,
+                men_componente: formData.men_componente?.trim() || null,
+                men_eje: parseInt(formData.men_eje) || 1,
+                men_ventana_directa: Boolean(formData.men_ventana_directa)
+            };
+
+            // Simular un pequeño delay para mostrar la animación
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            await onSave(dataToSend, editingMenu);
+            
+            // Mostrar éxito brevemente
+            setShowSuccess(true);
+            setTimeout(() => setShowSuccess(false), 1500);
+
+        } catch (error) {
+            console.error('Error en submit:', error);
+        } finally {
+            setIsSubmitting(false);
+        }
     }, [formData, editingMenu, onSave, showMessage]);
 
+    const handleCancel = useCallback(() => {
+        // Animación de salida suave
+        setIsSubmitting(true);
+        setTimeout(() => {
+            onCancel();
+            setIsSubmitting(false);
+        }, 300);
+    }, [onCancel]);
+
+    // Verificar si el formulario es válido
+    const isFormValid = useMemo(() => {
+        return formData.men_nom?.trim() && Object.keys(formErrors).length === 0;
+    }, [formData.men_nom, formErrors]);
+
     return (
-        <div className="bg-white p-6 rounded-lg border border-gray-200 mb-4">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">
-                    {editingMenu ? `Editar Menú #${editingMenu.men_id}` : 'Crear Nuevo Menú'}
-                </h3>
-                <div className="text-xs text-gray-500">
-                    FormData: {JSON.stringify(formData, null, 1)}
+        <div className="bg-white p-6 rounded-xl border border-gray-200 mb-6 shadow-sm transition-all duration-300 hover:shadow-md">
+            {/* Header mejorado */}
+            <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center">
+                    <div className={`p-2 rounded-lg mr-3 transition-all duration-300 ${
+                        editingMenu ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
+                    }`}>
+                        <Icon 
+                            name={editingMenu ? "Edit" : "Plus"} 
+                            size={20} 
+                            className="transition-transform duration-300 hover:scale-110" 
+                        />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-800">
+                            {editingMenu ? `Editar Menú #${editingMenu.men_id}` : 'Crear Nuevo Menú'}
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-1">
+                            {editingMenu ? 'Modifica los datos del menú' : 'Complete los campos para crear un nuevo menú'}
+                        </p>
+                    </div>
                 </div>
+                
+                {/* Indicador de progreso */}
+                {isSubmitting && (
+                    <div className="flex items-center space-x-2 text-blue-600">
+                        <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                        <span className="text-sm font-medium">Procesando...</span>
+                    </div>
+                )}
+                
+                {showSuccess && (
+                    <div className="flex items-center space-x-2 text-green-600 animate-bounce">
+                        <Icon name="CheckCircle" size={16} />
+                        <span className="text-sm font-medium">¡Éxito!</span>
+                    </div>
+                )}
             </div>
 
-            <form onSubmit={handleSubmit}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+            <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Nombre del Menú */}
+                    <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
                             Nombre del Menú *
                         </label>
-                        <input
-                            type="text"
-                            value={formData.men_nom || ''}
-                            onChange={(e) => {
-                                console.log('🖊️ Input onChange:', e.target.value);
-                                handleInputChange('men_nom', e.target.value);
-                            }}
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Ingrese el nombre del menú"
-                            disabled={loading}
-                            autoComplete="off"
-                        />
-                        <div className="text-xs text-gray-400 mt-1">
-                            Valor: "{formData.men_nom}"
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={formData.men_nom || ''}
+                                onChange={(e) => {
+                                    console.log('🖊️ Input onChange:', e.target.value);
+                                    handleInputChange('men_nom', e.target.value);
+                                }}
+                                className={`w-full border rounded-lg px-4 py-3 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                    formErrors.men_nom 
+                                        ? 'border-red-300 bg-red-50' 
+                                        : formData.men_nom?.trim() 
+                                            ? 'border-green-300 bg-green-50' 
+                                            : 'border-gray-300 hover:border-gray-400'
+                                }`}
+                                placeholder="Ingrese el nombre del menú"
+                                disabled={loading || isSubmitting}
+                                autoComplete="off"
+                            />
+                            {formData.men_nom?.trim() && !formErrors.men_nom && (
+                                <div className="absolute right-3 top-3.5">
+                                    <Icon name="Check" size={16} className="text-green-500" />
+                                </div>
+                            )}
+                        </div>
+                        {formErrors.men_nom && (
+                            <p className="text-sm text-red-600 flex items-center animate-shake">
+                                <Icon name="AlertCircle" size={14} className="mr-1" />
+                                {formErrors.men_nom}
+                            </p>
+                        )}
+                        <div className="text-xs text-gray-400">
+                            {formData.men_nom?.length || 0}/50 caracteres
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {/* Icono */}
+                    <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
                             Icono
                         </label>
-                        <select
-                            value={formData.ico_id || ''}
-                            onChange={(e) => handleInputChange('ico_id', e.target.value)}
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            disabled={loading}
-                        >
-                            <option value="">Seleccionar icono</option>
-                            {icons.map((icon) => (
-                                <option key={icon.id || icon.ico_id} value={icon.id || icon.ico_id}>
-                                    {icon.nombre || icon.ico_nom} ({icon.categoria || icon.ico_cat})
-                                </option>
-                            ))}
-                        </select>
+                        <div className="relative">
+                            <select
+                                value={formData.ico_id || ''}
+                                onChange={(e) => handleInputChange('ico_id', e.target.value)}
+                                className="w-full border border-gray-300 rounded-lg px-4 py-3 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 appearance-none bg-white"
+                                disabled={loading || isSubmitting}
+                            >
+                                <option value="">Seleccionar icono</option>
+                                {icons.map((icon) => (
+                                    <option key={icon.id || icon.ico_id} value={icon.id || icon.ico_id}>
+                                        {icon.nombre || icon.ico_nom} ({icon.categoria || icon.ico_cat})
+                                    </option>
+                                ))}
+                            </select>
+                            <div className="absolute right-3 top-3.5 pointer-events-none">
+                                <Icon name="ChevronDown" size={16} className="text-gray-400" />
+                            </div>
+                        </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {/* Componente */}
+                    <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
                             Componente
                         </label>
                         <input
                             type="text"
                             value={formData.men_componente || ''}
                             onChange={(e) => handleInputChange('men_componente', e.target.value)}
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full border border-gray-300 rounded-lg px-4 py-3 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400"
                             placeholder="Ej: ParameWindows"
-                            disabled={loading}
+                            disabled={loading || isSubmitting}
                         />
+                        <div className="text-xs text-gray-500">
+                            Nombre del componente React (opcional)
+                        </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {/* Orden de Ejecución */}
+                    <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
                             Orden de Ejecución
                         </label>
                         <input
@@ -167,47 +304,112 @@ const MenuForm = React.memo(({
                             max="9"
                             value={formData.men_eje || 1}
                             onChange={(e) => handleInputChange('men_eje', parseInt(e.target.value) || 1)}
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            disabled={loading}
+                            className={`w-full border rounded-lg px-4 py-3 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                formErrors.men_eje ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
+                            }`}
+                            disabled={loading || isSubmitting}
                         />
+                        {formErrors.men_eje && (
+                            <p className="text-sm text-red-600 flex items-center">
+                                <Icon name="AlertCircle" size={14} className="mr-1" />
+                                {formErrors.men_eje}
+                            </p>
+                        )}
                     </div>
                 </div>
 
-                <div className="mt-4">
-                    <label className="flex items-center">
+                {/* Ventana Directa */}
+                <div className="flex items-center p-4 bg-gray-50 rounded-lg transition-all duration-300 hover:bg-gray-100">
+                    <label className="flex items-center cursor-pointer">
                         <input
                             type="checkbox"
                             checked={Boolean(formData.men_ventana_directa)}
                             onChange={(e) => handleInputChange('men_ventana_directa', e.target.checked)}
-                            className="mr-2"
-                            disabled={loading}
+                            className="mr-3 w-4 h-4 text-blue-600 transition-all duration-300 focus:ring-2 focus:ring-blue-500 rounded"
+                            disabled={loading || isSubmitting}
                         />
-                        <span className="text-sm text-gray-700">Ventana Directa</span>
+                        <div>
+                            <span className="text-sm font-medium text-gray-700">Ventana Directa</span>
+                            <p className="text-xs text-gray-500 mt-1">
+                                El menú se abrirá directamente sin submenús
+                            </p>
+                        </div>
                     </label>
                 </div>
 
-                <div className="flex gap-2 mt-6">
+                {/* Botones con animaciones mejoradas */}
+                <div className="flex gap-4 pt-4 border-t border-gray-200">
                     <button
                         type="submit"
-                        disabled={loading || !formData.men_nom?.trim()}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                        disabled={loading || isSubmitting || !isFormValid}
+                        className={`relative flex-1 px-6 py-3 rounded-lg font-medium transition-all duration-300 transform ${
+                            isFormValid && !isSubmitting
+                                ? editingMenu
+                                    ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5'
+                                    : 'bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5'
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        }`}
                     >
-                        {loading ? 'Guardando...' : (editingMenu ? 'Actualizar' : 'Crear')}
+                        {isSubmitting ? (
+                            <div className="flex items-center justify-center">
+                                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                                {editingMenu ? 'Actualizando...' : 'Creando...'}
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-center">
+                                <Icon 
+                                    name={editingMenu ? "Save" : "Plus"} 
+                                    size={16} 
+                                    className="mr-2 transition-transform duration-300 group-hover:scale-110" 
+                                />
+                                {editingMenu ? 'Actualizar Menú' : 'Crear Menú'}
+                            </div>
+                        )}
                     </button>
+                    
                     <button
                         type="button"
-                        onClick={onCancel}
-                        disabled={loading}
-                        className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+                        onClick={handleCancel}
+                        disabled={loading || isSubmitting}
+                        className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium transition-all duration-300 hover:bg-gray-200 hover:text-gray-800 transform hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Cancelar
+                        <div className="flex items-center justify-center">
+                            <Icon name="X" size={16} className="mr-2" />
+                            Cancelar
+                        </div>
                     </button>
                 </div>
             </form>
+
+            {/* Overlay de carga */}
+            {isSubmitting && (
+                <div className="absolute inset-0 bg-white bg-opacity-50 rounded-xl flex items-center justify-center">
+                    <div className="bg-white p-4 rounded-lg shadow-lg flex items-center space-x-3">
+                        <div className="animate-spin h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                        <span className="text-gray-700 font-medium">
+                            {editingMenu ? 'Actualizando menú...' : 'Creando menú...'}
+                        </span>
+                    </div>
+                </div>
+            )}
         </div>
     );
 });
 
+// Agregar estas clases CSS personalizadas al final del archivo o en tu CSS global
+const customStyles = `
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
+
+.animate-shake {
+    animation: shake 0.5s ease-in-out;
+}
+`;
+
+MenuForm.displayName = 'MenuForm';
 MenuForm.displayName = 'MenuForm';
 
 // ✅ Componente principal con orden correcto de declaraciones
