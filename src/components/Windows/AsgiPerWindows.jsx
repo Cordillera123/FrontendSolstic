@@ -20,39 +20,45 @@ const TabButton = memo(({ tabId, label, icon, isActive, onClick }) => (
     </button>
 ));
 
-const ProfileCard = memo(({ perfil, isSelected, onClick }) => (
-    <div
-        className={`border rounded-lg p-4 cursor-pointer transition-all ${isSelected
-                ? 'border-blue-500 bg-blue-50 shadow-md'
-                : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300'
-            }`}
-        onClick={onClick}
-    >
-        <div className="flex items-center justify-between">
-            <div>
-                <div className="flex items-center">
-                    <Icon
-                        name={perfil.per_nom.toLowerCase().includes('super') ? 'Crown' : 
-                             perfil.per_nom.toLowerCase().includes('admin') ? 'Shield' : 'User'}
-                        size={16}
-                        className={`mr-2 ${isSelected ? 'text-blue-600' : 'text-gray-500'}`}
-                    />
-                    <span className={`font-medium ${isSelected ? 'text-blue-900' : 'text-gray-900'}`}>
-                        {perfil.per_nom}
-                    </span>
+const ProfileCard = memo(({ perfil, isSelected, onClick }) => {
+    const handleClick = useCallback(() => {
+        onClick(perfil);
+    }, [onClick, perfil]);
+
+    return (
+        <div
+            className={`border rounded-lg p-4 cursor-pointer transition-all ${isSelected
+                    ? 'border-blue-500 bg-blue-50 shadow-md'
+                    : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                }`}
+            onClick={handleClick}
+        >
+            <div className="flex items-center justify-between">
+                <div>
+                    <div className="flex items-center">
+                        <Icon
+                            name={perfil.per_nom.toLowerCase().includes('super') ? 'Crown' : 
+                                 perfil.per_nom.toLowerCase().includes('admin') ? 'Shield' : 'User'}
+                            size={16}
+                            className={`mr-2 ${isSelected ? 'text-blue-600' : 'text-gray-500'}`}
+                        />
+                        <span className={`font-medium ${isSelected ? 'text-blue-900' : 'text-gray-900'}`}>
+                            {perfil.per_nom}
+                        </span>
+                    </div>
+                    <p className={`text-sm mt-1 ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
+                        {perfil.usuarios_count} usuarios
+                    </p>
                 </div>
-                <p className={`text-sm mt-1 ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
-                    {perfil.usuarios_count} usuarios
-                </p>
+                <Icon
+                    name="ChevronRight"
+                    size={16}
+                    className={`transition-colors ${isSelected ? 'text-blue-500' : 'text-gray-400'}`}
+                />
             </div>
-            <Icon
-                name="ChevronRight"
-                size={16}
-                className={`transition-colors ${isSelected ? 'text-blue-500' : 'text-gray-400'}`}
-            />
         </div>
-    </div>
-));
+    );
+});
 
 const PermissionCheckbox = memo(({ checked, onChange, disabled, label, level = 0 }) => {
     const getCheckboxColor = () => {
@@ -74,6 +80,171 @@ const PermissionCheckbox = memo(({ checked, onChange, disabled, label, level = 0
                 {label}
             </span>
         </label>
+    );
+});
+
+const PermissionTreeItem = memo(({ menu, togglePermission, savingPermissions, expandedMenus, expandedSubmenus, toggleMenuExpansion, toggleSubmenuExpansion }) => {
+    const isMenuExpanded = expandedMenus.has(menu.men_id);
+    const hasSubmenus = menu.submenus && menu.submenus.length > 0;
+
+    const handleToggleExpansion = useCallback(() => {
+        toggleMenuExpansion(menu.men_id);
+    }, [menu.men_id, toggleMenuExpansion]);
+
+    const handlePermissionChange = useCallback(() => {
+        togglePermission(menu.men_id, null, null, menu.has_permission);
+    }, [menu.men_id, menu.has_permission, togglePermission]);
+
+    return (
+        <div className="mb-3">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                <div className="flex items-center flex-1">
+                    {hasSubmenus && (
+                        <button
+                            onClick={handleToggleExpansion}
+                            className="mr-2 p-1 hover:bg-gray-200 rounded"
+                            disabled={savingPermissions}
+                            type="button"
+                        >
+                            <Icon
+                                name={isMenuExpanded ? 'ChevronDown' : 'ChevronRight'}
+                                size={14}
+                                className="text-gray-500"
+                            />
+                        </button>
+                    )}
+
+                    <div className="flex items-center flex-1">
+                        {menu.ico_nombre && (
+                            <Icon name={menu.ico_nombre} size={16} className="mr-2 text-gray-600" />
+                        )}
+                        <span className="font-medium text-gray-900">{menu.men_nom}</span>
+                        {menu.men_componente && (
+                            <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-mono">
+                                {menu.men_componente}
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                <PermissionCheckbox
+                    checked={menu.has_permission}
+                    onChange={handlePermissionChange}
+                    disabled={savingPermissions}
+                    label="Acceso al menú"
+                    level={0}
+                />
+            </div>
+
+            {hasSubmenus && isMenuExpanded && (
+                <div className="ml-6 mt-2 space-y-2">
+                    {menu.submenus.map(submenu => (
+                        <SubmenuTreeItem
+                            key={submenu.sub_id}
+                            submenu={submenu}
+                            menuId={menu.men_id}
+                            togglePermission={togglePermission}
+                            savingPermissions={savingPermissions}
+                            expandedSubmenus={expandedSubmenus}
+                            toggleSubmenuExpansion={toggleSubmenuExpansion}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+});
+
+const SubmenuTreeItem = memo(({ submenu, menuId, togglePermission, savingPermissions, expandedSubmenus, toggleSubmenuExpansion }) => {
+    const isSubmenuExpanded = expandedSubmenus.has(submenu.sub_id);
+    const hasOptions = submenu.opciones && submenu.opciones.length > 0;
+
+    const handleToggleExpansion = useCallback(() => {
+        toggleSubmenuExpansion(submenu.sub_id);
+    }, [submenu.sub_id, toggleSubmenuExpansion]);
+
+    const handlePermissionChange = useCallback(() => {
+        togglePermission(menuId, submenu.sub_id, null, submenu.has_permission);
+    }, [menuId, submenu.sub_id, submenu.has_permission, togglePermission]);
+
+    return (
+        <div className="border-l-2 border-purple-200 pl-4">
+            <div className="flex items-center justify-between p-2 bg-purple-50 rounded border">
+                <div className="flex items-center flex-1">
+                    {hasOptions && (
+                        <button
+                            onClick={handleToggleExpansion}
+                            className="mr-2 p-1 hover:bg-purple-100 rounded"
+                            disabled={savingPermissions}
+                            type="button"
+                        >
+                            <Icon
+                                name={isSubmenuExpanded ? 'ChevronDown' : 'ChevronRight'}
+                                size={12}
+                                className="text-purple-600"
+                            />
+                        </button>
+                    )}
+
+                    <div className="flex items-center flex-1">
+                        {submenu.ico_nombre && (
+                            <Icon name={submenu.ico_nombre} size={14} className="mr-2 text-purple-600" />
+                        )}
+                        <span className="text-sm font-medium text-purple-900">{submenu.sub_nom}</span>
+                        {submenu.sub_componente && (
+                            <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-800 rounded text-xs font-mono">
+                                {submenu.sub_componente}
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                <PermissionCheckbox
+                    checked={submenu.has_permission}
+                    onChange={handlePermissionChange}
+                    disabled={savingPermissions}
+                    label="Acceso al submenú"
+                    level={1}
+                />
+            </div>
+
+            {hasOptions && isSubmenuExpanded && (
+                <div className="ml-4 mt-2 space-y-1">
+                    {submenu.opciones.map(opcion => {
+                        const handleOptionPermissionChange = () => {
+                            togglePermission(menuId, submenu.sub_id, opcion.opc_id, opcion.has_permission);
+                        };
+
+                        return (
+                            <div
+                                key={opcion.opc_id}
+                                className="flex items-center justify-between p-2 bg-green-50 rounded border border-green-200"
+                            >
+                                <div className="flex items-center flex-1">
+                                    {opcion.ico_nombre && (
+                                        <Icon name={opcion.ico_nombre} size={12} className="mr-2 text-green-600" />
+                                    )}
+                                    <span className="text-sm text-green-900">{opcion.opc_nom}</span>
+                                    {opcion.opc_componente && (
+                                        <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-800 rounded text-xs font-mono">
+                                            {opcion.opc_componente}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <PermissionCheckbox
+                                    checked={opcion.has_permission}
+                                    onChange={handleOptionPermissionChange}
+                                    disabled={savingPermissions}
+                                    label="Acceso a la opción"
+                                    level={2}
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
     );
 });
 
@@ -176,7 +347,7 @@ const AsgiPerWindows = ({ data }) => {
         if (selectedProfile && activeTab === 'profiles') {
             loadMenuStructure(selectedProfile.per_id);
         }
-    }, [selectedProfile?.per_id, activeTab]); // Solo el ID del perfil
+    }, [selectedProfile?.per_id, activeTab, loadMenuStructure]); // Agregar loadMenuStructure
 
     // ===== MANEJO DE PERMISOS =====
     const togglePermission = useCallback(async (menId, subId = null, opcId = null, currentState) => {
@@ -230,168 +401,6 @@ const AsgiPerWindows = ({ data }) => {
             return newSet;
         });
     }, []);
-
-    // ===== COMPONENTES INTERNOS MEMOIZADOS =====
-    const MenuTreeItem = memo(({ menu }) => {
-        const isMenuExpanded = expandedMenus.has(menu.men_id);
-        const hasSubmenus = menu.submenus && menu.submenus.length > 0;
-
-        const handleToggleExpansion = useCallback(() => {
-            toggleMenuExpansion(menu.men_id);
-        }, [menu.men_id]);
-
-        const handlePermissionChange = useCallback(() => {
-            togglePermission(menu.men_id, null, null, menu.has_permission);
-        }, [menu.men_id, menu.has_permission]);
-
-        return (
-            <div className="mb-3">
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                    <div className="flex items-center flex-1">
-                        {hasSubmenus && (
-                            <button
-                                onClick={handleToggleExpansion}
-                                className="mr-2 p-1 hover:bg-gray-200 rounded"
-                                disabled={savingPermissions}
-                                type="button"
-                            >
-                                <Icon
-                                    name={isMenuExpanded ? 'ChevronDown' : 'ChevronRight'}
-                                    size={14}
-                                    className="text-gray-500"
-                                />
-                            </button>
-                        )}
-
-                        <div className="flex items-center flex-1">
-                            {menu.ico_nombre && (
-                                <Icon name={menu.ico_nombre} size={16} className="mr-2 text-gray-600" />
-                            )}
-                            <span className="font-medium text-gray-900">{menu.men_nom}</span>
-                            {menu.men_componente && (
-                                <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-mono">
-                                    {menu.men_componente}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-
-                    <PermissionCheckbox
-                        checked={menu.has_permission}
-                        onChange={handlePermissionChange}
-                        disabled={savingPermissions}
-                        label="Acceso al menú"
-                        level={0}
-                    />
-                </div>
-
-                {hasSubmenus && isMenuExpanded && (
-                    <div className="ml-6 mt-2 space-y-2">
-                        {menu.submenus.map(submenu => (
-                            <SubmenuTreeItem
-                                key={submenu.sub_id}
-                                submenu={submenu}
-                                menuId={menu.men_id}
-                            />
-                        ))}
-                    </div>
-                )}
-            </div>
-        );
-    });
-
-    const SubmenuTreeItem = memo(({ submenu, menuId }) => {
-        const isSubmenuExpanded = expandedSubmenus.has(submenu.sub_id);
-        const hasOptions = submenu.opciones && submenu.opciones.length > 0;
-
-        const handleToggleExpansion = useCallback(() => {
-            toggleSubmenuExpansion(submenu.sub_id);
-        }, [submenu.sub_id]);
-
-        const handlePermissionChange = useCallback(() => {
-            togglePermission(menuId, submenu.sub_id, null, submenu.has_permission);
-        }, [menuId, submenu.sub_id, submenu.has_permission]);
-
-        return (
-            <div className="border-l-2 border-purple-200 pl-4">
-                <div className="flex items-center justify-between p-2 bg-purple-50 rounded border">
-                    <div className="flex items-center flex-1">
-                        {hasOptions && (
-                            <button
-                                onClick={handleToggleExpansion}
-                                className="mr-2 p-1 hover:bg-purple-100 rounded"
-                                disabled={savingPermissions}
-                                type="button"
-                            >
-                                <Icon
-                                    name={isSubmenuExpanded ? 'ChevronDown' : 'ChevronRight'}
-                                    size={12}
-                                    className="text-purple-600"
-                                />
-                            </button>
-                        )}
-
-                        <div className="flex items-center flex-1">
-                            {submenu.ico_nombre && (
-                                <Icon name={submenu.ico_nombre} size={14} className="mr-2 text-purple-600" />
-                            )}
-                            <span className="text-sm font-medium text-purple-900">{submenu.sub_nom}</span>
-                            {submenu.sub_componente && (
-                                <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-800 rounded text-xs font-mono">
-                                    {submenu.sub_componente}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-
-                    <PermissionCheckbox
-                        checked={submenu.has_permission}
-                        onChange={handlePermissionChange}
-                        disabled={savingPermissions}
-                        label="Acceso al submenú"
-                        level={1}
-                    />
-                </div>
-
-                {hasOptions && isSubmenuExpanded && (
-                    <div className="ml-4 mt-2 space-y-1">
-                        {submenu.opciones.map(opcion => {
-                            const handleOptionPermissionChange = () => {
-                                togglePermission(menuId, submenu.sub_id, opcion.opc_id, opcion.has_permission);
-                            };
-
-                            return (
-                                <div
-                                    key={opcion.opc_id}
-                                    className="flex items-center justify-between p-2 bg-green-50 rounded border border-green-200"
-                                >
-                                    <div className="flex items-center flex-1">
-                                        {opcion.ico_nombre && (
-                                            <Icon name={opcion.ico_nombre} size={12} className="mr-2 text-green-600" />
-                                        )}
-                                        <span className="text-sm text-green-900">{opcion.opc_nom}</span>
-                                        {opcion.opc_componente && (
-                                            <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-800 rounded text-xs font-mono">
-                                                {opcion.opc_componente}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <PermissionCheckbox
-                                        checked={opcion.has_permission}
-                                        onChange={handleOptionPermissionChange}
-                                        disabled={savingPermissions}
-                                        label="Acceso a la opción"
-                                        level={2}
-                                    />
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-        );
-    });
 
     // ===== ACCIONES MASIVAS MEMOIZADAS =====
     const expandAllMenus = useCallback(() => {
@@ -525,7 +534,7 @@ const AsgiPerWindows = ({ data }) => {
                                     key={perfil.per_id}
                                     perfil={perfil}
                                     isSelected={selectedProfile?.per_id === perfil.per_id}
-                                    onClick={() => handleProfileSelect(perfil)}
+                                    onClick={handleProfileSelect}
                                 />
                             ))}
                         </div>
@@ -592,7 +601,16 @@ const AsgiPerWindows = ({ data }) => {
                                     ) : menuStructure.length > 0 ? (
                                         <div className="space-y-3">
                                             {menuStructure.map(menu => (
-                                                <MenuTreeItem key={menu.men_id} menu={menu} />
+                                                <PermissionTreeItem 
+                                                    key={menu.men_id} 
+                                                    menu={menu} 
+                                                    togglePermission={togglePermission}
+                                                    savingPermissions={savingPermissions}
+                                                    expandedMenus={expandedMenus}
+                                                    expandedSubmenus={expandedSubmenus}
+                                                    toggleMenuExpansion={toggleMenuExpansion}
+                                                    toggleSubmenuExpansion={toggleSubmenuExpansion}
+                                                />
                                             ))}
                                         </div>
                                     ) : (
