@@ -1,8 +1,10 @@
 // services/apiService.js - CORREGIDO SIN RECARGAS
 import axios from 'axios';
 
-// Configuración base de axios
-const API_BASE_URL = 'http://127.0.0.1:8000/api'; // Cambiar por tu URL correcta
+
+// Configuración base de axios - IMPORTANTE: Usar la misma URL en todo el sistema
+const API_BASE_URL = 'http://192.168.200.47:8000/api'; // Cambiar por tu URL correcta
+
 
 // Crear instancia de axios
 const apiClient = axios.create({
@@ -623,6 +625,94 @@ export const adminService = {
         throw apiUtils.handleApiError(error);
       }
     }
+
+=======
+  },
+  users: {
+    getAll: (params = {}) => {
+      return axios.get('/usuarios', { params }).then(response => ({
+        status: 'success',
+        data: response.data
+      })).catch(error => {
+        console.error('Error in usuarios.getAll:', error);
+        throw error;
+      });
+    },
+
+    delete: (userId) => {
+      return axios.delete(`/usuarios/${userId}`).then(response => ({
+        status: 'success',
+        message: 'Usuario eliminado correctamente'
+      })).catch(error => {
+        console.error('Error in usuarios.delete:', error);
+        throw error;
+      });
+    },
+
+    getPermissions: (userId) => {
+      return axios.get(`/usuarios/${userId}/permisos`).then(response => ({
+        status: 'success',
+        data: response.data
+      })).catch(error => {
+        console.error('Error in usuarios.getPermissions:', error);
+        throw error;
+      });
+    },
+
+    assignPermissions: (userId, permissionsData) => {
+      return axios.post(`/usuarios/${userId}/permisos`, permissionsData).then(response => ({
+        status: 'success',
+        message: 'Permisos asignados correctamente'
+      })).catch(error => {
+        console.error('Error in usuarios.assignPermissions:', error);
+        throw error;
+      });
+    }
+  },
+
+  perfiles: {
+    getAll: () => {
+      return axios.get('/perfiles').then(response => ({
+        status: 'success',
+        data: response.data.data || response.data // Adaptar según tu API
+      })).catch(error => {
+        console.error('Error in perfiles.getAll:', error);
+        throw error;
+      });
+    },
+
+    create: (perfilData) => {
+      return axios.post('/perfiles', perfilData).then(response => ({
+        status: 'success',
+        message: 'Perfil creado correctamente',
+        data: response.data
+      })).catch(error => {
+        console.error('Error in perfiles.create:', error);
+        throw error;
+      });
+    },
+
+    update: (perfilId, perfilData) => {
+      return axios.put(`/perfiles/${perfilId}`, perfilData).then(response => ({
+        status: 'success',
+        message: 'Perfil actualizado correctamente',
+        data: response.data
+      })).catch(error => {
+        console.error('Error in perfiles.update:', error);
+        throw error;
+      });
+    },
+
+    delete: (perfilId) => {
+      return axios.delete(`/perfiles/${perfilId}`).then(response => ({
+        status: 'success',
+        message: 'Perfil eliminado correctamente'
+      })).catch(error => {
+        console.error('Error in perfiles.delete:', error);
+        throw error;
+      });
+    }
+
   }
 };
 
