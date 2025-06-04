@@ -452,7 +452,7 @@ const AsgiPerUsWindows = ({ showMessage }) => {
       setLoading(true);
       try {
         const url = perfilId ? `/usuarios?perfil_id=${perfilId}` : "/usuarios";
-        const response = await fetch(`http://localhost:8000/api${url}`, {
+        const response = await fetch(`http://192.168.200.51/api${url}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
             "Content-Type": "application/json",
@@ -494,7 +494,7 @@ const loadUserPermissions = useCallback(async (userId) => {
     if (!userId) return;
     setLoadingPermissions(true);
     try {
-        const response = await fetch(`http://localhost:8000/api/usuarios/${userId}/permissions`, {
+        const response = await fetch(`http://192.168.200.51/api/usuarios/${userId}/permissions`, {
             headers: {
                 Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
                 "Content-Type": "application/json",
@@ -576,7 +576,7 @@ const loadUserPermissions = useCallback(async (userId) => {
       setSavingPermissions(true);
       try {
         const response = await fetch(
-          `http://localhost:8000/api/usuarios/${selectedUser.usu_id}/assign-permissions`,
+          `http://192.168.200.51/api/usuarios/${selectedUser.usu_id}/assign-permissions`,
           {
             method: "POST",
             headers: {

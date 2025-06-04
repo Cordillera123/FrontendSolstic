@@ -322,8 +322,7 @@ const UsuParamWindow = ({ data, showMessage }) => {
 
       // Intentar diferentes URLs según tu configuración
       const possibleUrls = [
-        "http://127.0.0.1:8000/api/usuarios",
-        "http://localhost:8000/api/usuarios",
+        "http://192.168.200.51/api/usuarios",
       ];
 
       let response = null;
@@ -412,7 +411,7 @@ const UsuParamWindow = ({ data, showMessage }) => {
 
       // Intentar diferentes URLs según tu configuración
       const possibleUrls = [
-        "http://127.0.0.1:8000/api/perfiles"
+        "http://192.168.200.51/api/perfiles"
       ];
 
       let response = null;
@@ -502,8 +501,7 @@ const UsuParamWindow = ({ data, showMessage }) => {
   // ===== FUNCIÓN HELPER PARA OBTENER URL VÁLIDA =====
   const getValidApiUrl = useCallback(async (endpoint) => {
     const possibleUrls = [
-      `http://127.0.0.1:8000/api/${endpoint}`,
-      `http://localhost:8000/api/${endpoint}`,
+      `http://192.168.200.51/api/${endpoint}`,
     ];
 
     const token = localStorage.getItem("auth_token");
@@ -527,7 +525,7 @@ const UsuParamWindow = ({ data, showMessage }) => {
       }
     }
 
-    return "http://127.0.0.1:8000/api"; // Default fallback
+    return "http://192.168.200.51/api"; // Default fallback
   }, []);
 
   // ===== ACCIONES DE USUARIO =====
