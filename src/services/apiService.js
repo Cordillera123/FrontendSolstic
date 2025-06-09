@@ -3,7 +3,7 @@
 import axios from 'axios';
 
 // Configuración base de axios
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
+const API_BASE_URL = 'http://192.168.200.51/api';
 
 // Crear instancia de axios
 const apiClient = axios.create({
