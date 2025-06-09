@@ -1,10 +1,10 @@
-// src/components/Windows/SubmenuComponents.jsx
+// src/components/Windows/SubmenuComponents.jsx - MIGRADO A BOTONES PARAMETRIZADOS
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useButtonPermissions } from '../../hooks/useButtonPermissions';
 import { adminService } from '../../services/apiService';
 import Icon from '../UI/Icon';
 
-// ✅ Componente SubmenuForm independiente
-// SubmenuForm mejorado con animaciones y mejoras estéticas
+// ✅ Componente SubmenuForm independiente (sin cambios - mantiene funcionalidad original)
 const SubmenuForm = React.memo(({
     editingSubmenu,
     icons,
@@ -553,27 +553,9 @@ const SubmenuForm = React.memo(({
     );
 });
 
-// CSS adicional para animaciones
-const additionalStyles = `
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.hover\\:scale-102:hover {
-    transform: scale(1.02);
-}
-`;
-
 SubmenuForm.displayName = 'SubmenuForm';
 
-// ✅ Componente de Lista de Submenús
+// ✅ Componente de Lista de Submenús MIGRADO A BOTONES PARAMETRIZADOS
 const SubmenusList = React.memo(({
     submenus,
     loading,
@@ -581,121 +563,241 @@ const SubmenusList = React.memo(({
     onEdit,
     onDelete,
     showMessage
-}) => (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Lista de Submenús ({submenus.length})</h3>
-            <button
-                onClick={onNew}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center"
-                disabled={loading}
-            >
-                <Icon name="Plus" size={16} className="mr-2" />
-                Nuevo Submenú
-            </button>
-        </div>
+}) => {
+    // ===== CONFIGURACIÓN =====
+    const MENU_ID = 1; // ID del menú "Parametrización de Módulos"
 
-        {submenus.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-                <Icon name="Layers" size={48} className="mx-auto mb-4 text-gray-300" />
-                <p>No hay submenús registrados</p>
+    // ===== HOOK DE PERMISOS =====
+    const {
+        canCreate,
+        canRead,
+        canUpdate,
+        canDelete,
+        loading: permissionsLoading,
+        error: permissionsError
+    } = useButtonPermissions(MENU_ID, null, true, 'menu');
+
+    // ===== VALIDACIONES DE PERMISOS =====
+    if (permissionsLoading) {
+        return (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mr-3"></div>
+                    <span className="text-gray-600">Cargando permisos de submenús...</span>
+                </div>
             </div>
-        ) : (
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                    <thead>
-                        <tr className="border-b border-gray-200">
-                            <th className="text-left py-2">ID</th>
-                            <th className="text-left py-2">Nombre</th>
-                            <th className="text-left py-2">Componente</th>
-                            <th className="text-left py-2">Menús Asignados</th>
-                            <th className="text-left py-2">Ventana Directa</th>
-                            <th className="text-left py-2">Estado</th>
-                            <th className="text-left py-2">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {submenus.map((submenu) => (
-                            <tr key={submenu.sub_id} className="border-b border-gray-100 hover:bg-gray-50">
-                                <td className="py-2 text-xs text-gray-500">#{submenu.sub_id}</td>
-                                <td className="py-2 font-medium">{submenu.sub_nom}</td>
-                                <td className="py-2">
-                                    {submenu.sub_componente ? (
-                                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs font-mono">
-                                            {submenu.sub_componente}
-                                        </span>
-                                    ) : (
-                                        <span className="text-gray-400">-</span>
-                                    )}
-                                </td>
-                                <td className="py-2">
-                                    {submenu.menus && submenu.menus.length > 0 ? (
-                                        <div className="flex flex-wrap gap-1">
-                                            {submenu.menus.map(menu => (
-                                                <span
-                                                    key={menu.men_id}
-                                                    className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs"
-                                                    title={`Menú ID: ${menu.men_id}`}
-                                                >
-                                                    {menu.men_nom}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <span className="text-gray-400">Sin asignar</span>
-                                    )}
-                                </td>
-                                <td className="py-2">
-                                    {submenu.sub_ventana_directa ?
-                                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Sí</span> :
-                                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">No</span>
-                                    }
-                                </td>
-                                <td className="py-2">
-                                    <span className={`px-2 py-1 rounded-full text-xs ${submenu.sub_est ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                                        }`}>
-                                        {submenu.sub_est ? 'Activo' : 'Inactivo'}
-                                    </span>
-                                </td>
-                                <td className="py-2">
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => onEdit(submenu)}
-                                            className="p-1 text-blue-600 hover:bg-blue-100 rounded"
-                                            disabled={loading}
-                                            title="Editar submenú"
-                                        >
-                                            <Icon name="Edit" size={14} />
-                                        </button>
-                                        <button
-                                            onClick={() => onDelete(submenu)}
-                                            className="p-1 text-red-600 hover:bg-red-100 rounded"
-                                            disabled={loading}
-                                            title="Eliminar submenú"
-                                        >
-                                            <Icon name="Trash" size={14} />
-                                        </button>
-                                    </div>
-                                </td>
+        );
+    }
+
+    if (permissionsError) {
+        return (
+            <div className="bg-white rounded-lg border border-red-200 p-4">
+                <div className="text-center py-8">
+                    <Icon name="AlertCircle" size={24} className="mx-auto mb-3 text-red-300" />
+                    <p className="text-red-600 mb-2">Error al cargar permisos de submenús</p>
+                    <p className="text-sm text-red-500">{permissionsError}</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!canRead) {
+        return (
+            <div className="bg-white rounded-lg border border-yellow-200 p-4">
+                <div className="text-center py-8">
+                    <Icon name="Lock" size={24} className="mx-auto mb-3 text-yellow-300" />
+                    <p className="text-yellow-600 mb-2">Sin permisos para ver submenús</p>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-left max-w-md mx-auto">
+                        <p className="text-xs text-yellow-700">
+                            <strong>Menu ID:</strong> {MENU_ID} | 
+                            <strong> READ:</strong> {canRead ? 'SÍ' : 'NO'}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold flex items-center">
+                    <Icon name="Layers" size={20} className="mr-2 text-purple-600" />
+                    Lista de Submenús ({submenus.length})
+                    <span className="ml-3 text-sm bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                        Menu ID: {MENU_ID}
+                    </span>
+                </h3>
+                {/* ✅ BOTÓN CREATE PARAMETRIZADO */}
+                {canCreate && (
+                    <button
+                        onClick={onNew}
+                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center transition-all duration-300"
+                        disabled={loading}
+                    >
+                        <Icon name="Plus" size={16} className="mr-2" />
+                        Nuevo Submenú
+                    </button>
+                )}
+            </div>
+
+            {/* Debug de permisos */}
+            <div className="mb-4 p-2 bg-purple-50 border border-purple-200 rounded text-xs">
+                <strong>Permisos Submenús:</strong>
+                <span className={`ml-2 px-2 py-0.5 rounded ${canCreate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    CREATE: {canCreate ? 'SÍ' : 'NO'}
+                </span>
+                <span className={`ml-2 px-2 py-0.5 rounded ${canRead ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    READ: {canRead ? 'SÍ' : 'NO'}
+                </span>
+                <span className={`ml-2 px-2 py-0.5 rounded ${canUpdate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    UPDATE: {canUpdate ? 'SÍ' : 'NO'}
+                </span>
+                <span className={`ml-2 px-2 py-0.5 rounded ${canDelete ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    DELETE: {canDelete ? 'SÍ' : 'NO'}
+                </span>
+            </div>
+
+            {submenus.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                    <Icon name="Layers" size={48} className="mx-auto mb-4 text-gray-300" />
+                    <p>No hay submenús registrados</p>
+                    {canCreate && (
+                        <p className="text-sm text-gray-400 mt-2">Haz clic en "Nuevo Submenú" para empezar</p>
+                    )}
+                </div>
+            ) : (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="border-b border-gray-200">
+                                <th className="text-left py-2">ID</th>
+                                <th className="text-left py-2">Nombre</th>
+                                <th className="text-left py-2">Componente</th>
+                                <th className="text-left py-2">Menús Asignados</th>
+                                <th className="text-left py-2">Ventana Directa</th>
+                                <th className="text-left py-2">Estado</th>
+                                <th className="text-left py-2">Acciones</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        )}
-    </div>
-));
+                        </thead>
+                        <tbody>
+                            {submenus.map((submenu) => (
+                                <tr key={submenu.sub_id} className="border-b border-gray-100 hover:bg-gray-50">
+                                    <td className="py-2 text-xs text-gray-500">#{submenu.sub_id}</td>
+                                    <td className="py-2 font-medium">{submenu.sub_nom}</td>
+                                    <td className="py-2">
+                                        {submenu.sub_componente ? (
+                                            <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs font-mono">
+                                                {submenu.sub_componente}
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-400">-</span>
+                                        )}
+                                    </td>
+                                    <td className="py-2">
+                                        {submenu.menus && submenu.menus.length > 0 ? (
+                                            <div className="flex flex-wrap gap-1">
+                                                {submenu.menus.map(menu => (
+                                                    <span
+                                                        key={menu.men_id}
+                                                        className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs"
+                                                        title={`Menú ID: ${menu.men_id}`}
+                                                    >
+                                                        {menu.men_nom}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <span className="text-gray-400">Sin asignar</span>
+                                        )}
+                                    </td>
+                                    <td className="py-2">
+                                        {submenu.sub_ventana_directa ?
+                                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Sí</span> :
+                                            <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">No</span>
+                                        }
+                                    </td>
+                                    <td className="py-2">
+                                        <span className={`px-2 py-1 rounded-full text-xs ${submenu.sub_est ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                            }`}>
+                                            {submenu.sub_est ? 'Activo' : 'Inactivo'}
+                                        </span>
+                                    </td>
+                                    <td className="py-2">
+                                        <div className="flex gap-2">
+                                            {/* ✅ BOTÓN UPDATE PARAMETRIZADO */}
+                                            {canUpdate && (
+                                                <button
+                                                    onClick={() => onEdit(submenu)}
+                                                    className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors duration-300"
+                                                    disabled={loading}
+                                                    title="Editar submenú"
+                                                >
+                                                    <Icon name="Edit" size={14} />
+                                                </button>
+                                            )}
+                                            {/* ✅ BOTÓN DELETE PARAMETRIZADO */}
+                                            {canDelete && (
+                                                <button
+                                                    onClick={() => onDelete(submenu)}
+                                                    className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors duration-300"
+                                                    disabled={loading}
+                                                    title="Eliminar submenú"
+                                                >
+                                                    <Icon name="Trash" size={14} />
+                                                </button>
+                                            )}
+                                            {/* Mostrar mensaje si no hay permisos */}
+                                            {!canUpdate && !canDelete && (
+                                                <span className="text-xs text-gray-400 px-2 py-1">
+                                                    Sin permisos
+                                                </span>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+});
 
 SubmenusList.displayName = 'SubmenusList';
 
-// ✅ Hook personalizado para gestión de submenús
+// ✅ Hook personalizado para gestión de submenús MIGRADO CON VALIDACIONES DE PERMISOS
 const useSubmenuManagement = (showMessage, loadSubmenus) => {
+    // ===== CONFIGURACIÓN =====
+    const MENU_ID = 1; // ID del menú "Parametrización de Módulos"
+
+    // ===== HOOK DE PERMISOS =====
+    const {
+        canCreate,
+        canUpdate,
+        canDelete
+    } = useButtonPermissions(MENU_ID, null, true, 'menu');
+
+    // ===== ESTADOS =====
     const [showSubmenuForm, setShowSubmenuForm] = useState(false);
     const [editingSubmenu, setEditingSubmenu] = useState(null);
     const [submenuFormKey, setSubmenuFormKey] = useState(0);
 
+    // ===== HANDLERS CON VALIDACIÓN DE PERMISOS =====
     const handleSubmenuSave = useCallback(async (formData, editingSubmenu) => {
         console.log('💾 Guardando submenú:', formData);
+
+        // ✅ VALIDACIÓN DE PERMISOS
+        if (editingSubmenu && !canUpdate) {
+            showMessage('error', 'No tienes permisos para actualizar submenús');
+            return;
+        }
+        
+        if (!editingSubmenu && !canCreate) {
+            showMessage('error', 'No tienes permisos para crear submenús');
+            return;
+        }
 
         try {
             const cleanData = {
@@ -739,7 +841,7 @@ const useSubmenuManagement = (showMessage, loadSubmenus) => {
 
             showMessage('error', errorMsg);
         }
-    }, [showMessage, loadSubmenus]);
+    }, [showMessage, loadSubmenus, canCreate, canUpdate]);
 
     const handleSubmenuCancel = useCallback(() => {
         console.log('❌ Cancelando formulario de submenú');
@@ -749,32 +851,52 @@ const useSubmenuManagement = (showMessage, loadSubmenus) => {
     }, []);
 
     const handleNewSubmenu = useCallback(() => {
+        // ✅ VALIDACIÓN DE PERMISOS
+        if (!canCreate) {
+            showMessage('error', 'No tienes permisos para crear submenús');
+            return;
+        }
+
         console.log('➕ Nuevo submenú');
         setEditingSubmenu(null);
         setShowSubmenuForm(true);
         setSubmenuFormKey(prev => prev + 1);
-    }, []);
+    }, [canCreate, showMessage]);
 
     const handleEditSubmenu = useCallback((submenu) => {
+        // ✅ VALIDACIÓN DE PERMISOS
+        if (!canUpdate) {
+            showMessage('error', 'No tienes permisos para editar submenús');
+            return;
+        }
+
         console.log('✏️ Editar submenú:', submenu.sub_id);
         setEditingSubmenu(submenu);
         setShowSubmenuForm(true);
         setSubmenuFormKey(prev => prev + 1);
-    }, []);
+    }, [canUpdate, showMessage]);
 
     const handleDeleteSubmenu = useCallback(async (submenu) => {
-        if (window.confirm(`¿Eliminar el submenú "${submenu.sub_nom}"?`)) {
-            try {
-                await adminService.submenus.delete(submenu.sub_id);
-                showMessage('success', 'Submenú eliminado correctamente');
-                await loadSubmenus();
-            } catch (error) {
-                console.error('Error eliminando submenú:', error);
-                const errorMsg = error.response?.data?.message || 'Error al eliminar el submenú';
-                showMessage('error', errorMsg);
-            }
+        // ✅ VALIDACIÓN DE PERMISOS
+        if (!canDelete) {
+            showMessage('error', 'No tienes permisos para eliminar submenús');
+            return;
         }
-    }, [showMessage, loadSubmenus]);
+
+        if (!window.confirm(`¿Eliminar el submenú "${submenu.sub_nom}"?`)) {
+            return;
+        }
+
+        try {
+            await adminService.submenus.delete(submenu.sub_id);
+            showMessage('success', 'Submenú eliminado correctamente');
+            await loadSubmenus();
+        } catch (error) {
+            console.error('Error eliminando submenú:', error);
+            const errorMsg = error.response?.data?.message || 'Error al eliminar el submenú';
+            showMessage('error', errorMsg);
+        }
+    }, [canDelete, showMessage, loadSubmenus]);
 
     return {
         showSubmenuForm,

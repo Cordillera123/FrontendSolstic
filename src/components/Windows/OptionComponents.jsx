@@ -1,10 +1,10 @@
-// src/components/Windows/OptionComponents.jsx
+// src/components/Windows/OptionComponents.jsx - MIGRADO A BOTONES PARAMETRIZADOS
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useButtonPermissions } from '../../hooks/useButtonPermissions';
 import { adminService } from '../../services/apiService';
 import Icon from '../UI/Icon';
 
-// ✅ Componente OptionForm independiente
-// OptionForm mejorado con animaciones y mejoras estéticas
+// ✅ Componente OptionForm independiente (sin cambios - mantiene funcionalidad original)
 const OptionForm = React.memo(({
     editingOption,
     icons,
@@ -646,27 +646,9 @@ const OptionForm = React.memo(({
     );
 });
 
-// CSS adicional para animaciones
-const moreCustomStyles = `
-@keyframes fadeInLeft {
-    from {
-        opacity: 0;
-        transform: translateX(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-.hover\\:scale-101:hover {
-    transform: scale(1.01);
-}
-`;
-
 OptionForm.displayName = 'OptionForm';
 
-// ✅ Componente de Lista de Opciones
+// ✅ Componente de Lista de Opciones MIGRADO A BOTONES PARAMETRIZADOS
 const OptionsList = React.memo(({
     options,
     loading,
@@ -674,121 +656,241 @@ const OptionsList = React.memo(({
     onEdit,
     onDelete,
     showMessage
-}) => (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Lista de Opciones ({options.length})</h3>
-            <button
-                onClick={onNew}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center"
-                disabled={loading}
-            >
-                <Icon name="Plus" size={16} className="mr-2" />
-                Nueva Opción
-            </button>
-        </div>
+}) => {
+    // ===== CONFIGURACIÓN =====
+    const MENU_ID = 1; // ID del menú "Parametrización de Módulos"
 
-        {options.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-                <Icon name="Settings" size={48} className="mx-auto mb-4 text-gray-300" />
-                <p>No hay opciones registradas</p>
+    // ===== HOOK DE PERMISOS =====
+    const {
+        canCreate,
+        canRead,
+        canUpdate,
+        canDelete,
+        loading: permissionsLoading,
+        error: permissionsError
+    } = useButtonPermissions(MENU_ID, null, true, 'menu');
+
+    // ===== VALIDACIONES DE PERMISOS =====
+    if (permissionsLoading) {
+        return (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-600 mr-3"></div>
+                    <span className="text-gray-600">Cargando permisos de opciones...</span>
+                </div>
             </div>
-        ) : (
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                    <thead>
-                        <tr className="border-b border-gray-200">
-                            <th className="text-left py-2">ID</th>
-                            <th className="text-left py-2">Nombre</th>
-                            <th className="text-left py-2">Componente</th>
-                            <th className="text-left py-2">Submenús Asignados</th>
-                            <th className="text-left py-2">Ventana Directa</th>
-                            <th className="text-left py-2">Estado</th>
-                            <th className="text-left py-2">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {options.map((option) => (
-                            <tr key={option.opc_id} className="border-b border-gray-100 hover:bg-gray-50">
-                                <td className="py-2 text-xs text-gray-500">#{option.opc_id}</td>
-                                <td className="py-2 font-medium">{option.opc_nom}</td>
-                                <td className="py-2">
-                                    {option.opc_componente ? (
-                                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs font-mono">
-                                            {option.opc_componente}
-                                        </span>
-                                    ) : (
-                                        <span className="text-gray-400">-</span>
-                                    )}
-                                </td>
-                                <td className="py-2">
-                                    {option.submenus && option.submenus.length > 0 ? (
-                                        <div className="flex flex-wrap gap-1">
-                                            {option.submenus.map(submenu => (
-                                                <span
-                                                    key={submenu.sub_id}
-                                                    className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs"
-                                                    title={`Submenú ID: ${submenu.sub_id}`}
-                                                >
-                                                    {submenu.sub_nom}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <span className="text-gray-400">Sin asignar</span>
-                                    )}
-                                </td>
-                                <td className="py-2">
-                                    {option.opc_ventana_directa ?
-                                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Sí</span> :
-                                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">No</span>
-                                    }
-                                </td>
-                                <td className="py-2">
-                                    <span className={`px-2 py-1 rounded-full text-xs ${option.opc_est ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                                        }`}>
-                                        {option.opc_est ? 'Activo' : 'Inactivo'}
-                                    </span>
-                                </td>
-                                <td className="py-2">
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => onEdit(option)}
-                                            className="p-1 text-blue-600 hover:bg-blue-100 rounded"
-                                            disabled={loading}
-                                            title="Editar opción"
-                                        >
-                                            <Icon name="Edit" size={14} />
-                                        </button>
-                                        <button
-                                            onClick={() => onDelete(option)}
-                                            className="p-1 text-red-600 hover:bg-red-100 rounded"
-                                            disabled={loading}
-                                            title="Eliminar opción"
-                                        >
-                                            <Icon name="Trash" size={14} />
-                                        </button>
-                                    </div>
-                                </td>
+        );
+    }
+
+    if (permissionsError) {
+        return (
+            <div className="bg-white rounded-lg border border-red-200 p-4">
+                <div className="text-center py-8">
+                    <Icon name="AlertCircle" size={24} className="mx-auto mb-3 text-red-300" />
+                    <p className="text-red-600 mb-2">Error al cargar permisos de opciones</p>
+                    <p className="text-sm text-red-500">{permissionsError}</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!canRead) {
+        return (
+            <div className="bg-white rounded-lg border border-yellow-200 p-4">
+                <div className="text-center py-8">
+                    <Icon name="Lock" size={24} className="mx-auto mb-3 text-yellow-300" />
+                    <p className="text-yellow-600 mb-2">Sin permisos para ver opciones</p>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-left max-w-md mx-auto">
+                        <p className="text-xs text-yellow-700">
+                            <strong>Menu ID:</strong> {MENU_ID} | 
+                            <strong> READ:</strong> {canRead ? 'SÍ' : 'NO'}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold flex items-center">
+                    <Icon name="Settings" size={20} className="mr-2 text-amber-600" />
+                    Lista de Opciones ({options.length})
+                    <span className="ml-3 text-sm bg-amber-100 text-amber-800 px-2 py-1 rounded">
+                        Menu ID: {MENU_ID}
+                    </span>
+                </h3>
+                {/* ✅ BOTÓN CREATE PARAMETRIZADO */}
+                {canCreate && (
+                    <button
+                        onClick={onNew}
+                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center transition-all duration-300"
+                        disabled={loading}
+                    >
+                        <Icon name="Plus" size={16} className="mr-2" />
+                        Nueva Opción
+                    </button>
+                )}
+            </div>
+
+            {/* Debug de permisos */}
+            <div className="mb-4 p-2 bg-amber-50 border border-amber-200 rounded text-xs">
+                <strong>Permisos Opciones:</strong>
+                <span className={`ml-2 px-2 py-0.5 rounded ${canCreate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    CREATE: {canCreate ? 'SÍ' : 'NO'}
+                </span>
+                <span className={`ml-2 px-2 py-0.5 rounded ${canRead ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    READ: {canRead ? 'SÍ' : 'NO'}
+                </span>
+                <span className={`ml-2 px-2 py-0.5 rounded ${canUpdate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    UPDATE: {canUpdate ? 'SÍ' : 'NO'}
+                </span>
+                <span className={`ml-2 px-2 py-0.5 rounded ${canDelete ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    DELETE: {canDelete ? 'SÍ' : 'NO'}
+                </span>
+            </div>
+
+            {options.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                    <Icon name="Settings" size={48} className="mx-auto mb-4 text-gray-300" />
+                    <p>No hay opciones registradas</p>
+                    {canCreate && (
+                        <p className="text-sm text-gray-400 mt-2">Haz clic en "Nueva Opción" para empezar</p>
+                    )}
+                </div>
+            ) : (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="border-b border-gray-200">
+                                <th className="text-left py-2">ID</th>
+                                <th className="text-left py-2">Nombre</th>
+                                <th className="text-left py-2">Componente</th>
+                                <th className="text-left py-2">Submenús Asignados</th>
+                                <th className="text-left py-2">Ventana Directa</th>
+                                <th className="text-left py-2">Estado</th>
+                                <th className="text-left py-2">Acciones</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        )}
-    </div>
-));
+                        </thead>
+                        <tbody>
+                            {options.map((option) => (
+                                <tr key={option.opc_id} className="border-b border-gray-100 hover:bg-gray-50">
+                                    <td className="py-2 text-xs text-gray-500">#{option.opc_id}</td>
+                                    <td className="py-2 font-medium">{option.opc_nom}</td>
+                                    <td className="py-2">
+                                        {option.opc_componente ? (
+                                            <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs font-mono">
+                                                {option.opc_componente}
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-400">-</span>
+                                        )}
+                                    </td>
+                                    <td className="py-2">
+                                        {option.submenus && option.submenus.length > 0 ? (
+                                            <div className="flex flex-wrap gap-1">
+                                                {option.submenus.map(submenu => (
+                                                    <span
+                                                        key={submenu.sub_id}
+                                                        className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs"
+                                                        title={`Submenú ID: ${submenu.sub_id}`}
+                                                    >
+                                                        {submenu.sub_nom}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <span className="text-gray-400">Sin asignar</span>
+                                        )}
+                                    </td>
+                                    <td className="py-2">
+                                        {option.opc_ventana_directa ?
+                                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Sí</span> :
+                                            <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">No</span>
+                                        }
+                                    </td>
+                                    <td className="py-2">
+                                        <span className={`px-2 py-1 rounded-full text-xs ${option.opc_est ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                            }`}>
+                                            {option.opc_est ? 'Activo' : 'Inactivo'}
+                                        </span>
+                                    </td>
+                                    <td className="py-2">
+                                        <div className="flex gap-2">
+                                            {/* ✅ BOTÓN UPDATE PARAMETRIZADO */}
+                                            {canUpdate && (
+                                                <button
+                                                    onClick={() => onEdit(option)}
+                                                    className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors duration-300"
+                                                    disabled={loading}
+                                                    title="Editar opción"
+                                                >
+                                                    <Icon name="Edit" size={14} />
+                                                </button>
+                                            )}
+                                            {/* ✅ BOTÓN DELETE PARAMETRIZADO */}
+                                            {canDelete && (
+                                                <button
+                                                    onClick={() => onDelete(option)}
+                                                    className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors duration-300"
+                                                    disabled={loading}
+                                                    title="Eliminar opción"
+                                                >
+                                                    <Icon name="Trash" size={14} />
+                                                </button>
+                                            )}
+                                            {/* Mostrar mensaje si no hay permisos */}
+                                            {!canUpdate && !canDelete && (
+                                                <span className="text-xs text-gray-400 px-2 py-1">
+                                                    Sin permisos
+                                                </span>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+});
 
 OptionsList.displayName = 'OptionsList';
 
-// ✅ Hook personalizado para gestión de opciones
+// ✅ Hook personalizado para gestión de opciones MIGRADO CON VALIDACIONES DE PERMISOS
 const useOptionManagement = (showMessage, loadOptions) => {
+    // ===== CONFIGURACIÓN =====
+    const MENU_ID = 1; // ID del menú "Parametrización de Módulos"
+
+    // ===== HOOK DE PERMISOS =====
+    const {
+        canCreate,
+        canUpdate,
+        canDelete
+    } = useButtonPermissions(MENU_ID, null, true, 'menu');
+
+    // ===== ESTADOS =====
     const [showOptionForm, setShowOptionForm] = useState(false);
     const [editingOption, setEditingOption] = useState(null);
     const [optionFormKey, setOptionFormKey] = useState(0);
 
+    // ===== HANDLERS CON VALIDACIÓN DE PERMISOS =====
     const handleOptionSave = useCallback(async (formData, editingOption) => {
         console.log('💾 Guardando opción:', formData);
+
+        // ✅ VALIDACIÓN DE PERMISOS
+        if (editingOption && !canUpdate) {
+            showMessage('error', 'No tienes permisos para actualizar opciones');
+            return;
+        }
+        
+        if (!editingOption && !canCreate) {
+            showMessage('error', 'No tienes permisos para crear opciones');
+            return;
+        }
 
         try {
             const cleanData = {
@@ -832,7 +934,7 @@ const useOptionManagement = (showMessage, loadOptions) => {
 
             showMessage('error', errorMsg);
         }
-    }, [showMessage, loadOptions]);
+    }, [showMessage, loadOptions, canCreate, canUpdate]);
 
     const handleOptionCancel = useCallback(() => {
         console.log('❌ Cancelando formulario de opción');
@@ -842,32 +944,52 @@ const useOptionManagement = (showMessage, loadOptions) => {
     }, []);
 
     const handleNewOption = useCallback(() => {
+        // ✅ VALIDACIÓN DE PERMISOS
+        if (!canCreate) {
+            showMessage('error', 'No tienes permisos para crear opciones');
+            return;
+        }
+
         console.log('➕ Nueva opción');
         setEditingOption(null);
         setShowOptionForm(true);
         setOptionFormKey(prev => prev + 1);
-    }, []);
+    }, [canCreate, showMessage]);
 
     const handleEditOption = useCallback((option) => {
+        // ✅ VALIDACIÓN DE PERMISOS
+        if (!canUpdate) {
+            showMessage('error', 'No tienes permisos para editar opciones');
+            return;
+        }
+
         console.log('✏️ Editar opción:', option.opc_id);
         setEditingOption(option);
         setShowOptionForm(true);
         setOptionFormKey(prev => prev + 1);
-    }, []);
+    }, [canUpdate, showMessage]);
 
     const handleDeleteOption = useCallback(async (option) => {
-        if (window.confirm(`¿Eliminar la opción "${option.opc_nom}"?`)) {
-            try {
-                await adminService.options.delete(option.opc_id);
-                showMessage('success', 'Opción eliminada correctamente');
-                await loadOptions();
-            } catch (error) {
-                console.error('Error eliminando opción:', error);
-                const errorMsg = error.response?.data?.message || 'Error al eliminar la opción';
-                showMessage('error', errorMsg);
-            }
+        // ✅ VALIDACIÓN DE PERMISOS
+        if (!canDelete) {
+            showMessage('error', 'No tienes permisos para eliminar opciones');
+            return;
         }
-    }, [showMessage, loadOptions]);
+
+        if (!window.confirm(`¿Eliminar la opción "${option.opc_nom}"?`)) {
+            return;
+        }
+
+        try {
+            await adminService.options.delete(option.opc_id);
+            showMessage('success', 'Opción eliminada correctamente');
+            await loadOptions();
+        } catch (error) {
+            console.error('Error eliminando opción:', error);
+            const errorMsg = error.response?.data?.message || 'Error al eliminar la opción';
+            showMessage('error', errorMsg);
+        }
+    }, [canDelete, showMessage, loadOptions]);
 
     return {
         showOptionForm,

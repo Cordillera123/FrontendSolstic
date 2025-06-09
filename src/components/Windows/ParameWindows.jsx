@@ -1,11 +1,12 @@
-// src/components/Windows/ParameWindows.jsx - ORDEN CORREGIDO
+// src/components/Windows/ParameWindows.jsx - MIGRADO A BOTONES PARAMETRIZADOS
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useButtonPermissions } from '../../hooks/useButtonPermissions';
 import { adminService, iconService } from '../../services/apiService';
 import Icon from '../UI/Icon';
 import { SubmenuForm, SubmenusList, useSubmenuManagement } from './SubmenuComponents';
 import { OptionForm, OptionsList, useOptionManagement } from './OptionComponents';
+
 // ✅ Componente MenuForm completamente independiente
-// MenuForm mejorado con animaciones y mejoras estéticas
 const MenuForm = React.memo(({
     editingMenu,
     icons,
@@ -194,7 +195,7 @@ const MenuForm = React.memo(({
                 {/* Indicador de progreso */}
                 {isSubmitting && (
                     <div className="flex items-center space-x-2 text-blue-600">
-                        <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
                         <span className="text-sm font-medium">Procesando...</span>
                     </div>
                 )}
@@ -396,25 +397,22 @@ const MenuForm = React.memo(({
     );
 });
 
-// Agregar estas clases CSS personalizadas al final del archivo o en tu CSS global
-const customStyles = `
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-4px); }
-    75% { transform: translateX(4px); }
-}
-
-.animate-shake {
-    animation: shake 0.5s ease-in-out;
-}
-`;
-
-MenuForm.displayName = 'MenuForm';
 MenuForm.displayName = 'MenuForm';
 
-// ✅ Componente principal con orden correcto de declaraciones
+// ✅ Componente principal MIGRADO A BOTONES PARAMETRIZADOS
 const ParameWindows = ({ data }) => {
+    // ===== CONFIGURACIÓN =====
+    const MENU_ID = 1; // ID del menú "Parametrización de Módulos"
 
+    // ===== HOOK DE PERMISOS =====
+    const {
+        canCreate,
+        canRead,
+        canUpdate,
+        canDelete,
+        loading: permissionsLoading,
+        error: permissionsError
+    } = useButtonPermissions(MENU_ID, null, true, 'menu');
 
     // ===== ESTADOS =====
     const [activeTab, setActiveTab] = useState('menus');
@@ -493,20 +491,32 @@ const ParameWindows = ({ data }) => {
         }
     }, [loadMenus, loadSubmenus, loadOptions, loadIcons, showMessage]);
 
-    // ===== MANEJADORES DE FORMULARIO =====
+    // ===== MANEJADORES DE FORMULARIO CON VALIDACIÓN DE PERMISOS =====
     const handleMenuSave = useCallback(async (formData, editingMenu) => {
         console.log('💾 Guardando menú:', formData);
+        
+        // ✅ VALIDACIÓN DE PERMISOS
+        if (editingMenu && !canUpdate) {
+            showMessage('error', 'No tienes permisos para actualizar menús');
+            return;
+        }
+        
+        if (!editingMenu && !canCreate) {
+            showMessage('error', 'No tienes permisos para crear menús');
+            return;
+        }
+
         setLoading(true);
 
         try {
-            // ✅ Agregar men_est por defecto y limpiar datos
+            // Agregar men_est por defecto y limpiar datos
             const cleanData = {
                 men_nom: formData.men_nom?.trim(),
                 ico_id: formData.ico_id ? parseInt(formData.ico_id) : null,
                 men_componente: formData.men_componente?.trim() || null,
                 men_eje: parseInt(formData.men_eje) || 1,
                 men_ventana_directa: Boolean(formData.men_ventana_directa),
-                men_est: true // ✅ Activo por defecto
+                men_est: true // Activo por defecto
             };
 
             console.log('📤 Datos limpios a enviar:', cleanData);
@@ -544,7 +554,7 @@ const ParameWindows = ({ data }) => {
         } finally {
             setLoading(false);
         }
-    }, [showMessage, loadMenus]);
+    }, [showMessage, loadMenus, canCreate, canUpdate]);
 
     const handleMenuCancel = useCallback(() => {
         console.log('❌ Cancelando formulario');
@@ -554,18 +564,55 @@ const ParameWindows = ({ data }) => {
     }, []);
 
     const handleNewMenu = useCallback(() => {
+        // ✅ VALIDACIÓN DE PERMISOS
+        if (!canCreate) {
+            showMessage('error', 'No tienes permisos para crear menús');
+            return;
+        }
+        
         console.log('➕ Nuevo menú');
         setEditingMenu(null);
         setShowMenuForm(true);
         setFormKey(prev => prev + 1);
-    }, []);
+    }, [canCreate, showMessage]);
 
     const handleEditMenu = useCallback((menu) => {
+        // ✅ VALIDACIÓN DE PERMISOS
+        if (!canUpdate) {
+            showMessage('error', 'No tienes permisos para editar menús');
+            return;
+        }
+        
         console.log('✏️ Editar menú:', menu.men_id);
         setEditingMenu(menu);
         setShowMenuForm(true);
         setFormKey(prev => prev + 1);
-    }, []);
+    }, [canUpdate, showMessage]);
+
+    const handleDeleteMenu = useCallback(async (menu) => {
+        // ✅ VALIDACIÓN DE PERMISOS
+        if (!canDelete) {
+            showMessage('error', 'No tienes permisos para eliminar menús');
+            return;
+        }
+
+        if (!window.confirm(`¿Estás seguro de eliminar el menú "${menu.men_nom}"?`)) {
+            return;
+        }
+
+        try {
+            setLoading(true);
+            await adminService.menus.delete(menu.men_id);
+            showMessage('success', 'Menú eliminado correctamente');
+            await loadMenus();
+        } catch (error) {
+            console.error('❌ Error eliminando menú:', error);
+            const errorMsg = error.response?.data?.message || 'Error al eliminar el menú';
+            showMessage('error', errorMsg);
+        } finally {
+            setLoading(false);
+        }
+    }, [canDelete, showMessage, loadMenus]);
 
     const handleTabChange = useCallback((newTab) => {
         console.log('🔄 Cambiar tab:', newTab);
@@ -574,6 +621,8 @@ const ParameWindows = ({ data }) => {
         setEditingMenu(null);
         setFormKey(prev => prev + 1);
     }, []);
+
+    // Hooks para submenús y opciones
     const {
         showSubmenuForm,
         editingSubmenu,
@@ -584,6 +633,7 @@ const ParameWindows = ({ data }) => {
         handleEditSubmenu,
         handleDeleteSubmenu
     } = useSubmenuManagement(showMessage, loadSubmenus);
+
     const {
         showOptionForm,
         editingOption,
@@ -594,25 +644,31 @@ const ParameWindows = ({ data }) => {
         handleEditOption,
         handleDeleteOption
     } = useOptionManagement(showMessage, loadOptions);
+
     // ===== EFFECTS =====
     useEffect(() => {
         console.log('🚀 Iniciando carga de datos');
-        loadInitialData();
-    }, [loadInitialData]);
+        if (canRead) {
+            loadInitialData();
+        }
+    }, [loadInitialData, canRead]);
 
     // ===== COMPONENTES MEMOIZADOS =====
     const MenusList = useMemo(() => (
         <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Lista de Menús ({menus.length})</h3>
-                <button
-                    onClick={handleNewMenu}
-                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center"
-                    disabled={loading}
-                >
-                    <Icon name="Plus" size={16} className="mr-2" />
-                    Nuevo Menú
-                </button>
+                {/* ✅ BOTÓN CREATE PARAMETRIZADO */}
+                {canCreate && (
+                    <button
+                        onClick={handleNewMenu}
+                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center transition-all duration-300"
+                        disabled={loading}
+                    >
+                        <Icon name="Plus" size={16} className="mr-2" />
+                        Nuevo Menú
+                    </button>
+                )}
             </div>
 
             {menus.length === 0 ? (
@@ -654,33 +710,28 @@ const ParameWindows = ({ data }) => {
                                     </td>
                                     <td className="py-2">
                                         <div className="flex gap-2">
-                                            <button
-                                                onClick={() => handleEditMenu(menu)}
-                                                className="p-1 text-blue-600 hover:bg-blue-100 rounded"
-                                                disabled={loading}
-                                            >
-                                                <Icon name="Edit" size={14} />
-                                            </button>
-                                            <button
-                                                onClick={async () => {
-                                                    if (window.confirm('¿Eliminar este menú?')) {
-                                                        try {
-                                                            setLoading(true);
-                                                            await adminService.menus.delete(menu.men_id);
-                                                            showMessage('success', 'Menú eliminado');
-                                                            await loadMenus();
-                                                        } catch (error) {
-                                                            showMessage('error', 'Error al eliminar');
-                                                        } finally {
-                                                            setLoading(false);
-                                                        }
-                                                    }
-                                                }}
-                                                className="p-1 text-red-600 hover:bg-red-100 rounded"
-                                                disabled={loading}
-                                            >
-                                                <Icon name="Trash" size={14} />
-                                            </button>
+                                            {/* ✅ BOTÓN UPDATE PARAMETRIZADO */}
+                                            {canUpdate && (
+                                                <button
+                                                    onClick={() => handleEditMenu(menu)}
+                                                    className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors duration-300"
+                                                    disabled={loading}
+                                                    title="Editar menú"
+                                                >
+                                                    <Icon name="Edit" size={14} />
+                                                </button>
+                                            )}
+                                            {/* ✅ BOTÓN DELETE PARAMETRIZADO */}
+                                            {canDelete && (
+                                                <button
+                                                    onClick={() => handleDeleteMenu(menu)}
+                                                    className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors duration-300"
+                                                    disabled={loading}
+                                                    title="Eliminar menú"
+                                                >
+                                                    <Icon name="Trash" size={14} />
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -690,7 +741,8 @@ const ParameWindows = ({ data }) => {
                 </div>
             )}
         </div>
-    ), [menus, loading, handleNewMenu, handleEditMenu, showMessage, loadMenus]);
+    ), [menus, loading, canCreate, canUpdate, canDelete, handleNewMenu, handleEditMenu, handleDeleteMenu]);
+
     const SubmenusListMemo = useMemo(() => (
         <SubmenusList
             submenus={submenus}
@@ -701,6 +753,7 @@ const ParameWindows = ({ data }) => {
             showMessage={showMessage}
         />
     ), [submenus, loading, handleNewSubmenu, handleEditSubmenu, handleDeleteSubmenu, showMessage]);
+
     const OptionsListMemo = useMemo(() => (
         <OptionsList
             options={options}
@@ -711,14 +764,63 @@ const ParameWindows = ({ data }) => {
             showMessage={showMessage}
         />
     ), [options, loading, handleNewOption, handleEditOption, handleDeleteOption, showMessage]);
-    // ===== RENDER =====
 
-    const tabs = [
-        { id: 'menus', name: 'Menús', icon: 'Menu' },
-        { id: 'submenus', name: 'Submenús', icon: 'Layers' },
-        { id: 'options', name: 'Opciones', icon: 'Settings' }
-    ];
+    // ===== VALIDACIONES DE PERMISOS =====
+    if (permissionsLoading) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Cargando permisos...</p>
+                </div>
+            </div>
+        );
+    }
 
+    if (permissionsError) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <div className="text-center max-w-md">
+                    <Icon name="AlertCircle" size={48} className="mx-auto mb-4 text-red-300" />
+                    <p className="text-red-500 mb-2">Error al cargar permisos</p>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-left">
+                        <p className="text-sm text-red-800 mb-2">
+                            <strong>Error:</strong> {permissionsError}
+                        </p>
+                        <ul className="text-xs text-red-700 space-y-1">
+                            <li>• Menu ID: <code className="bg-red-100 px-1 rounded">{MENU_ID}</code></li>
+                            <li>• Verifica la conexión con el backend</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (!canRead) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <div className="text-center max-w-md">
+                    <Icon name="Lock" size={48} className="mx-auto mb-4 text-gray-300" />
+                    <p className="text-gray-500 mb-2">No tienes permisos para acceder a esta sección</p>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-left">
+                        <p className="text-sm text-yellow-800 mb-2">
+                            <strong>Información de debug:</strong>
+                        </p>
+                        <ul className="text-xs text-yellow-700 space-y-1">
+                            <li>• Menu ID configurado: <code className="bg-yellow-100 px-1 rounded">{MENU_ID}</code></li>
+                            <li>• Permiso READ: <code className="bg-yellow-100 px-1 rounded">{canRead ? 'SÍ' : 'NO'}</code></li>
+                            <li>• Permiso CREATE: <code className="bg-yellow-100 px-1 rounded">{canCreate ? 'SÍ' : 'NO'}</code></li>
+                            <li>• Permiso UPDATE: <code className="bg-yellow-100 px-1 rounded">{canUpdate ? 'SÍ' : 'NO'}</code></li>
+                            <li>• Permiso DELETE: <code className="bg-yellow-100 px-1 rounded">{canDelete ? 'SÍ' : 'NO'}</code></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ===== RENDER PRINCIPAL =====
     if (loading && !menus.length && !submenus.length && !options.length) {
         return (
             <div className="p-6 h-full flex items-center justify-center">
@@ -730,22 +832,51 @@ const ParameWindows = ({ data }) => {
         );
     }
 
+    const tabs = [
+        { id: 'menus', name: 'Menús', icon: 'Menu' },
+        { id: 'submenus', name: 'Submenús', icon: 'Layers' },
+        { id: 'options', name: 'Opciones', icon: 'Settings' }
+    ];
+
     return (
         <div className="p-6 h-full overflow-auto bg-gray-50">
             {/* Header */}
             <div className="mb-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-2">
+                <h2 className="text-xl font-bold text-gray-800 mb-2 flex items-center">
+                    <Icon name="Settings" size={24} className="mr-3 text-blue-600" />
                     Parametrización de Módulos
+                    <span className="ml-3 text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                        Menu ID: {MENU_ID}
+                    </span>
                 </h2>
                 <p className="text-gray-600">
                     Gestione la configuración de menús, submenús y opciones del sistema
                 </p>
             </div>
 
-            {/* Debug info */}
-            <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
-                <strong>Debug:</strong> Tab: {activeTab} | ShowForm: {showMenuForm.toString()} |
-                EditingMenu: {editingMenu?.men_id || 'null'} | FormKey: {formKey} | Loading: {loading.toString()}
+            {/* Debug info con permisos */}
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-xs">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div><strong>Tab:</strong> {activeTab}</div>
+                    <div><strong>Form:</strong> {showMenuForm.toString()}</div>
+                    <div><strong>Editing:</strong> {editingMenu?.men_id || 'null'}</div>
+                    <div><strong>Loading:</strong> {loading.toString()}</div>
+                </div>
+                <div className="mt-2 pt-2 border-t border-blue-200">
+                    <strong>Permisos:</strong> 
+                    <span className={`ml-2 px-2 py-0.5 rounded ${canCreate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        CREATE: {canCreate ? 'SÍ' : 'NO'}
+                    </span>
+                    <span className={`ml-2 px-2 py-0.5 rounded ${canRead ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        READ: {canRead ? 'SÍ' : 'NO'}
+                    </span>
+                    <span className={`ml-2 px-2 py-0.5 rounded ${canUpdate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        UPDATE: {canUpdate ? 'SÍ' : 'NO'}
+                    </span>
+                    <span className={`ml-2 px-2 py-0.5 rounded ${canDelete ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        DELETE: {canDelete ? 'SÍ' : 'NO'}
+                    </span>
+                </div>
             </div>
 
             {/* Mensajes */}

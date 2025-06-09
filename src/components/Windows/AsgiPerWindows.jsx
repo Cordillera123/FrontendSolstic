@@ -1,22 +1,27 @@
-// src/components/Windows/AsgiPerWindows.jsx - OPTIMIZADO PARA EVITAR RE-RENDERS
+// src/components/Windows/AsgiPerWindows.jsx - CON NUEVA PESTAÑA DE MÓDULOS DIRECTOS
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { adminService } from '../../services/apiService';
 import Icon from '../UI/Icon';
 import AsgiPerUsWindows from './AsgiPerUsWindows';
-
+import AsigPerBotWindow from './AsigPerBotWindow';
+import AsigModulosDirectosTab from './AsigModulosDirectosTab';
 // ===== COMPONENTES MEMOIZADOS =====
-const TabButton = memo(({ label, icon, isActive, onClick }) => (
+const TabButton = memo(({ label, icon, isActive, onClick, badge = null }) => (
     <button
-        className={`flex items-center px-4 py-2 rounded-t-lg border-b-2 transition-all ${
-            isActive
-                ? 'bg-white border-blue-500 text-blue-600 shadow-sm'
-                : 'bg-gray-100 border-transparent text-gray-600 hover:bg-gray-200 hover:text-gray-800'
-        }`}
+        className={`flex items-center px-4 py-2 rounded-t-lg border-b-2 transition-all relative ${isActive
+            ? 'bg-white border-blue-500 text-blue-600 shadow-sm'
+            : 'bg-gray-100 border-transparent text-gray-600 hover:bg-gray-200 hover:text-gray-800'
+            }`}
         onClick={onClick}
         type="button"
     >
         <Icon name={icon} size={16} className="mr-2" />
         {label}
+        {badge && (
+            <span className="ml-2 px-2 py-0.5 bg-orange-100 text-orange-800 rounded text-xs font-medium">
+                {badge}
+            </span>
+        )}
     </button>
 ));
 
@@ -28,8 +33,8 @@ const ProfileCard = memo(({ perfil, isSelected, onClick }) => {
     return (
         <div
             className={`border rounded-lg p-4 cursor-pointer transition-all ${isSelected
-                    ? 'border-blue-500 bg-blue-50 shadow-md'
-                    : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                ? 'border-blue-500 bg-blue-50 shadow-md'
+                : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300'
                 }`}
             onClick={handleClick}
         >
@@ -37,8 +42,8 @@ const ProfileCard = memo(({ perfil, isSelected, onClick }) => {
                 <div>
                     <div className="flex items-center">
                         <Icon
-                            name={perfil.per_nom.toLowerCase().includes('super') ? 'Crown' : 
-                                 perfil.per_nom.toLowerCase().includes('admin') ? 'Shield' : 'User'}
+                            name={perfil.per_nom.toLowerCase().includes('super') ? 'Crown' :
+                                perfil.per_nom.toLowerCase().includes('admin') ? 'Shield' : 'User'}
                             size={16}
                             className={`mr-2 ${isSelected ? 'text-blue-600' : 'text-gray-500'}`}
                         />
@@ -247,7 +252,6 @@ const SubmenuTreeItem = memo(({ submenu, menuId, togglePermission, savingPermiss
         </div>
     );
 });
-
 const AsgiPerWindows = () => {
     // ===== ESTADOS PARA PESTAÑAS =====
     const [activeTab, setActiveTab] = useState('profiles');
@@ -298,7 +302,7 @@ const AsgiPerWindows = () => {
             }
         } catch (error) {
             console.error('💥 Error completo:', error);
-            
+
             let errorMessage = 'Error al cargar perfiles';
             if (error.response?.data?.message) {
                 errorMessage = error.response.data.message;
@@ -352,7 +356,7 @@ const AsgiPerWindows = () => {
     // ===== MANEJO DE PERMISOS =====
     const togglePermission = useCallback(async (menId, subId = null, opcId = null, currentState) => {
         if (!selectedProfile) return;
-        
+
         setSavingPermissions(true);
 
         try {
@@ -457,6 +461,14 @@ const AsgiPerWindows = () => {
         };
     }, [menuStructure]);
 
+    // ===== CONFIGURACIÓN DE PESTAÑAS =====
+    const tabs = [
+        { id: 'profiles', label: 'Permisos por Perfil', icon: 'Shield' },
+        { id: 'users', label: 'Permisos por Usuario', icon: 'User' },
+        { id: 'modules', label: 'Módulos Directos', icon: 'Monitor', badge: 'Nuevo' },
+        { id: 'buttons', label: 'Permisos de Botones', icon: 'Settings' }
+    ];
+
     // ===== RENDER PRINCIPAL =====
     if (loading && !selectedProfile && activeTab === 'profiles') {
         return (
@@ -477,33 +489,31 @@ const AsgiPerWindows = () => {
                     Gestión de Permisos
                 </h2>
                 <p className="text-gray-600">
-                    Configure los permisos de acceso para perfiles y usuarios
+                    Configure los permisos de acceso para perfiles, usuarios, módulos directos y botones CRUD
                 </p>
             </div>
 
             {/* Pestañas */}
             <div className="mb-6">
                 <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
-                    <TabButton
-                        label="Permisos por Perfil"
-                        icon="Shield"
-                        isActive={activeTab === 'profiles'}
-                        onClick={() => handleTabChange('profiles')}
-                    />
-                    <TabButton
-                        label="Permisos por Usuario"
-                        icon="User"
-                        isActive={activeTab === 'users'}
-                        onClick={() => handleTabChange('users')}
-                    />
+                    {tabs.map(tab => (
+                        <TabButton
+                            key={tab.id}
+                            label={tab.label}
+                            icon={tab.icon}
+                            badge={tab.badge}
+                            isActive={activeTab === tab.id}
+                            onClick={() => handleTabChange(tab.id)}
+                        />
+                    ))}
                 </div>
             </div>
 
             {/* Mensajes */}
             {message.text && (
                 <div className={`mb-4 p-3 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
-                        message.type === 'error' ? 'bg-red-50 text-red-800 border border-red-200' :
-                            'bg-blue-50 text-blue-800 border border-blue-200'
+                    message.type === 'error' ? 'bg-red-50 text-red-800 border border-red-200' :
+                        'bg-blue-50 text-blue-800 border border-blue-200'
                     }`}>
                     <div className="flex items-center">
                         <Icon
@@ -599,9 +609,9 @@ const AsgiPerWindows = () => {
                                     ) : menuStructure.length > 0 ? (
                                         <div className="space-y-3">
                                             {menuStructure.map(menu => (
-                                                <PermissionTreeItem 
-                                                    key={menu.men_id} 
-                                                    menu={menu} 
+                                                <PermissionTreeItem
+                                                    key={menu.men_id}
+                                                    menu={menu}
                                                     togglePermission={togglePermission}
                                                     savingPermissions={savingPermissions}
                                                     expandedMenus={expandedMenus}
@@ -638,11 +648,19 @@ const AsgiPerWindows = () => {
                         )}
                     </div>
                 </div>
-            ) : (
-                <AsgiPerUsWindows 
+            ) : activeTab === 'users' ? (
+                <AsgiPerUsWindows
                     showMessage={showMessage}
                 />
-            )}
+            ) : activeTab === 'modules' ? (
+                <AsigModulosDirectosTab
+                    showMessage={showMessage}
+                />
+            ) : activeTab === 'buttons' ? (
+                <AsigPerBotWindow
+                    showMessage={showMessage}
+                />
+            ) : null}
         </div>
     );
 };
