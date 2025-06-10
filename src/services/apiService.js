@@ -1,9 +1,10 @@
 // services/apiService.js - COMPLETAMENTE CORREGIDO Y OPTIMIZADO
 
 import axios from 'axios';
+import { getCurrentUser } from '../context/AuthContext';
 
 // Configuración base de axios
-const API_BASE_URL = 'http://192.168.200.51/api';
+const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 // Crear instancia de axios
 const apiClient = axios.create({
@@ -499,9 +500,9 @@ export const adminService = {
       try {
         const result = await this.getModulosDirectosForPerfil(perfilId);
         if (result.status === 'success') {
-          const modulo = result.data.find(m => 
-            m.men_id === moduleData.men_id && 
-            m.sub_id === moduleData.sub_id && 
+          const modulo = result.data.find(m =>
+            m.men_id === moduleData.men_id &&
+            m.sub_id === moduleData.sub_id &&
             m.opc_id === moduleData.opc_id
           );
           return modulo ? modulo.tiene_acceso : false;
@@ -819,7 +820,452 @@ export const adminService = {
       }
     }
   },
+  // ✅ REEMPLAZA tu sección userButtonPermissions con este código actualizado
 
+userButtonPermissions: {
+  /**
+   * Obtener usuarios de un perfil específico
+   */
+  async getUsersByProfile(perfilId) {
+    try {
+      console.log('🔍 UserButtonPermissions - Obteniendo usuarios del perfil:', perfilId);
+      // ✅ CORRECCIÓN: URL actualizada para coincidir con las rutas
+      const response = await apiClient.get(`/user-button-permissions/profiles/${perfilId}/users`);
+      console.log('📥 UserButtonPermissions - Usuarios del perfil:', response.data);
+      
+      return {
+        status: 'success',
+        usuarios: response.data.usuarios || response.data.data || [],
+        perfil: response.data.perfil || null,
+        total_usuarios: response.data.total_usuarios || 0,
+        message: response.data.message || 'Usuarios obtenidos correctamente'
+      };
+    } catch (error) {
+      console.error('❌ Error obteniendo usuarios del perfil:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: 'error',
+        message: apiError.message,
+        errors: apiError.errors
+      };
+    }
+  },
+
+  /**
+   * ✅ ACTUALIZADO: Obtener estructura de permisos de botones para un usuario
+   */
+  async getUserButtonPermissions(usuarioId) {
+    try {
+      console.log('🔍 UserButtonPermissions - Obteniendo permisos del usuario:', usuarioId);
+      
+      const response = await apiClient.get(`/user-button-permissions/users/${usuarioId}`);
+      
+      console.log('📥 UserButtonPermissions - Respuesta RAW:', response);
+      console.log('📥 UserButtonPermissions - Response.data:', response.data);
+      
+      if (response.data.status === 'success') {
+        const { usuario, menu_structure, debug_info } = response.data;
+        
+        console.log('✅ UserButtonPermissions - Usuario:', usuario);
+        console.log('📊 UserButtonPermissions - Debug Info:', debug_info);
+        console.log('🎛️ UserButtonPermissions - Módulos accesibles:', menu_structure.length);
+        
+        // ✅ PROCESAR CORRECTAMENTE LA ESTRUCTURA DE MÓDULOS
+        const processedStructure = menu_structure.map(menu => {
+          console.log(`📋 Procesando menú: ${menu.men_nom} (ID: ${menu.men_id})`);
+          
+          // Procesar botones del menú (si es ventana directa)
+          const menuButtons = menu.botones?.map(boton => {
+            const hasPermission = boton.has_permission === true;
+            
+            console.log(`  🔘 Botón ${boton.bot_codigo}: ${hasPermission ? '✅ PERMITIDO' : '❌ DENEGADO'}`, {
+              profile_permission: boton.profile_permission,
+              is_customized: boton.is_customized,
+              customization_type: boton.customization_type,
+              final_permission: hasPermission
+            });
+            
+            return {
+              ...boton,
+              // ✅ USAR EL PERMISO EFECTIVO CALCULADO POR EL BACKEND
+              hasPermission: hasPermission,
+              canUse: hasPermission, // Alias para compatibilidad
+              isEnabled: hasPermission // Otro alias
+            };
+          }) || [];
+          
+          // Procesar submenús
+          const processedSubmenus = menu.submenus?.map(submenu => ({
+            ...submenu,
+            botones: submenu.botones?.map(boton => {
+              const hasPermission = boton.has_permission === true;
+              return {
+                ...boton,
+                hasPermission: hasPermission,
+                canUse: hasPermission,
+                isEnabled: hasPermission
+              };
+            }) || [],
+            opciones: submenu.opciones?.map(opcion => ({
+              ...opcion,
+              botones: opcion.botones?.map(boton => {
+                const hasPermission = boton.has_permission === true;
+                return {
+                  ...boton,
+                  hasPermission: hasPermission,
+                  canUse: hasPermission,
+                  isEnabled: hasPermission
+                };
+              }) || []
+            })) || []
+          })) || [];
+          
+          return {
+            ...menu,
+            botones: menuButtons,
+            submenus: processedSubmenus
+          };
+        });
+        
+        console.log('🎯 UserButtonPermissions - Estructura procesada:', processedStructure);
+        
+        return {
+          success: true,
+          usuario: usuario,
+          menuStructure: processedStructure,
+          debugInfo: debug_info,
+          // ✅ MÉTRICAS ÚTILES PARA EL FRONTEND
+          summary: {
+            totalModules: processedStructure.length,
+            totalButtons: processedStructure.reduce((total, menu) => {
+              const menuButtons = menu.botones?.length || 0;
+              const submenuButtons = menu.submenus?.reduce((subTotal, sub) => 
+                subTotal + (sub.botones?.length || 0), 0) || 0;
+              return total + menuButtons + submenuButtons;
+            }, 0),
+            allowedButtons: processedStructure.reduce((total, menu) => {
+              const menuAllowed = menu.botones?.filter(b => b.hasPermission).length || 0;
+              const submenuAllowed = menu.submenus?.reduce((subTotal, sub) => 
+                subTotal + (sub.botones?.filter(b => b.hasPermission).length || 0), 0) || 0;
+              return total + menuAllowed + submenuAllowed;
+            }, 0)
+          }
+        };
+      }
+      
+      throw new Error('Respuesta inválida del servidor');
+      
+    } catch (error) {
+      console.error('❌ Error al obtener permisos de usuario:', error);
+      
+      if (error.response?.status === 404) {
+        throw new Error('Usuario no encontrado');
+      }
+      
+      if (error.response?.status === 403) {
+        throw new Error('No tienes permisos para acceder a esta información');
+      }
+      
+      throw new Error(`Error al obtener permisos: ${error.message}`);
+    }
+  },
+
+
+  /**
+   * ✅ NUEVO: Obtener permisos efectivos de un usuario para DynamicActionButtons
+   */
+  async getUserEffectivePermissions(usuarioId, opcId) {
+    try {
+      console.log('🔍 UserButtonPermissions - Obteniendo permisos efectivos:', { usuarioId, opcId });
+      const response = await apiClient.get(`/user-button-permissions/users/${usuarioId}/effective-permissions/${opcId}`);
+      console.log('📥 UserButtonPermissions - Permisos efectivos:', response.data);
+      
+      return {
+        status: 'success',
+        data: response.data.data || [],
+        user_info: response.data.user_info || null,
+        message: response.data.message || 'Permisos efectivos obtenidos correctamente'
+      };
+    } catch (error) {
+      console.error('❌ Error obteniendo permisos efectivos:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: 'error',
+        message: apiError.message,
+        errors: apiError.errors
+      };
+    }
+  },
+
+  /**
+   * Alternar permiso específico de botón para un usuario
+   */
+  async toggleUserButtonPermission(data) {
+    try {
+      console.log('🔄 UserButtonPermissions - Alternando permiso:', data);
+      const response = await apiClient.post('/user-button-permissions/toggle', data);
+      console.log('📥 UserButtonPermissions - Resultado toggle:', response.data);
+      
+      return {
+        status: 'success',
+        data: response.data.data || null,
+        message: response.data.message || 'Permiso modificado correctamente'
+      };
+    } catch (error) {
+      console.error('❌ Error alternando permiso de usuario:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: 'error',
+        message: apiError.message,
+        errors: apiError.errors
+      };
+    }
+  },
+
+  /**
+   * Remover personalización específica (volver a herencia del perfil)
+   */
+  async removeUserCustomization(data) {
+    try {
+      console.log('🗑️ UserButtonPermissions - Removiendo personalización:', data);
+      const response = await apiClient.delete('/user-button-permissions/remove-customization', { data });
+      console.log('📥 UserButtonPermissions - Personalización removida:', response.data);
+      
+      return {
+        status: 'success',
+        data: response.data.data || null,
+        removed: response.data.removed || false,
+        message: response.data.message || 'Personalización removida correctamente'
+      };
+    } catch (error) {
+      console.error('❌ Error removiendo personalización:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: 'error',
+        message: apiError.message,
+        errors: apiError.errors
+      };
+    }
+  },
+
+  /**
+   * Resetear todas las personalizaciones de un usuario
+   */
+  async resetUserCustomizations(usuarioId) {
+    try {
+      console.log('🔄 UserButtonPermissions - Reseteando personalizaciones del usuario:', usuarioId);
+      const response = await apiClient.delete(`/user-button-permissions/users/${usuarioId}/reset`);
+      console.log('📥 UserButtonPermissions - Personalizaciones reseteadas:', response.data);
+      
+      return {
+        status: 'success',
+        customizations_removed: response.data.customizations_removed || 0,
+        message: response.data.message || 'Personalizaciones reseteadas correctamente'
+      };
+    } catch (error) {
+      console.error('❌ Error reseteando personalizaciones:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: 'error',
+        message: apiError.message,
+        errors: apiError.errors
+      };
+    }
+  },
+
+  /**
+   * Copiar personalizaciones entre usuarios
+   */
+  async copyUserCustomizations(data) {
+    try {
+      console.log('📋 UserButtonPermissions - Copiando personalizaciones:', data);
+      const response = await apiClient.post('/user-button-permissions/copy', data);
+      console.log('📥 UserButtonPermissions - Personalizaciones copiadas:', response.data);
+      
+      return {
+        status: 'success',
+        data: response.data.data || null,
+        message: response.data.message || 'Personalizaciones copiadas correctamente'
+      };
+    } catch (error) {
+      console.error('❌ Error copiando personalizaciones:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: 'error',
+        message: apiError.message,
+        errors: apiError.errors
+      };
+    }
+  },
+
+  /**
+   * ✅ NUEVO: Verificar permiso específico de botón para un usuario
+   */
+  async checkUserButtonPermission(usuarioId, opcId, buttonCode) {
+    try {
+      console.log('🔍 UserButtonPermissions - Verificando permiso:', { usuarioId, opcId, buttonCode });
+      const response = await apiClient.post(`/user-button-permissions/users/${usuarioId}/check-permission`, {
+        opc_id: opcId,
+        bot_codigo: buttonCode
+      });
+      console.log('📥 UserButtonPermissions - Verificación:', response.data);
+      
+      return response.data.status === 'success' && response.data.has_permission;
+    } catch (error) {
+      console.error('❌ Error verificando permiso:', error);
+      return false;
+    }
+  },
+
+  /**
+   * ✅ NUEVO: Verificar permiso de botón de menú para un usuario
+   */
+  async checkUserMenuButtonPermission(usuarioId, menuId, buttonCode) {
+    try {
+      console.log('🔍 UserButtonPermissions - Verificando permiso de menú:', { usuarioId, menuId, buttonCode });
+      const response = await apiClient.post(`/user-button-permissions/users/${usuarioId}/check-menu-permission`, {
+        men_id: menuId,
+        bot_codigo: buttonCode
+      });
+      console.log('📥 UserButtonPermissions - Verificación de menú:', response.data);
+      
+      return response.data.status === 'success' && response.data.has_permission;
+    } catch (error) {
+      console.error('❌ Error verificando permiso de menú:', error);
+      return false;
+    }
+  }
+},
+
+/**
+ * ✅ NUEVO: Servicio para obtener permisos efectivos (usado por DynamicActionButtons)
+ */
+buttonUtils: {
+  /**
+   * ✅ NUEVO: Obtener permisos efectivos del usuario actual para una opción
+   */
+  async getMyButtonPermissions(opcId) {
+    try {
+      // Obtener usuario actual desde el sistema de autenticación
+      const currentUser = getCurrentUser();
+      if (!currentUser?.usu_id) {
+        throw new Error('Usuario no autenticado');
+      }
+
+      const result = await adminService.userButtonPermissions.getUserEffectivePermissions(currentUser.usu_id, opcId);
+      return result;
+    } catch (error) {
+      console.error('Error obteniendo permisos del usuario:', error);
+      return { status: 'error', message: error.message, data: [] };
+    }
+  },
+
+  /**
+   * ✅ NUEVO: Obtener permisos efectivos de un usuario específico
+   */
+  async getUserEffectivePermissions(usuarioId, opcId) {
+    return adminService.userButtonPermissions.getUserEffectivePermissions(usuarioId, opcId);
+  },
+
+  /**
+   * ✅ NUEVO: Verificar permiso específico de botón para un usuario
+   */
+  async checkUserButtonPermission(usuarioId, opcId, buttonCode) {
+    return adminService.userButtonPermissions.checkUserButtonPermission(usuarioId, opcId, buttonCode);
+  },
+
+  /**
+   * ✅ NUEVO: Verificar permiso del usuario actual
+   */
+  async checkButtonPermission(usuarioId, moduleId, buttonCode, moduleType = 'menu') {
+    try {
+      console.log(`🔍 Verificando permiso: Usuario ${usuarioId}, Módulo ${moduleId}, Botón ${buttonCode}`);
+      
+      const permissions = await this.getUserButtonPermissions(usuarioId);
+      
+      if (!permissions.success) {
+        return false;
+      }
+      
+      // Buscar el módulo y botón específicos
+      for (const menu of permissions.menuStructure) {
+        // Verificar botones del menú principal
+        if (menu.men_id === moduleId && moduleType === 'menu') {
+          const button = menu.botones?.find(b => b.bot_codigo === buttonCode);
+          if (button) {
+            console.log(`✅ Botón encontrado: ${button.hasPermission ? 'PERMITIDO' : 'DENEGADO'}`);
+            return button.hasPermission;
+          }
+        }
+        
+        // Verificar botones de submenús
+        for (const submenu of menu.submenus || []) {
+          if (submenu.sub_id === moduleId && moduleType === 'submenu') {
+            const button = submenu.botones?.find(b => b.bot_codigo === buttonCode);
+            if (button) {
+              console.log(`✅ Botón encontrado en submenú: ${button.hasPermission ? 'PERMITIDO' : 'DENEGADO'}`);
+              return button.hasPermission;
+            }
+          }
+          
+          // Verificar botones de opciones
+          for (const opcion of submenu.opciones || []) {
+            if (opcion.opc_id === moduleId && moduleType === 'opcion') {
+              const button = opcion.botones?.find(b => b.bot_codigo === buttonCode);
+              if (button) {
+                console.log(`✅ Botón encontrado en opción: ${button.hasPermission ? 'PERMITIDO' : 'DENEGADO'}`);
+                return button.hasPermission;
+              }
+            }
+          }
+        }
+      }
+      
+      console.log('❌ Botón no encontrado');
+      return false;
+      
+    } catch (error) {
+      console.error('❌ Error al verificar permiso de botón:', error);
+      return false;
+    }
+  },
+  /**
+   * ✅ NUEVO: Para ventanas directas de menús
+   */
+  async getMyMenuButtonPermissions(menuId) {
+    try {
+      const currentUser = getCurrentUser();
+      if (!currentUser?.usu_id) {
+        throw new Error('Usuario no autenticado');
+      }
+
+      // Para menús, usar el endpoint específico (cuando esté disponible)
+      // Por ahora, usar la misma lógica que las opciones
+      const result = await adminService.userButtonPermissions.getUserEffectivePermissions(currentUser.usu_id, menuId);
+      return result;
+    } catch (error) {
+      console.error('Error obteniendo permisos de menú:', error);
+      return { status: 'error', message: error.message, data: [] };
+    }
+  },
+
+  /**
+   * ✅ NUEVO: Verificar permiso de menú
+   */
+  async checkMenuButtonPermission(menuId, buttonCode) {
+    try {
+      const currentUser = getCurrentUser();
+      if (!currentUser?.usu_id) {
+        return false;
+      }
+
+      return await adminService.userButtonPermissions.checkUserMenuButtonPermission(currentUser.usu_id, menuId, buttonCode);
+    } catch (error) {
+      console.error('Error verificando permiso de menú:', error);
+      return false;
+    }
+  }
+},
   // ✅ CORRECCIÓN: buttonUtils con getMyMenuButtonPermissions mejorado
   buttonUtils: {
     // ✅ MÉTODO PARA OPCIONES REGULARES
@@ -962,8 +1408,55 @@ export const adminService = {
           data: []
         };
       }
+    },
+   async getUserEffectivePermissions(usuarioId, opcId = null) {
+      try {
+        console.log('🔍 UserButtonPermissions - Obteniendo permisos efectivos:', { usuarioId, opcId });
+        let endpoint = `/user-button-permissions/users/${usuarioId}/effective-permissions`;
+        if (opcId) {
+          endpoint += `?opc_id=${opcId}`;
+        }
+
+        const response = await apiClient.get(endpoint);
+        console.log('📥 UserButtonPermissions - Permisos efectivos:', response.data);
+        
+        return {
+          status: 'success',
+          data: response.data.permissions || response.data.data || [],
+          message: response.data.message || 'Permisos efectivos obtenidos correctamente'
+        };
+      } catch (error) {
+        console.error('❌ Error obteniendo permisos efectivos del usuario:', error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: 'error',
+          message: apiError.message,
+          errors: apiError.errors
+        };
+      }
+    },
+
+    /**
+     * NUEVO: Verificar permiso específico de botón para cualquier usuario
+     */
+    async checkUserButtonPermission(usuarioId, opcId, buttonCode) {
+      try {
+        console.log('🔍 UserButtonPermissions - Verificando permiso específico:', { usuarioId, opcId, buttonCode });
+        const response = await apiClient.post('/user-button-permissions/check', {
+          usu_id: usuarioId,
+          opc_id: opcId,
+          bot_codigo: buttonCode
+        });
+        console.log('📥 UserButtonPermissions - Resultado verificación:', response.data);
+        
+        return response.data.has_permission || false;
+      } catch (error) {
+        console.error('❌ Error verificando permiso específico:', error);
+        return false;
+      }
     }
   },
+
 
   // Botones
   buttons: {

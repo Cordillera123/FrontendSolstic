@@ -1,12 +1,13 @@
-// src/components/Windows/ParameWindows.jsx - MIGRADO A BOTONES PARAMETRIZADOS
+// src/components/Windows/ParameWindows.jsx - CÓDIGO COMPLETO CON PERMISOS EFECTIVOS
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useButtonPermissions } from '../../hooks/useButtonPermissions';
 import { adminService, iconService } from '../../services/apiService';
+import { getCurrentUser } from '../../context/AuthContext';
 import Icon from '../UI/Icon';
 import { SubmenuForm, SubmenusList, useSubmenuManagement } from './SubmenuComponents';
 import { OptionForm, OptionsList, useOptionManagement } from './OptionComponents';
 
-// ✅ Componente MenuForm completamente independiente
+// ===== COMPONENTE MenuForm =====
 const MenuForm = React.memo(({
     editingMenu,
     icons,
@@ -17,15 +18,12 @@ const MenuForm = React.memo(({
 }) => {
     console.log('🔵 MenuForm render - editingMenu:', editingMenu?.men_id || 'null');
 
-    // Estados adicionales para animaciones
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formErrors, setFormErrors] = useState({});
     const [showSuccess, setShowSuccess] = useState(false);
 
-    // Estado del formulario con inicialización inmediata
     const [formData, setFormData] = useState(() => {
         if (editingMenu) {
-            console.log('🟢 Inicializando con datos existentes');
             return {
                 men_nom: editingMenu.men_nom || '',
                 ico_id: editingMenu.ico_id || '',
@@ -34,7 +32,6 @@ const MenuForm = React.memo(({
                 men_ventana_directa: Boolean(editingMenu.men_ventana_directa)
             };
         } else {
-            console.log('🟡 Inicializando formulario vacío');
             return {
                 men_nom: '',
                 ico_id: '',
@@ -45,10 +42,7 @@ const MenuForm = React.memo(({
         }
     });
 
-    // Solo actualizar cuando cambie editingMenu
     useEffect(() => {
-        console.log('🔄 useEffect ejecutado - editingMenu cambió:', editingMenu?.men_id || 'null');
-
         if (editingMenu) {
             setFormData({
                 men_nom: editingMenu.men_nom || '',
@@ -66,17 +60,15 @@ const MenuForm = React.memo(({
                 men_ventana_directa: false
             });
         }
-        
-        // Limpiar estados de animación cuando cambie el menú
+
         setFormErrors({});
         setShowSuccess(false);
         setIsSubmitting(false);
     }, [editingMenu?.men_id]);
 
-    // Validación en tiempo real
     const validateField = useCallback((field, value) => {
         const errors = { ...formErrors };
-        
+
         switch (field) {
             case 'men_nom':
                 if (!value?.trim()) {
@@ -97,34 +89,28 @@ const MenuForm = React.memo(({
             default:
                 break;
         }
-        
+
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
     }, [formErrors]);
 
-    // Manejadores estables con useCallback
     const handleInputChange = useCallback((field, value) => {
-        console.log('⌨️ Escribiendo:', field, '=', value);
         setFormData(prev => ({
             ...prev,
             [field]: value
         }));
-        
-        // Validar campo en tiempo real
         validateField(field, value);
     }, [validateField]);
 
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
 
-        // Validación final
         if (!formData.men_nom?.trim()) {
             setFormErrors({ men_nom: 'El nombre del menú es requerido' });
             showMessage('error', 'El nombre del menú es requerido');
             return;
         }
 
-        // Activar estado de carga
         setIsSubmitting(true);
         setFormErrors({});
 
@@ -138,12 +124,10 @@ const MenuForm = React.memo(({
                 men_ventana_directa: Boolean(formData.men_ventana_directa)
             };
 
-            // Simular un pequeño delay para mostrar la animación
             await new Promise(resolve => setTimeout(resolve, 800));
-            
+
             await onSave(dataToSend, editingMenu);
-            
-            // Mostrar éxito brevemente
+
             setShowSuccess(true);
             setTimeout(() => setShowSuccess(false), 1500);
 
@@ -155,7 +139,6 @@ const MenuForm = React.memo(({
     }, [formData, editingMenu, onSave, showMessage]);
 
     const handleCancel = useCallback(() => {
-        // Animación de salida suave
         setIsSubmitting(true);
         setTimeout(() => {
             onCancel();
@@ -163,23 +146,20 @@ const MenuForm = React.memo(({
         }, 300);
     }, [onCancel]);
 
-    // Verificar si el formulario es válido
     const isFormValid = useMemo(() => {
         return formData.men_nom?.trim() && Object.keys(formErrors).length === 0;
     }, [formData.men_nom, formErrors]);
 
     return (
         <div className="bg-white p-6 rounded-xl border border-gray-200 mb-6 shadow-sm transition-all duration-300 hover:shadow-md">
-            {/* Header mejorado */}
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center">
-                    <div className={`p-2 rounded-lg mr-3 transition-all duration-300 ${
-                        editingMenu ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
-                    }`}>
-                        <Icon 
-                            name={editingMenu ? "Edit" : "Plus"} 
-                            size={20} 
-                            className="transition-transform duration-300 hover:scale-110" 
+                    <div className={`p-2 rounded-lg mr-3 transition-all duration-300 ${editingMenu ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
+                        }`}>
+                        <Icon
+                            name={editingMenu ? "Edit" : "Plus"}
+                            size={20}
+                            className="transition-transform duration-300 hover:scale-110"
                         />
                     </div>
                     <div>
@@ -191,15 +171,14 @@ const MenuForm = React.memo(({
                         </p>
                     </div>
                 </div>
-                
-                {/* Indicador de progreso */}
+
                 {isSubmitting && (
                     <div className="flex items-center space-x-2 text-blue-600">
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
                         <span className="text-sm font-medium">Procesando...</span>
                     </div>
                 )}
-                
+
                 {showSuccess && (
                     <div className="flex items-center space-x-2 text-green-600 animate-bounce">
                         <Icon name="CheckCircle" size={16} />
@@ -219,17 +198,13 @@ const MenuForm = React.memo(({
                             <input
                                 type="text"
                                 value={formData.men_nom || ''}
-                                onChange={(e) => {
-                                    console.log('🖊️ Input onChange:', e.target.value);
-                                    handleInputChange('men_nom', e.target.value);
-                                }}
-                                className={`w-full border rounded-lg px-4 py-3 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                    formErrors.men_nom 
-                                        ? 'border-red-300 bg-red-50' 
-                                        : formData.men_nom?.trim() 
-                                            ? 'border-green-300 bg-green-50' 
+                                onChange={(e) => handleInputChange('men_nom', e.target.value)}
+                                className={`w-full border rounded-lg px-4 py-3 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.men_nom
+                                        ? 'border-red-300 bg-red-50'
+                                        : formData.men_nom?.trim()
+                                            ? 'border-green-300 bg-green-50'
                                             : 'border-gray-300 hover:border-gray-400'
-                                }`}
+                                    }`}
                                 placeholder="Ingrese el nombre del menú"
                                 disabled={loading || isSubmitting}
                                 autoComplete="off"
@@ -241,7 +216,7 @@ const MenuForm = React.memo(({
                             )}
                         </div>
                         {formErrors.men_nom && (
-                            <p className="text-sm text-red-600 flex items-center animate-shake">
+                            <p className="text-sm text-red-600 flex items-center">
                                 <Icon name="AlertCircle" size={14} className="mr-1" />
                                 {formErrors.men_nom}
                             </p>
@@ -256,24 +231,47 @@ const MenuForm = React.memo(({
                         <label className="block text-sm font-medium text-gray-700">
                             Icono
                         </label>
-                        <div className="relative">
-                            <select
-                                value={formData.ico_id || ''}
-                                onChange={(e) => handleInputChange('ico_id', e.target.value)}
-                                className="w-full border border-gray-300 rounded-lg px-4 py-3 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 appearance-none bg-white"
-                                disabled={loading || isSubmitting}
-                            >
-                                <option value="">Seleccionar icono</option>
-                                {icons.map((icon) => (
-                                    <option key={icon.id || icon.ico_id} value={icon.id || icon.ico_id}>
-                                        {icon.nombre || icon.ico_nom} ({icon.categoria || icon.ico_cat})
-                                    </option>
-                                ))}
-                            </select>
-                            <div className="absolute right-3 top-3.5 pointer-events-none">
-                                <Icon name="ChevronDown" size={16} className="text-gray-400" />
-                            </div>
+                        <IconSelector
+                            icons={icons}
+                            selectedIcon={formData.ico_id}
+                            onSelect={(iconId) => handleInputChange("ico_id", iconId)}
+                            placeholder="Seleccionar icono"
+                            disabled={loading || isSubmitting}
+                        />
+                        <div className="text-xs text-gray-500">
+                            Elige un icono para representar visualmente el menú
                         </div>
+
+                        {/* Vista previa del icono seleccionado */}
+                        {formData.ico_id && (
+                            <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                <div className="flex items-center space-x-3">
+                                    <div className="flex items-center justify-center w-12 h-12 bg-white rounded-lg border-2 border-gray-300">
+                                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                            <span className="text-blue-600 font-bold text-sm">
+                                                {icons
+                                                    .find(
+                                                        (icon) =>
+                                                            (icon.ico_id || icon.id) == formData.ico_id
+                                                    )
+                                                    ?.ico_nom?.charAt(0)
+                                                    .toUpperCase() || "?"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="text-sm font-medium text-gray-900">
+                                            Vista previa del icono
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                            {icons.find(
+                                                (icon) => (icon.ico_id || icon.id) == formData.ico_id
+                                            )?.ico_nom || "Icono seleccionado"}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Componente */}
@@ -305,9 +303,8 @@ const MenuForm = React.memo(({
                             max="9"
                             value={formData.men_eje || 1}
                             onChange={(e) => handleInputChange('men_eje', parseInt(e.target.value) || 1)}
-                            className={`w-full border rounded-lg px-4 py-3 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                formErrors.men_eje ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
-                            }`}
+                            className={`w-full border rounded-lg px-4 py-3 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.men_eje ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
+                                }`}
                             disabled={loading || isSubmitting}
                         />
                         {formErrors.men_eje && (
@@ -338,18 +335,17 @@ const MenuForm = React.memo(({
                     </label>
                 </div>
 
-                {/* Botones con animaciones mejoradas */}
+                {/* Botones */}
                 <div className="flex gap-4 pt-4 border-t border-gray-200">
                     <button
                         type="submit"
                         disabled={loading || isSubmitting || !isFormValid}
-                        className={`relative flex-1 px-6 py-3 rounded-lg font-medium transition-all duration-300 transform ${
-                            isFormValid && !isSubmitting
+                        className={`relative flex-1 px-6 py-3 rounded-lg font-medium transition-all duration-300 transform ${isFormValid && !isSubmitting
                                 ? editingMenu
                                     ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5'
                                     : 'bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5'
                                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        }`}
+                            }`}
                     >
                         {isSubmitting ? (
                             <div className="flex items-center justify-center">
@@ -358,16 +354,16 @@ const MenuForm = React.memo(({
                             </div>
                         ) : (
                             <div className="flex items-center justify-center">
-                                <Icon 
-                                    name={editingMenu ? "Save" : "Plus"} 
-                                    size={16} 
-                                    className="mr-2 transition-transform duration-300 group-hover:scale-110" 
+                                <Icon
+                                    name={editingMenu ? "Save" : "Plus"}
+                                    size={16}
+                                    className="mr-2"
                                 />
                                 {editingMenu ? 'Actualizar Menú' : 'Crear Menú'}
                             </div>
                         )}
                     </button>
-                    
+
                     <button
                         type="button"
                         onClick={handleCancel}
@@ -382,7 +378,6 @@ const MenuForm = React.memo(({
                 </div>
             </form>
 
-            {/* Overlay de carga */}
             {isSubmitting && (
                 <div className="absolute inset-0 bg-white bg-opacity-50 rounded-xl flex items-center justify-center">
                     <div className="bg-white p-4 rounded-lg shadow-lg flex items-center space-x-3">
@@ -399,22 +394,115 @@ const MenuForm = React.memo(({
 
 MenuForm.displayName = 'MenuForm';
 
-// ✅ Componente principal MIGRADO A BOTONES PARAMETRIZADOS
+// ===== COMPONENTE PRINCIPAL =====
 const ParameWindows = ({ data }) => {
     // ===== CONFIGURACIÓN =====
     const MENU_ID = 1; // ID del menú "Parametrización de Módulos"
 
-    // ===== HOOK DE PERMISOS =====
+    // ===== OBTENER USUARIO ACTUAL =====
+    const currentUser = getCurrentUser();
+    const currentUserId = currentUser?.usu_id;
+
+    console.log('🔍 ParameWindows - Usuario actual:', {
+        usu_id: currentUserId,
+        usu_nom: currentUser?.usu_nom,
+        per_id: currentUser?.per_id
+    });
+
+    // ===== HOOK DE PERMISOS GENERAL (SIN userId) =====
     const {
         canCreate,
         canRead,
         canUpdate,
         canDelete,
         loading: permissionsLoading,
-        error: permissionsError
+        error: permissionsError,
+        buttonPermissions,
+        debugInfo
     } = useButtonPermissions(MENU_ID, null, true, 'menu');
 
-    // ===== ESTADOS =====
+    // ===== ESTADOS PARA PERMISOS ESPECÍFICOS =====
+    const [userSpecificPermissions, setUserSpecificPermissions] = useState(null);
+    const [loadingUserPermissions, setLoadingUserPermissions] = useState(false);
+    const [userPermissionsError, setUserPermissionsError] = useState(null);
+
+    // ===== FUNCIÓN PARA CARGAR PERMISOS ESPECÍFICOS =====
+    const loadUserSpecificPermissions = useCallback(async () => {
+        if (!currentUserId) return;
+
+        setLoadingUserPermissions(true);
+        setUserPermissionsError(null);
+
+        try {
+            console.log('🔍 ParameWindows - Cargando permisos específicos para usuario:', currentUserId);
+
+            const result = await adminService.userButtonPermissions.getUserButtonPermissions(currentUserId);
+
+            console.log('📥 ParameWindows - Respuesta permisos específicos:', result);
+
+            if (result.success && result.menuStructure) {
+                const menuData = result.menuStructure.find(menu => menu.men_id === MENU_ID);
+
+                if (menuData && menuData.botones) {
+                    console.log('✅ ParameWindows - Permisos específicos encontrados:', menuData.botones);
+                    setUserSpecificPermissions(menuData.botones);
+                } else {
+                    console.log('❌ ParameWindows - Menú no encontrado en estructura');
+                    setUserSpecificPermissions([]);
+                }
+            } else {
+                console.log('❌ ParameWindows - Error en respuesta de permisos específicos');
+                setUserPermissionsError('Error al cargar permisos específicos');
+            }
+        } catch (error) {
+            console.error('❌ ParameWindows - Error cargando permisos específicos:', error);
+            setUserPermissionsError(error.message);
+        } finally {
+            setLoadingUserPermissions(false);
+        }
+    }, [currentUserId]);
+
+    // ===== FUNCIÓN PARA OBTENER PERMISO ESPECÍFICO =====
+    const getUserSpecificButtonPermission = useCallback((buttonCode) => {
+        if (!userSpecificPermissions) {
+            // Fallback a permisos generales si no hay específicos
+            const generalPermission = buttonPermissions?.find(btn => btn.bot_codigo === buttonCode)?.has_permission;
+            console.log(`🔍 ParameWindows - Usando permiso general para ${buttonCode}:`, generalPermission);
+            return generalPermission || false;
+        }
+
+        const button = userSpecificPermissions.find(btn => btn.bot_codigo === buttonCode);
+
+        if (button) {
+            const hasPermission = button.has_permission === true;
+            console.log(`🎯 ParameWindows - Permiso específico ${buttonCode}:`, {
+                has_permission: hasPermission,
+                profile_permission: button.profile_permission,
+                is_customized: button.is_customized,
+                customization_type: button.customization_type
+            });
+            return hasPermission;
+        }
+
+        console.log(`❌ ParameWindows - Botón ${buttonCode} no encontrado`);
+        return false;
+    }, [userSpecificPermissions, buttonPermissions]);
+
+    // ===== PERMISOS EFECTIVOS CALCULADOS =====
+    const effectivePermissions = useMemo(() => {
+        const permissions = {
+            canCreate: getUserSpecificButtonPermission('CREATE'),
+            canRead: getUserSpecificButtonPermission('read'),
+            canUpdate: getUserSpecificButtonPermission('UPDATE'),
+            canDelete: getUserSpecificButtonPermission('DELETE'),
+            canExport: getUserSpecificButtonPermission('EXPORT')
+        };
+
+        console.log('🎯 ParameWindows - Permisos efectivos calculados:', permissions);
+        return permissions;
+    }, [getUserSpecificButtonPermission]);
+
+    // ===== ESTADOS DEL COMPONENTE =====
     const [activeTab, setActiveTab] = useState('menus');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
@@ -426,9 +514,9 @@ const ParameWindows = ({ data }) => {
     const [editingMenu, setEditingMenu] = useState(null);
     const [formKey, setFormKey] = useState(0);
 
-    // ===== FUNCIÓN BÁSICA (PRIMERA) =====
+    // ===== FUNCIONES BÁSICAS =====
     const showMessage = useCallback((type, text) => {
-        console.log('📢 Mensaje:', type, text);
+        console.log('📢 ParameWindows - Mensaje:', type, text);
         setMessage({ type, text });
         setTimeout(() => setMessage({ type: '', text: '' }), 3000);
     }, []);
@@ -436,12 +524,12 @@ const ParameWindows = ({ data }) => {
     // ===== FUNCIONES DE CARGA =====
     const loadMenus = useCallback(async () => {
         try {
-            console.log('📥 Cargando menús...');
+            console.log('📥 ParameWindows - Cargando menús...');
             const result = await adminService.menus.getAll();
-            console.log('📋 Menús cargados:', result.menus?.length || 0);
+            console.log('📋 ParameWindows - Menús cargados:', result.menus?.length || 0);
             setMenus(result.menus || []);
         } catch (error) {
-            console.error('❌ Error loading menus:', error);
+            console.error('❌ ParameWindows - Error loading menus:', error);
         }
     }, []);
 
@@ -450,7 +538,7 @@ const ParameWindows = ({ data }) => {
             const result = await adminService.submenus.getAll();
             setSubmenus(result.submenus || []);
         } catch (error) {
-            console.error('Error loading submenus:', error);
+            console.error('❌ ParameWindows - Error loading submenus:', error);
         }
     }, []);
 
@@ -459,7 +547,7 @@ const ParameWindows = ({ data }) => {
             const result = await adminService.options.getAll();
             setOptions(result.opciones || []);
         } catch (error) {
-            console.error('Error loading options:', error);
+            console.error('❌ ParameWindows - Error loading options:', error);
         }
     }, []);
 
@@ -468,40 +556,41 @@ const ParameWindows = ({ data }) => {
             const result = await iconService.getAllIcons();
             setIcons(result.data || []);
         } catch (error) {
-            console.error('Error loading icons:', error);
+            console.error('❌ ParameWindows - Error loading icons:', error);
         }
     }, []);
 
     const loadInitialData = useCallback(async () => {
         setLoading(true);
         try {
-            console.log('🚀 Cargando datos iniciales...');
+            console.log('🚀 ParameWindows - Cargando datos iniciales...');
             await Promise.all([
                 loadMenus(),
                 loadSubmenus(),
                 loadOptions(),
                 loadIcons()
             ]);
-            console.log('✅ Datos iniciales cargados');
+            console.log('✅ ParameWindows - Datos iniciales cargados');
         } catch (error) {
-            console.error('❌ Error loading initial data:', error);
+            console.error('❌ ParameWindows - Error loading initial data:', error);
             showMessage('error', 'Error al cargar datos iniciales');
         } finally {
             setLoading(false);
         }
     }, [loadMenus, loadSubmenus, loadOptions, loadIcons, showMessage]);
 
-    // ===== MANEJADORES DE FORMULARIO CON VALIDACIÓN DE PERMISOS =====
+    // ===== MANEJADORES DE MENÚ =====
     const handleMenuSave = useCallback(async (formData, editingMenu) => {
-        console.log('💾 Guardando menú:', formData);
-        
-        // ✅ VALIDACIÓN DE PERMISOS
-        if (editingMenu && !canUpdate) {
+        console.log('💾 ParameWindows - Guardando menú:', formData);
+
+        if (editingMenu && !effectivePermissions.canUpdate) {
+            console.log('❌ ParameWindows - UPDATE denegado (efectivo)');
             showMessage('error', 'No tienes permisos para actualizar menús');
             return;
         }
-        
-        if (!editingMenu && !canCreate) {
+
+        if (!editingMenu && !effectivePermissions.canCreate) {
+            console.log('❌ ParameWindows - CREATE denegado (efectivo)');
             showMessage('error', 'No tienes permisos para crear menús');
             return;
         }
@@ -509,89 +598,71 @@ const ParameWindows = ({ data }) => {
         setLoading(true);
 
         try {
-            // Agregar men_est por defecto y limpiar datos
             const cleanData = {
                 men_nom: formData.men_nom?.trim(),
                 ico_id: formData.ico_id ? parseInt(formData.ico_id) : null,
                 men_componente: formData.men_componente?.trim() || null,
                 men_eje: parseInt(formData.men_eje) || 1,
                 men_ventana_directa: Boolean(formData.men_ventana_directa),
-                men_est: true // Activo por defecto
+                men_est: true
             };
 
-            console.log('📤 Datos limpios a enviar:', cleanData);
+            console.log('📤 ParameWindows - Datos a enviar:', cleanData);
 
             let result;
             if (editingMenu) {
                 result = await adminService.menus.update(editingMenu.men_id, cleanData);
                 showMessage('success', 'Menú actualizado correctamente');
-                console.log('✅ Menú actualizado:', result);
+                console.log('✅ ParameWindows - Menú actualizado:', result);
             } else {
                 result = await adminService.menus.create(cleanData);
                 showMessage('success', 'Menú creado correctamente');
-                console.log('✅ Menú creado:', result);
+                console.log('✅ ParameWindows - Menú creado:', result);
             }
 
-            // Recargar datos y cerrar formulario
             await loadMenus();
             setShowMenuForm(false);
             setEditingMenu(null);
             setFormKey(prev => prev + 1);
 
         } catch (error) {
-            console.error('❌ Error completo:', error);
-            console.error('❌ Error response:', error.response?.data);
-
-            let errorMsg = 'Error al guardar el menú';
-
-            if (error.response?.data?.message) {
-                errorMsg = error.response.data.message;
-            } else if (error.message) {
-                errorMsg = error.message;
-            }
-
+            console.error('❌ ParameWindows - Error guardando menú:', error);
+            const errorMsg = error.response?.data?.message || error.message || 'Error al guardar el menú';
             showMessage('error', errorMsg);
         } finally {
             setLoading(false);
         }
-    }, [showMessage, loadMenus, canCreate, canUpdate]);
-
-    const handleMenuCancel = useCallback(() => {
-        console.log('❌ Cancelando formulario');
-        setShowMenuForm(false);
-        setEditingMenu(null);
-        setFormKey(prev => prev + 1);
-    }, []);
+    }, [showMessage, loadMenus, effectivePermissions]);
 
     const handleNewMenu = useCallback(() => {
-        // ✅ VALIDACIÓN DE PERMISOS
-        if (!canCreate) {
+        if (!effectivePermissions.canCreate) {
+            console.log('❌ ParameWindows - CREATE denegado para nuevo menú (efectivo)');
             showMessage('error', 'No tienes permisos para crear menús');
             return;
         }
-        
-        console.log('➕ Nuevo menú');
+
+        console.log('➕ ParameWindows - Nuevo menú - Permiso concedido (efectivo)');
         setEditingMenu(null);
         setShowMenuForm(true);
         setFormKey(prev => prev + 1);
-    }, [canCreate, showMessage]);
+    }, [effectivePermissions.canCreate, showMessage]);
 
     const handleEditMenu = useCallback((menu) => {
-        // ✅ VALIDACIÓN DE PERMISOS
-        if (!canUpdate) {
+        if (!effectivePermissions.canUpdate) {
+            console.log('❌ ParameWindows - UPDATE denegado para editar menú (efectivo)');
             showMessage('error', 'No tienes permisos para editar menús');
             return;
         }
-        
-        console.log('✏️ Editar menú:', menu.men_id);
+
+        console.log('✏️ ParameWindows - Editar menú - Permiso concedido (efectivo):', menu.men_id);
         setEditingMenu(menu);
         setShowMenuForm(true);
         setFormKey(prev => prev + 1);
-    }, [canUpdate, showMessage]);
+    }, [effectivePermissions.canUpdate, showMessage]);
 
     const handleDeleteMenu = useCallback(async (menu) => {
-        // ✅ VALIDACIÓN DE PERMISOS
-        if (!canDelete) {
+        if (!effectivePermissions.canDelete) {
+            console.log('❌ ParameWindows - DELETE denegado (efectivo)');
             showMessage('error', 'No tienes permisos para eliminar menús');
             return;
         }
@@ -602,27 +673,35 @@ const ParameWindows = ({ data }) => {
 
         try {
             setLoading(true);
+            console.log('🗑️ ParameWindows - Eliminando menú - Permiso concedido (efectivo):', menu.men_id);
             await adminService.menus.delete(menu.men_id);
             showMessage('success', 'Menú eliminado correctamente');
             await loadMenus();
         } catch (error) {
-            console.error('❌ Error eliminando menú:', error);
+            console.error('❌ ParameWindows - Error eliminando menú:', error);
             const errorMsg = error.response?.data?.message || 'Error al eliminar el menú';
             showMessage('error', errorMsg);
         } finally {
             setLoading(false);
         }
-    }, [canDelete, showMessage, loadMenus]);
+    }, [effectivePermissions.canDelete, showMessage, loadMenus]);
+
+    const handleMenuCancel = useCallback(() => {
+        console.log('❌ ParameWindows - Cancelando formulario');
+        setShowMenuForm(false);
+        setEditingMenu(null);
+        setFormKey(prev => prev + 1);
+    }, []);
 
     const handleTabChange = useCallback((newTab) => {
-        console.log('🔄 Cambiar tab:', newTab);
+        console.log('🔄 ParameWindows - Cambiar tab:', newTab);
         setActiveTab(newTab);
         setShowMenuForm(false);
         setEditingMenu(null);
         setFormKey(prev => prev + 1);
     }, []);
 
-    // Hooks para submenús y opciones
+    // ===== HOOKS PARA SUBMENÚS Y OPCIONES =====
     const {
         showSubmenuForm,
         editingSubmenu,
@@ -647,27 +726,49 @@ const ParameWindows = ({ data }) => {
 
     // ===== EFFECTS =====
     useEffect(() => {
-        console.log('🚀 Iniciando carga de datos');
-        if (canRead) {
+        console.log('🚀 ParameWindows - Iniciando carga de datos');
+        if ((canRead || effectivePermissions.canRead) && currentUserId) {
             loadInitialData();
         }
-    }, [loadInitialData, canRead]);
+    }, [loadInitialData, canRead, effectivePermissions.canRead, currentUserId]);
 
-    // ===== COMPONENTES MEMOIZADOS =====
+    useEffect(() => {
+        if (currentUserId && !permissionsError) {
+            loadUserSpecificPermissions();
+        }
+    }, [currentUserId, loadUserSpecificPermissions, permissionsError]);
+
+    useEffect(() => {
+        console.log('🔍 ParameWindows - Permisos actualizados:', {
+            general: { canCreate, canRead, canUpdate, canDelete },
+            effective: effectivePermissions,
+            userSpecific: userSpecificPermissions ? 'Cargados' : 'No cargados',
+            permissionsLoading,
+            loadingUserPermissions,
+            currentUserId
+        });
+    }, [canCreate, canRead, canUpdate, canDelete, effectivePermissions, userSpecificPermissions, permissionsLoading, loadingUserPermissions, currentUserId]);
+
+    // ===== COMPONENTE LISTA DE MENÚS =====
     const MenusList = useMemo(() => (
         <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Lista de Menús ({menus.length})</h3>
-                {/* ✅ BOTÓN CREATE PARAMETRIZADO */}
-                {canCreate && (
+                {effectivePermissions.canCreate ? (
                     <button
                         onClick={handleNewMenu}
                         className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center transition-all duration-300"
                         disabled={loading}
+                        title="Crear nuevo menú - Permiso efectivo concedido"
                     >
                         <Icon name="Plus" size={16} className="mr-2" />
-                        Nuevo Menú
+                        Nuevo Menú ✅
                     </button>
+                ) : (
+                    <div className="px-4 py-2 bg-gray-300 text-gray-500 rounded-md flex items-center" title="Sin permisos efectivos para crear">
+                        <Icon name="Lock" size={16} className="mr-2" />
+                        Nuevo Menú ❌
+                    </div>
                 )}
             </div>
 
@@ -710,24 +811,38 @@ const ParameWindows = ({ data }) => {
                                     </td>
                                     <td className="py-2">
                                         <div className="flex gap-2">
-                                            {/* ✅ BOTÓN UPDATE PARAMETRIZADO */}
-                                            {canUpdate && (
+                                            {effectivePermissions.canUpdate ? (
                                                 <button
                                                     onClick={() => handleEditMenu(menu)}
                                                     className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors duration-300"
                                                     disabled={loading}
-                                                    title="Editar menú"
+                                                    title="Editar menú - Permiso efectivo concedido"
+                                                >
+                                                    <Icon name="Edit" size={14} />
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    className="p-1 text-gray-400 cursor-not-allowed rounded"
+                                                    disabled={true}
+                                                    title="Sin permisos efectivos para editar"
                                                 >
                                                     <Icon name="Edit" size={14} />
                                                 </button>
                                             )}
-                                            {/* ✅ BOTÓN DELETE PARAMETRIZADO */}
-                                            {canDelete && (
+                                            {effectivePermissions.canDelete ? (
                                                 <button
                                                     onClick={() => handleDeleteMenu(menu)}
                                                     className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors duration-300"
                                                     disabled={loading}
-                                                    title="Eliminar menú"
+                                                    title="Eliminar menú - Permiso efectivo concedido"
+                                                >
+                                                    <Icon name="Trash" size={14} />
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    className="p-1 text-gray-400 cursor-not-allowed rounded"
+                                                    disabled={true}
+                                                    title="Sin permisos efectivos para eliminar"
                                                 >
                                                     <Icon name="Trash" size={14} />
                                                 </button>
@@ -741,8 +856,9 @@ const ParameWindows = ({ data }) => {
                 </div>
             )}
         </div>
-    ), [menus, loading, canCreate, canUpdate, canDelete, handleNewMenu, handleEditMenu, handleDeleteMenu]);
+    ), [menus, loading, effectivePermissions, handleNewMenu, handleEditMenu, handleDeleteMenu]);
 
+    // ===== COMPONENTES MEMOIZADOS PARA SUBMENÚS Y OPCIONES =====
     const SubmenusListMemo = useMemo(() => (
         <SubmenusList
             submenus={submenus}
@@ -765,19 +881,22 @@ const ParameWindows = ({ data }) => {
         />
     ), [options, loading, handleNewOption, handleEditOption, handleDeleteOption, showMessage]);
 
-    // ===== VALIDACIONES DE PERMISOS =====
-    if (permissionsLoading) {
+    // ===== VALIDACIONES DE CARGA =====
+    if (permissionsLoading || loadingUserPermissions) {
         return (
             <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Cargando permisos...</p>
+                    <p className="text-gray-600">
+                        {permissionsLoading ? 'Cargando permisos generales...' : 'Cargando permisos específicos...'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">Usuario ID: {currentUserId}</p>
                 </div>
             </div>
         );
     }
 
-    if (permissionsError) {
+    if (permissionsError && !userSpecificPermissions) {
         return (
             <div className="flex items-center justify-center h-full">
                 <div className="text-center max-w-md">
@@ -785,19 +904,32 @@ const ParameWindows = ({ data }) => {
                     <p className="text-red-500 mb-2">Error al cargar permisos</p>
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-left">
                         <p className="text-sm text-red-800 mb-2">
-                            <strong>Error:</strong> {permissionsError}
+                            <strong>Error General:</strong> {permissionsError}
                         </p>
+                        {userPermissionsError && (
+                            <p className="text-sm text-red-800 mb-2">
+                                <strong>Error Específico:</strong> {userPermissionsError}
+                            </p>
+                        )}
                         <ul className="text-xs text-red-700 space-y-1">
                             <li>• Menu ID: <code className="bg-red-100 px-1 rounded">{MENU_ID}</code></li>
-                            <li>• Verifica la conexión con el backend</li>
+                            <li>• Usuario ID: <code className="bg-red-100 px-1 rounded">{currentUserId}</code></li>
+                            <li>• Intentando cargar permisos específicos...</li>
                         </ul>
                     </div>
+                    <button
+                        onClick={loadUserSpecificPermissions}
+                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        disabled={loadingUserPermissions}
+                    >
+                        {loadingUserPermissions ? 'Cargando...' : 'Reintentar'}
+                    </button>
                 </div>
             </div>
         );
     }
 
-    if (!canRead) {
+    if (!canRead && !effectivePermissions.canRead) {
         return (
             <div className="flex items-center justify-center h-full">
                 <div className="text-center max-w-md">
@@ -808,11 +940,10 @@ const ParameWindows = ({ data }) => {
                             <strong>Información de debug:</strong>
                         </p>
                         <ul className="text-xs text-yellow-700 space-y-1">
-                            <li>• Menu ID configurado: <code className="bg-yellow-100 px-1 rounded">{MENU_ID}</code></li>
-                            <li>• Permiso READ: <code className="bg-yellow-100 px-1 rounded">{canRead ? 'SÍ' : 'NO'}</code></li>
-                            <li>• Permiso CREATE: <code className="bg-yellow-100 px-1 rounded">{canCreate ? 'SÍ' : 'NO'}</code></li>
-                            <li>• Permiso UPDATE: <code className="bg-yellow-100 px-1 rounded">{canUpdate ? 'SÍ' : 'NO'}</code></li>
-                            <li>• Permiso DELETE: <code className="bg-yellow-100 px-1 rounded">{canDelete ? 'SÍ' : 'NO'}</code></li>
+                            <li>• Menu ID: <code className="bg-yellow-100 px-1 rounded">{MENU_ID}</code></li>
+                            <li>• Usuario ID: <code className="bg-yellow-100 px-1 rounded">{currentUserId}</code></li>
+                            <li>• Permiso READ General: <code className="bg-yellow-100 px-1 rounded">{canRead ? 'SÍ' : 'NO'}</code></li>
+                            <li>• Permiso READ Efectivo: <code className="bg-yellow-100 px-1 rounded">{effectivePermissions.canRead ? 'SÍ' : 'NO'}</code></li>
                         </ul>
                     </div>
                 </div>
@@ -846,7 +977,7 @@ const ParameWindows = ({ data }) => {
                     <Icon name="Settings" size={24} className="mr-3 text-blue-600" />
                     Parametrización de Módulos
                     <span className="ml-3 text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                        Menu ID: {MENU_ID}
+                        Menu ID: {MENU_ID} | Usuario: {currentUserId}
                     </span>
                 </h2>
                 <p className="text-gray-600">
@@ -854,35 +985,93 @@ const ParameWindows = ({ data }) => {
                 </p>
             </div>
 
-            {/* Debug info con permisos */}
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-xs">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    <div><strong>Tab:</strong> {activeTab}</div>
-                    <div><strong>Form:</strong> {showMenuForm.toString()}</div>
-                    <div><strong>Editing:</strong> {editingMenu?.men_id || 'null'}</div>
+            {/* Debug Panel COMPLETO */}
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded text-xs">
+                {/* Información básica */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                    <div><strong>Usuario:</strong> {currentUser?.usu_nom} (ID: {currentUserId})</div>
+                    <div><strong>Perfil:</strong> {currentUser?.per_id}</div>
+                    <div><strong>Tab Activo:</strong> {activeTab}</div>
                     <div><strong>Loading:</strong> {loading.toString()}</div>
                 </div>
-                <div className="mt-2 pt-2 border-t border-blue-200">
-                    <strong>Permisos:</strong> 
-                    <span className={`ml-2 px-2 py-0.5 rounded ${canCreate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        CREATE: {canCreate ? 'SÍ' : 'NO'}
-                    </span>
-                    <span className={`ml-2 px-2 py-0.5 rounded ${canRead ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        READ: {canRead ? 'SÍ' : 'NO'}
-                    </span>
-                    <span className={`ml-2 px-2 py-0.5 rounded ${canUpdate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        UPDATE: {canUpdate ? 'SÍ' : 'NO'}
-                    </span>
-                    <span className={`ml-2 px-2 py-0.5 rounded ${canDelete ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        DELETE: {canDelete ? 'SÍ' : 'NO'}
-                    </span>
+
+                {/* Estado de permisos */}
+                <div className="mb-3 pb-2 border-b border-blue-200">
+                    <strong>Estado de Carga:</strong>
+                    <div className="mt-1 space-x-2">
+                        <span className={`px-2 py-1 rounded ${permissionsLoading ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                            General: {permissionsLoading ? 'Cargando...' : 'Listo'}
+                        </span>
+                        <span className={`px-2 py-1 rounded ${loadingUserPermissions ? 'bg-yellow-100 text-yellow-700' : userSpecificPermissions ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            Específicos: {loadingUserPermissions ? 'Cargando...' : userSpecificPermissions ? 'Cargados' : 'Error'}
+                        </span>
+                    </div>
                 </div>
+
+                {/* Permisos generales vs efectivos */}
+                <div className="mb-3 pb-2 border-b border-blue-200">
+                    <strong>Permisos Generales:</strong>
+                    <div className="mt-1 space-x-1">
+                        <span className={`px-2 py-1 rounded ${canCreate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            CREATE: {canCreate ? 'SÍ' : 'NO'}
+                        </span>
+                        <span className={`px-2 py-1 rounded ${canRead ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            read: {canRead ? 'SÍ' : 'NO'}
+                        </span>
+                        <span className={`px-2 py-1 rounded ${canUpdate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            UPDATE: {canUpdate ? 'SÍ' : 'NO'}
+                        </span>
+                        <span className={`px-2 py-1 rounded ${canDelete ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            DELETE: {canDelete ? 'SÍ' : 'NO'}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="mb-3 pb-2 border-b border-blue-200">
+                    <strong>Permisos Efectivos (Usados en UI):</strong>
+                    <div className="mt-1 space-x-1">
+                        <span className={`px-2 py-1 rounded ${effectivePermissions.canCreate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            CREATE: {effectivePermissions.canCreate ? 'SÍ' : 'NO'}
+                        </span>
+                        <span className={`px-2 py-1 rounded ${effectivePermissions.canRead ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            read: {effectivePermissions.canRead ? 'SÍ' : 'NO'}
+                        </span>
+                        <span className={`px-2 py-1 rounded ${effectivePermissions.canUpdate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            UPDATE: {effectivePermissions.canUpdate ? 'SÍ' : 'NO'}
+                        </span>
+                        <span className={`px-2 py-1 rounded ${effectivePermissions.canDelete ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            DELETE: {effectivePermissions.canDelete ? 'SÍ' : 'NO'}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Detalle de permisos específicos */}
+                {userSpecificPermissions && (
+                    <div>
+                        <strong>Detalle de Permisos Específicos:</strong>
+                        <div className="mt-1 grid grid-cols-1 md:grid-cols-5 gap-2">
+                            {userSpecificPermissions.map(btn => (
+                                <div key={btn.bot_codigo} className={`p-2 rounded border text-xs ${btn.has_permission ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                                    }`}>
+                                    <div className="font-mono font-bold">{btn.bot_codigo}</div>
+                                    <div>Efectivo: {btn.has_permission ? '✅' : '❌'}</div>
+                                    <div>Perfil: {btn.profile_permission ? '✅' : '❌'}</div>
+                                    {btn.is_customized && (
+                                        <div className="text-orange-600">
+                                            Usuario: {btn.customization_type === 'C' ? '✅' : '❌'} ({btn.customization_type})
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Mensajes */}
             {message.text && (
                 <div className={`mb-4 p-3 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
-                    'bg-red-50 text-red-800 border border-red-200'
+                        'bg-red-50 text-red-800 border border-red-200'
                     }`}>
                     <div className="flex items-center">
                         <Icon
@@ -904,8 +1093,8 @@ const ParameWindows = ({ data }) => {
                                 key={tab.id}
                                 onClick={() => handleTabChange(tab.id)}
                                 className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center transition-colors ${activeTab === tab.id
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                        ? 'border-blue-500 text-blue-600'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                                 disabled={loading}
                             >
