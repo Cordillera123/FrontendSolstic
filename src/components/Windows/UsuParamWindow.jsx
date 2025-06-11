@@ -1,34 +1,34 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useButtonPermissions } from '../../hooks/useButtonPermissions';
-import { adminService } from '../../services/apiService';
-import Icon from '../UI/Icon';
-import PerParamWindow from './PerParamWindow';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useButtonPermissions } from "../../hooks/useButtonPermissions";
+import { adminService } from "../../services/apiService";
+import Icon from "../UI/Icon";
+import PerParamWindow from "./PerParamWindow";
 
 // Componente principal para gestión de usuarios
-const UsuParamWindow = ({ 
+const UsuParamWindow = ({
   showMessage = (type, message) => console.log(`${type}: ${message}`), // ✅ Función por defecto
-  menuId = 8, 
+  menuId = 8,
   perfilesMenuId = null,
-  defaultTab = 'usuarios',
-  title = 'Gestión de Usuarios y Perfiles'
+  defaultTab = "usuarios",
+  title = "Gestión de Usuarios y Perfiles",
 }) => {
   const effectivePerfilesMenuId = perfilesMenuId || menuId;
-  
+  const [showDisabled, setShowDisabled] = useState(true); // ✅ Estado para mostrar deshabilitados
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [usuarios, setUsuarios] = useState([]);
   const [perfiles, setPerfiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingUsuario, setEditingUsuario] = useState(null);
-  const [selectedPerfil, setSelectedPerfil] = useState('');
+  const [selectedPerfil, setSelectedPerfil] = useState("");
   const [formData, setFormData] = useState({
-    usu_nom: '',
-    usu_ape: '',
-    usu_cor: '',
-    usu_con: '',
-    usu_ced: '',
-    per_id: '',
-    est_id: 1
+    usu_nom: "",
+    usu_ape: "",
+    usu_cor: "",
+    usu_con: "",
+    usu_ced: "",
+    per_id: "",
+    est_id: 1,
   });
 
   // Hook de permisos para usuarios
@@ -37,76 +37,235 @@ const UsuParamWindow = ({
     canRead,
     canUpdate,
     canDelete,
-    loading: permissionsLoading
-  } = useButtonPermissions(menuId, null, true, 'menu');
+    loading: permissionsLoading,
+  } = useButtonPermissions(menuId, null, true, "menu");
 
-  // ✅ CORRECCIÓN 5: Función loadUsuarios sin dependencias problemáticas
+  // ✅ FUNCIÓN loadUsuarios CORREGIDA - Siempre incluye deshabilitados para ver cambios
   const loadUsuarios = useCallback(async () => {
-    if (!canRead) return;
-    
+    console.log("🔍 loadUsuarios iniciado");
+    console.log("🔍 canRead:", canRead);
+    console.log("🔍 selectedPerfil:", selectedPerfil);
+    console.log("🔍 showDisabled:", showDisabled);
+
+    if (!canRead) {
+      console.log("❌ Sin permisos de lectura");
+      return;
+    }
+
     setLoading(true);
     try {
+      // ✅ CAMBIO CLAVE: Incluir usuarios deshabilitados basado en el estado
       const params = selectedPerfil ? { per_id: selectedPerfil } : {};
-      console.log('🔍 Cargando usuarios con params:', params);
-      
+
+      // ✅ Incluir deshabilitados según el checkbox
+      params.incluir_deshabilitados = showDisabled;
+
+      console.log("🔍 Cargando usuarios con params:", params);
+
+      if (!adminService?.usuarios?.getAll) {
+        console.error("❌ adminService.usuarios.getAll no existe");
+        showMessage("error", "Error: Función de carga no disponible");
+        return;
+      }
+
       const result = await adminService.usuarios.getAll(params);
-      console.log('📥 Respuesta usuarios:', result);
-      
-      if (result?.status === 'success' && result?.data) {
-        // ✅ CORRECCIÓN: Manejo robusto de diferentes estructuras de respuesta
+      console.log("📥 Respuesta completa usuarios:", result);
+
+      if (result?.status === "success" && result?.data) {
         let usuariosData = [];
-        
+
         // Caso 1: Respuesta directa como array
         if (Array.isArray(result.data)) {
           usuariosData = result.data;
+          console.log(
+            "📊 Caso 1: Array directo, usuarios:",
+            usuariosData.length
+          );
         }
         // Caso 2: Paginación Laravel estándar
         else if (result.data.data && Array.isArray(result.data.data)) {
           usuariosData = result.data.data;
+          console.log(
+            "📊 Caso 2: Paginación Laravel, usuarios:",
+            usuariosData.length
+          );
         }
         // Caso 3: Paginación Laravel anidada
-        else if (result.data.data?.data && Array.isArray(result.data.data.data)) {
+        else if (
+          result.data.data?.data &&
+          Array.isArray(result.data.data.data)
+        ) {
           usuariosData = result.data.data.data;
+          console.log(
+            "📊 Caso 3: Paginación anidada, usuarios:",
+            usuariosData.length
+          );
         }
-        // Caso 4: Propiedad específica usuarios
-        else if (result.data.usuarios && Array.isArray(result.data.usuarios)) {
-          usuariosData = result.data.usuarios;
-        }
-        
-        console.log('✅ Usuarios procesados:', usuariosData);
+
+        console.log("✅ Usuarios procesados:", usuariosData);
+        console.log("✅ Primer usuario (muestra):", usuariosData[0]);
+
+        // ✅ VERIFICAR ESTADOS DE USUARIOS
+        usuariosData.forEach((user) => {
+          console.log(
+            `👤 Usuario ${user.usu_id} (${user.usu_nom}): usu_deshabilitado = ${user.usu_deshabilitado}`
+          );
+        });
+
         setUsuarios(usuariosData);
       } else {
-        console.error('❌ Error en respuesta usuarios:', result);
+        console.error("❌ Error en respuesta usuarios:", result);
         setUsuarios([]);
-        showMessage('error', result?.message || 'Error al cargar usuarios');
+        showMessage("error", result?.message || "Error al cargar usuarios");
       }
     } catch (error) {
-      console.error('❌ Error loading usuarios:', error);
+      console.error("❌ Error loading usuarios:", error);
+      console.error("❌ Error details:", error.response?.data);
       setUsuarios([]);
-      showMessage('error', 'Error al cargar usuarios: ' + (error.message || 'Error desconocido'));
+      showMessage(
+        "error",
+        "Error al cargar usuarios: " + (error.message || "Error desconocido")
+      );
     } finally {
       setLoading(false);
     }
-  }, [canRead, selectedPerfil]); // ✅ Solo dependencias esenciales
+  }, [canRead, selectedPerfil, showDisabled]); // ✅ Agregar showDisabled como dependencia
 
-  // ✅ CORRECCIÓN 6: Función loadPerfiles separada para el filtro
+  // ✅ FUNCIÓN renderUsuarioStatus MEJORADA con debug completo
+  const renderUsuarioStatus = (usuario) => {
+    console.log("🔍 DEBUG COMPLETO - Renderizando estado para usuario:", {
+      id: usuario.usu_id,
+      nombre: `${usuario.usu_nom} ${usuario.usu_ape}`,
+      usu_deshabilitado: usuario.usu_deshabilitado,
+      usu_deshabilitado_type: typeof usuario.usu_deshabilitado,
+      est_id: usuario.est_id,
+      est_id_type: typeof usuario.est_id,
+      estado: usuario.estado,
+      raw_object: usuario,
+    });
+
+    // ✅ VERIFICAR MÚLTIPLES CAMPOS PARA EL ESTADO - MEJORADO
+    let statusText = "Activo";
+    let statusClass = "bg-green-100 text-green-800";
+
+    // ✅ PRIORIDAD 1: Campo usu_deshabilitado (eliminado lógico) - MÁS ESTRICTO
+    if (
+      usuario.usu_deshabilitado === true ||
+      usuario.usu_deshabilitado === 1 ||
+      usuario.usu_deshabilitado === "1" ||
+      usuario.usu_deshabilitado === "true"
+    ) {
+      statusText = "Deshabilitado";
+      statusClass = "bg-red-100 text-red-800";
+      console.log(
+        "✅ DETECTADO como DESHABILITADO por usu_deshabilitado:",
+        usuario.usu_deshabilitado
+      );
+    }
+    // ✅ PRIORIDAD 2: Campo est_id
+    else if (usuario.est_id === 2 || usuario.est_id === "2") {
+      statusText = "Inactivo";
+      statusClass = "bg-yellow-100 text-yellow-800";
+      console.log("✅ DETECTADO como INACTIVO por est_id:", usuario.est_id);
+    }
+    // ✅ PRIORIDAD 3: Campo estado como string
+    else if (
+      usuario.estado === "Inactivo" ||
+      usuario.estado === "Deshabilitado"
+    ) {
+      statusText = usuario.estado;
+      statusClass = "bg-yellow-100 text-yellow-800";
+      console.log(
+        "✅ DETECTADO como INACTIVO por estado string:",
+        usuario.estado
+      );
+    }
+
+    console.log("✅ Estado FINAL calculado:", { statusText, statusClass });
+
+    return (
+      <span
+        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}
+      >
+        {statusText}
+      </span>
+    );
+  };
+
+  // ✅ FUNCIÓN PARA VERIFICAR SI adminService ESTÁ DISPONIBLE
+  const verifyApiService = () => {
+    console.log("🔍 Verificando adminService...");
+    console.log("adminService:", adminService);
+    console.log("adminService.usuarios:", adminService?.usuarios);
+    console.log(
+      "adminService.usuarios.getAll:",
+      typeof adminService?.usuarios?.getAll
+    );
+    console.log(
+      "adminService.usuarios.delete:",
+      typeof adminService?.usuarios?.delete
+    );
+
+    if (!adminService) {
+      console.error("❌ adminService no está disponible");
+      return false;
+    }
+
+    if (!adminService.usuarios) {
+      console.error("❌ adminService.usuarios no está disponible");
+      return false;
+    }
+
+    if (!adminService.usuarios.delete) {
+      console.error("❌ adminService.usuarios.delete no está disponible");
+      return false;
+    }
+
+    console.log("✅ adminService verificado correctamente");
+    return true;
+  };
+
+  // ✅ FUNCIÓN PARA DEBUG DE ESTADOS DE USUARIOS
+  const debugUsuarioStates = () => {
+    console.log("🔍 DEBUG - Estados actuales de todos los usuarios:");
+    usuarios.forEach((usuario, index) => {
+      console.log(
+        `${index + 1}. Usuario ${usuario.usu_id} (${usuario.usu_nom}):`,
+        {
+          usu_deshabilitado: usuario.usu_deshabilitado,
+          tipo: typeof usuario.usu_deshabilitado,
+          est_id: usuario.est_id,
+          estado: usuario.estado,
+          calculado: usuario.usu_deshabilitado ? "DESHABILITADO" : "ACTIVO",
+        }
+      );
+    });
+  };
+
+  // ✅ LLAMAR VERIFICACIÓN AL CARGAR EL COMPONENTE
+  useEffect(() => {
+    console.log("🔍 Componente montado, verificando servicios...");
+    verifyApiService();
+  }, []);
+
+  // ✅ FUNCIÓN loadPerfiles separada para el filtro
   const loadPerfilesForFilter = useCallback(async () => {
     try {
-      console.log('🔍 Cargando perfiles para filtro...');
+      console.log("🔍 Cargando perfiles para filtro...");
       const result = await adminService.perfiles.getAll();
-      
-      if (result?.status === 'success' && result?.data) {
+
+      if (result?.status === "success" && result?.data) {
         const perfilesData = Array.isArray(result.data) ? result.data : [];
-        console.log('✅ Perfiles para filtro:', perfilesData);
+        console.log("✅ Perfiles para filtro:", perfilesData);
         setPerfiles(perfilesData);
       }
     } catch (error) {
-      console.error('❌ Error loading perfiles para filtro:', error);
+      console.error("❌ Error loading perfiles para filtro:", error);
       setPerfiles([]);
     }
   }, []);
 
-  // ✅ CORRECCIÓN 7: useEffect optimizado
+  // ✅ useEffect optimizado
   useEffect(() => {
     if (canRead) {
       loadUsuarios();
@@ -114,181 +273,331 @@ const UsuParamWindow = ({
     }
   }, [canRead, loadUsuarios, loadPerfilesForFilter]);
 
+  // ✅ useEffect para recargar cuando cambie showDisabled
+  useEffect(() => {
+    if (canRead && activeTab === "usuarios") {
+      loadUsuarios();
+    }
+  }, [selectedPerfil, canRead, activeTab, showDisabled, loadUsuarios]);
+
   // Handlers del formulario
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // ✅ CORRECCIÓN 8: Validaciones robustas - SOLUCIONADO
-    const required = ['usu_nom', 'usu_ape', 'usu_cor', 'usu_ced', 'per_id'];
-    const missing = required.filter(field => {
+
+    // ✅ Validaciones robustas
+    const required = ["usu_nom", "usu_ape", "usu_cor", "usu_ced", "per_id"];
+    const missing = required.filter((field) => {
       const value = formData[field];
-      // ✅ FIX: Manejar tanto strings como números
-      if (typeof value === 'string') {
+      if (typeof value === "string") {
         return !value.trim();
-      } else if (typeof value === 'number') {
+      } else if (typeof value === "number") {
         return !value;
       } else {
         return !value;
       }
     });
-    
+
     if (missing.length > 0) {
-      showMessage('error', `Campos requeridos: ${missing.join(', ')}`);
+      showMessage("error", `Campos requeridos: ${missing.join(", ")}`);
       return;
     }
 
     if (!editingUsuario && !formData.usu_con?.trim()) {
-      showMessage('error', 'La contraseña es requerida para crear usuario');
+      showMessage("error", "La contraseña es requerida para crear usuario");
       return;
     }
 
     try {
       let result;
       const submitData = { ...formData };
-      
+
       if (editingUsuario) {
         if (!canUpdate) {
-          showMessage('error', 'No tienes permisos para editar usuarios');
+          showMessage("error", "No tienes permisos para editar usuarios");
           return;
         }
         // Si no hay nueva contraseña, no enviarla
         if (!submitData.usu_con?.trim()) {
           delete submitData.usu_con;
         }
-        result = await adminService.usuarios.update(editingUsuario.usu_id, submitData);
+        result = await adminService.usuarios.update(
+          editingUsuario.usu_id,
+          submitData
+        );
       } else {
         if (!canCreate) {
-          showMessage('error', 'No tienes permisos para crear usuarios');
+          showMessage("error", "No tienes permisos para crear usuarios");
           return;
         }
         result = await adminService.usuarios.create(submitData);
       }
 
-      if (result?.status === 'success') {
-        showMessage('success', result.message || 'Usuario guardado correctamente');
-        // ✅ CORRECCIÓN 9: Limpiar formulario y recargar inmediatamente
+      if (result?.status === "success") {
+        showMessage(
+          "success",
+          result.message || "Usuario guardado correctamente"
+        );
+        // ✅ Limpiar formulario y recargar inmediatamente
         setShowForm(false);
         setEditingUsuario(null);
         setFormData({
-          usu_nom: '',
-          usu_ape: '',
-          usu_cor: '',
-          usu_con: '',
-          usu_ced: '',
-          per_id: '',
-          est_id: 1
+          usu_nom: "",
+          usu_ape: "",
+          usu_cor: "",
+          usu_con: "",
+          usu_ced: "",
+          per_id: "",
+          est_id: 1,
         });
         await loadUsuarios(); // ✅ Recarga inmediata
       } else {
-        showMessage('error', result?.message || 'Error al guardar usuario');
+        showMessage("error", result?.message || "Error al guardar usuario");
       }
     } catch (error) {
-      console.error('Error saving usuario:', error);
-      
-      // ✅ MEJORA: Mostrar errores de validación específicos
+      console.error("Error saving usuario:", error);
+
+      // ✅ Mostrar errores de validación específicos
       if (error.response && error.response.data && error.response.data.errors) {
         const errors = error.response.data.errors;
         const errorMessages = [];
-        
+
         // Convertir errores a mensajes amigables
-        Object.keys(errors).forEach(field => {
+        Object.keys(errors).forEach((field) => {
           const fieldErrors = errors[field];
-          const fieldName = {
-            'usu_nom': 'Nombre',
-            'usu_ape': 'Apellido', 
-            'usu_cor': 'Email',
-            'usu_ced': 'Cédula',
-            'usu_con': 'Contraseña',
-            'per_id': 'Perfil',
-            'est_id': 'Estado'
-          }[field] || field;
-          
-          fieldErrors.forEach(errorMsg => {
-            if (errorMsg.includes('has already been taken')) {
+          const fieldName =
+            {
+              usu_nom: "Nombre",
+              usu_ape: "Apellido",
+              usu_cor: "Email",
+              usu_ced: "Cédula",
+              usu_con: "Contraseña",
+              per_id: "Perfil",
+              est_id: "Estado",
+            }[field] || field;
+
+          fieldErrors.forEach((errorMsg) => {
+            if (errorMsg.includes("has already been taken")) {
               errorMessages.push(`${fieldName}: Ya existe en el sistema`);
-            } else if (errorMsg.includes('required')) {
+            } else if (errorMsg.includes("required")) {
               errorMessages.push(`${fieldName}: Es requerido`);
-            } else if (errorMsg.includes('email')) {
+            } else if (errorMsg.includes("email")) {
               errorMessages.push(`${fieldName}: Formato de email inválido`);
-            } else if (errorMsg.includes('min')) {
+            } else if (errorMsg.includes("min")) {
               errorMessages.push(`${fieldName}: Muy corto`);
             } else {
               errorMessages.push(`${fieldName}: ${errorMsg}`);
             }
           });
         });
-        
-        showMessage('error', errorMessages.join('\n'));
+
+        showMessage("error", errorMessages.join("\n"));
       } else {
-        showMessage('error', error.message || 'Error al guardar usuario');
+        showMessage("error", error.message || "Error al guardar usuario");
       }
     }
   };
 
   const handleEdit = (usuario) => {
     if (!canUpdate) {
-      showMessage('error', 'No tienes permisos para editar usuarios');
+      showMessage("error", "No tienes permisos para editar usuarios");
       return;
     }
     setEditingUsuario(usuario);
     setFormData({
-      usu_nom: usuario.usu_nom || '',
-      usu_ape: usuario.usu_ape || '',
-      usu_cor: usuario.usu_cor || '',
-      usu_con: '', // Siempre vacío en edición
-      usu_ced: usuario.usu_ced || '',
-      per_id: usuario.per_id || '',
-      est_id: usuario.est_id || 1
+      usu_nom: usuario.usu_nom || "",
+      usu_ape: usuario.usu_ape || "",
+      usu_cor: usuario.usu_cor || "",
+      usu_con: "", // Siempre vacío en edición
+      usu_ced: usuario.usu_ced || "",
+      per_id: usuario.per_id || "",
+      est_id: usuario.est_id || 1,
     });
     setShowForm(true);
   };
 
+  // ✅ FUNCIÓN handleDelete MEJORADA
   const handleDelete = async (usuario) => {
+    console.log("🔍 handleDelete iniciado para usuario:", usuario.usu_id);
+
     if (!canDelete) {
-      showMessage('error', 'No tienes permisos para eliminar usuarios');
+      console.log("❌ Sin permisos para eliminar");
+      showMessage("error", "No tienes permisos para eliminar usuarios");
       return;
     }
 
-    if (!window.confirm(`¿Estás seguro de eliminar al usuario "${usuario.usu_nom} ${usuario.usu_ape}"?`)) {
+    const confirmMessage = `¿Estás seguro de DESHABILITAR al usuario "${usuario.usu_nom} ${usuario.usu_ape}"?\n\nEsto cambiará su estado a "Deshabilitado" (eliminado lógico).`;
+
+    if (!window.confirm(confirmMessage)) {
+      console.log("❌ Usuario canceló la operación");
       return;
     }
+
+    console.log("✅ Usuario confirmó, iniciando deshabilitación...");
 
     try {
+      console.log("🔄 Llamando a adminService.usuarios.delete...");
+
       const result = await adminService.usuarios.delete(usuario.usu_id);
-      if (result?.status === 'success') {
-        showMessage('success', result.message || 'Usuario eliminado correctamente');
-        await loadUsuarios(); // ✅ Recarga inmediata
+
+      console.log("📥 Respuesta completa del servidor:", result);
+
+      if (result?.status === "success") {
+        console.log("✅ Deshabilitación exitosa");
+        showMessage(
+          "success",
+          result.message || "Usuario deshabilitado correctamente"
+        );
+
+        console.log("🔄 Recargando lista de usuarios...");
+
+        // ✅ FORZAR recarga inmediata para ver el cambio
+        await loadUsuarios();
+
+        console.log("✅ Lista recargada - verificando estados...");
+
+        // ✅ VERIFICAR que el usuario específico esté ahora deshabilitado
+        setTimeout(() => {
+          const usuarioActualizado = usuarios.find(
+            (u) => u.usu_id === usuario.usu_id
+          );
+          if (usuarioActualizado) {
+            console.log("🔍 Usuario después de eliminar:", {
+              id: usuarioActualizado.usu_id,
+              nombre: usuarioActualizado.usu_nom,
+              usu_deshabilitado: usuarioActualizado.usu_deshabilitado,
+              estado_detectado: usuarioActualizado.usu_deshabilitado
+                ? "DESHABILITADO"
+                : "ACTIVO",
+            });
+          }
+        }, 500);
       } else {
-        showMessage('error', result?.message || 'Error al eliminar usuario');
+        console.error("❌ Error en resultado:", result);
+        showMessage(
+          "error",
+          result?.message || "Error al deshabilitar usuario"
+        );
       }
     } catch (error) {
-      console.error('Error deleting usuario:', error);
-      showMessage('error', error.message || 'Error al eliminar usuario');
+      console.error("❌ Error completo en handleDelete:", {
+        error: error,
+        message: error.message,
+        response: error.response,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+
+      let errorMessage = "Error al deshabilitar usuario";
+
+      if (error.response?.status === 404) {
+        errorMessage = "Usuario no encontrado";
+      } else if (error.response?.status === 401) {
+        errorMessage = "No autorizado - verifica tu sesión";
+      } else if (error.response?.status === 403) {
+        errorMessage = "No tienes permisos para esta acción";
+      } else if (error.response?.status === 500) {
+        errorMessage = `Error del servidor: ${
+          error.response?.data?.message || "Error interno"
+        }`;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      showMessage("error", errorMessage);
     }
+  };
+
+  // Función para reactivar usuarios
+  const handleReactivate = async (usuario) => {
+    console.log("🔍 handleReactivate iniciado para usuario:", usuario.usu_id);
+
+    if (!canDelete) {
+      console.log("❌ Sin permisos para reactivar");
+      showMessage("error", "No tienes permisos para reactivar usuarios");
+      return;
+    }
+
+    const confirmMessage = `¿Estás seguro de REACTIVAR al usuario "${usuario.usu_nom} ${usuario.usu_ape}"?\n\nEsto cambiará su estado a "Activo".`;
+
+    if (!window.confirm(confirmMessage)) {
+      console.log("❌ Usuario canceló la reactivación");
+      return;
+    }
+
+    console.log("✅ Usuario confirmó, iniciando reactivación...");
+
+    try {
+      console.log("🔄 Llamando a adminService.usuarios.reactivate...");
+      const result = await adminService.usuarios.reactivate(usuario.usu_id);
+      console.log("📥 Respuesta del servidor:", result);
+
+      if (result?.status === "success") {
+        console.log("✅ Reactivación exitosa");
+        showMessage(
+          "success",
+          result.message || "Usuario reactivado correctamente"
+        );
+        console.log("🔄 Recargando lista de usuarios...");
+        await loadUsuarios();
+        console.log("✅ Lista recargada");
+      } else {
+        console.error("❌ Error en resultado:", result);
+        showMessage("error", result?.message || "Error al reactivar usuario");
+      }
+    } catch (error) {
+      console.error("❌ Error completo en handleReactivate:", error);
+      let errorMessage = "Error al reactivar usuario";
+
+      if (error.response?.status === 404) {
+        errorMessage = "Usuario no encontrado";
+      } else if (error.response?.status === 401) {
+        errorMessage = "No autorizado - verifica tu sesión";
+      } else if (error.response?.status === 403) {
+        errorMessage = "No tienes permisos para esta acción";
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      showMessage("error", errorMessage);
+    }
+  };
+
+  // Función helper para verificar si usuario está deshabilitado
+  const isUsuarioDeshabilitado = (usuario) => {
+    return (
+      usuario.usu_deshabilitado === true ||
+      usuario.usu_deshabilitado === 1 ||
+      usuario.usu_deshabilitado === "1" ||
+      usuario.usu_deshabilitado === "true"
+    );
   };
 
   const handleCreate = () => {
     if (!canCreate) {
-      showMessage('error', 'No tienes permisos para crear usuarios');
+      showMessage("error", "No tienes permisos para crear usuarios");
       return;
     }
     setEditingUsuario(null);
     setFormData({
-      usu_nom: '',
-      usu_ape: '',
-      usu_cor: '',
-      usu_con: '',
-      usu_ced: '',
-      per_id: '',
-      est_id: 1
+      usu_nom: "",
+      usu_ape: "",
+      usu_cor: "",
+      usu_con: "",
+      usu_ced: "",
+      per_id: "",
+      est_id: 1,
     });
     setShowForm(true);
   };
@@ -297,28 +606,21 @@ const UsuParamWindow = ({
     setShowForm(false);
     setEditingUsuario(null);
     setFormData({
-      usu_nom: '',
-      usu_ape: '',
-      usu_cor: '',
-      usu_con: '',
-      usu_ced: '',
-      per_id: '',
-      est_id: 1
+      usu_nom: "",
+      usu_ape: "",
+      usu_cor: "",
+      usu_con: "",
+      usu_ced: "",
+      per_id: "",
+      est_id: 1,
     });
   };
 
   const handlePerfilSelect = (perfil) => {
-    console.log('🔍 Seleccionando perfil:', perfil);
-    setActiveTab('usuarios');
+    console.log("🔍 Seleccionando perfil:", perfil);
+    setActiveTab("usuarios");
     setSelectedPerfil(perfil.per_id.toString());
   };
-
-  // ✅ CORRECCIÓN 10: useEffect para recargar cuando cambie el filtro de perfil
-  useEffect(() => {
-    if (canRead && activeTab === 'usuarios') {
-      loadUsuarios();
-    }
-  }, [selectedPerfil, canRead, activeTab, loadUsuarios]);
 
   if (permissionsLoading) {
     return (
@@ -336,14 +638,24 @@ const UsuParamWindow = ({
       <div className="flex items-center justify-center h-full">
         <div className="text-center max-w-md">
           <Icon name="Lock" size={48} className="mx-auto mb-4 text-gray-300" />
-          <p className="text-gray-500 mb-2">No tienes permisos para acceder a esta sección</p>
+          <p className="text-gray-500 mb-2">
+            No tienes permisos para acceder a esta sección
+          </p>
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-left">
             <p className="text-sm text-yellow-800 mb-2">
               <strong>Información de debug:</strong>
             </p>
             <ul className="text-xs text-yellow-700 space-y-1">
-              <li>• Menu ID configurado: <code className="bg-yellow-100 px-1 rounded">{menuId}</code></li>
-              <li>• Permiso READ: <code className="bg-yellow-100 px-1 rounded">{canRead ? 'SÍ' : 'NO'}</code></li>
+              <li>
+                • Menu ID configurado:{" "}
+                <code className="bg-yellow-100 px-1 rounded">{menuId}</code>
+              </li>
+              <li>
+                • Permiso READ:{" "}
+                <code className="bg-yellow-100 px-1 rounded">
+                  {canRead ? "SÍ" : "NO"}
+                </code>
+              </li>
             </ul>
           </div>
         </div>
@@ -364,26 +676,26 @@ const UsuParamWindow = ({
             </span>
           </h1>
         </div>
-        
+
         <div className="px-6">
           <nav className="flex space-x-8">
             <button
-              onClick={() => setActiveTab('usuarios')}
+              onClick={() => setActiveTab("usuarios")}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'usuarios'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                activeTab === "usuarios"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
               <Icon name="User" size={16} className="inline mr-2" />
               Usuarios
             </button>
             <button
-              onClick={() => setActiveTab('perfiles')}
+              onClick={() => setActiveTab("perfiles")}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'perfiles'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                activeTab === "perfiles"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
               <Icon name="Shield" size={16} className="inline mr-2" />
@@ -395,7 +707,7 @@ const UsuParamWindow = ({
 
       {/* Contenido */}
       <div className="flex-1 p-6 overflow-auto">
-        {activeTab === 'usuarios' ? (
+        {activeTab === "usuarios" ? (
           <div className="h-full flex flex-col">
             {/* Header de usuarios */}
             <div className="flex items-center justify-between mb-6">
@@ -403,7 +715,7 @@ const UsuParamWindow = ({
                 <h2 className="text-xl font-semibold text-gray-800">
                   Gestión de Usuarios
                 </h2>
-                
+
                 {/* Filtro por perfil */}
                 <select
                   value={selectedPerfil}
@@ -411,14 +723,37 @@ const UsuParamWindow = ({
                   className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Todos los perfiles</option>
-                  {Array.isArray(perfiles) && perfiles.map((perfil) => (
-                    <option key={perfil.per_id} value={perfil.per_id}>
-                      {perfil.per_nom}
-                    </option>
-                  ))}
+                  {Array.isArray(perfiles) &&
+                    perfiles.map((perfil) => (
+                      <option key={perfil.per_id} value={perfil.per_id}>
+                        {perfil.per_nom}
+                      </option>
+                    ))}
                 </select>
+
+                {/* ✅ Toggle para mostrar usuarios deshabilitados */}
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={showDisabled}
+                      onChange={(e) => setShowDisabled(e.target.checked)}
+                      className="rounded"
+                    />
+                    <span>Mostrar deshabilitados</span>
+                  </label>
+                </div>
+
+                {/* ✅ Botón de debug temporal */}
+                <button
+                  onClick={debugUsuarioStates}
+                  className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300"
+                  title="Debug estados de usuarios"
+                >
+                  🔍 Debug Estados
+                </button>
               </div>
-              
+
               {canCreate && (
                 <button
                   onClick={handleCreate}
@@ -430,14 +765,18 @@ const UsuParamWindow = ({
               )}
             </div>
 
-            {/* Formulario de usuario */}
+            {/* ✅ FORMULARIO COMPLETO CON TODOS LOS CAMPOS */}
             {showForm && (
               <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
                 <h3 className="text-lg font-medium mb-4">
-                  {editingUsuario ? 'Editar Usuario' : 'Crear Usuario'}
+                  {editingUsuario ? "Editar Usuario" : "Crear Usuario"}
                 </h3>
-                
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <form
+                  onSubmit={handleSubmit}
+                  className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                >
+                  {/* ✅ CAMPO 1: Nombre */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Nombre *
@@ -452,7 +791,8 @@ const UsuParamWindow = ({
                       placeholder="Nombre del usuario"
                     />
                   </div>
-                  
+
+                  {/* ✅ CAMPO 2: Apellido */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Apellido *
@@ -467,7 +807,8 @@ const UsuParamWindow = ({
                       placeholder="Apellido del usuario"
                     />
                   </div>
-                  
+
+                  {/* ✅ CAMPO 3: Email */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Email *
@@ -482,7 +823,8 @@ const UsuParamWindow = ({
                       placeholder="correo@ejemplo.com"
                     />
                   </div>
-                  
+
+                  {/* ✅ CAMPO 4: Cédula */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Cédula *
@@ -498,10 +840,13 @@ const UsuParamWindow = ({
                       placeholder="1234567890"
                     />
                   </div>
-                  
+
+                  {/* ✅ CAMPO 5: Contraseña */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {editingUsuario ? 'Nueva Contraseña (opcional)' : 'Contraseña *'}
+                      {editingUsuario
+                        ? "Nueva Contraseña (opcional)"
+                        : "Contraseña *"}
                     </label>
                     <input
                       type="password"
@@ -511,10 +856,15 @@ const UsuParamWindow = ({
                       required={!editingUsuario}
                       minLength="6"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder={editingUsuario ? 'Dejar vacío para mantener actual' : 'Mínimo 6 caracteres'}
+                      placeholder={
+                        editingUsuario
+                          ? "Dejar vacío para mantener actual"
+                          : "Mínimo 6 caracteres"
+                      }
                     />
                   </div>
-                  
+
+                  {/* ✅ CAMPO 6: Perfil */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Perfil *
@@ -527,14 +877,16 @@ const UsuParamWindow = ({
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Seleccionar perfil</option>
-                      {Array.isArray(perfiles) && perfiles.map((perfil) => (
-                        <option key={perfil.per_id} value={perfil.per_id}>
-                          {perfil.per_nom}
-                        </option>
-                      ))}
+                      {Array.isArray(perfiles) &&
+                        perfiles.map((perfil) => (
+                          <option key={perfil.per_id} value={perfil.per_id}>
+                            {perfil.per_nom}
+                          </option>
+                        ))}
                     </select>
                   </div>
-                  
+
+                  {/* ✅ CAMPO 7: Estado */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Estado
@@ -549,14 +901,15 @@ const UsuParamWindow = ({
                       <option value={2}>Inactivo</option>
                     </select>
                   </div>
-                  
+
+                  {/* ✅ BOTONES */}
                   <div className="md:col-span-2 flex gap-3 pt-4">
                     <button
                       type="submit"
                       className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 flex items-center gap-2"
                     >
                       <Icon name={editingUsuario ? "Save" : "Plus"} size={16} />
-                      {editingUsuario ? 'Actualizar' : 'Crear'}
+                      {editingUsuario ? "Actualizar" : "Crear"}
                     </button>
                     <button
                       type="button"
@@ -580,9 +933,17 @@ const UsuParamWindow = ({
                 </div>
               ) : !Array.isArray(usuarios) || usuarios.length === 0 ? (
                 <div className="text-center p-8">
-                  <Icon name="Users" size={48} className="mx-auto mb-4 text-gray-300" />
+                  <Icon
+                    name="Users"
+                    size={48}
+                    className="mx-auto mb-4 text-gray-300"
+                  />
                   <p className="text-gray-500">
-                    {selectedPerfil ? 'No hay usuarios con el perfil seleccionado' : 'No hay usuarios registrados'}
+                    {selectedPerfil
+                      ? "No hay usuarios con el perfil seleccionado"
+                      : showDisabled
+                      ? "No hay usuarios registrados"
+                      : "No hay usuarios activos (prueba activar 'Mostrar deshabilitados')"}
                   </p>
                   {!Array.isArray(usuarios) && (
                     <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -626,7 +987,11 @@ const UsuParamWindow = ({
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                <Icon name="User" size={20} className="text-blue-600" />
+                                <Icon
+                                  name="User"
+                                  size={20}
+                                  className="text-blue-600"
+                                />
                               </div>
                               <div className="ml-4">
                                 <div className="text-sm font-medium text-gray-900">
@@ -639,27 +1004,28 @@ const UsuParamWindow = ({
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{usuario.usu_cor}</div>
+                            <div className="text-sm text-gray-900">
+                              {usuario.usu_cor}
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{usuario.usu_ced || '-'}</div>
+                            <div className="text-sm text-gray-900">
+                              {usuario.usu_ced || "-"}
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                              {usuario.perfil || usuario.per_nom || 'Sin perfil'}
+                              {usuario.perfil ||
+                                usuario.per_nom ||
+                                "Sin perfil"}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              usuario.est_id === 1 || usuario.estado === 'Activo'
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-red-100 text-red-800'
-                            }`}>
-                              {usuario.est_id === 1 || usuario.estado === 'Activo' ? 'Activo' : 'Inactivo'}
-                            </span>
+                            {renderUsuarioStatus(usuario)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex items-center justify-end gap-2">
+                              {/* Botón de editar - siempre visible */}
                               {canUpdate && (
                                 <button
                                   onClick={() => handleEdit(usuario)}
@@ -669,15 +1035,30 @@ const UsuParamWindow = ({
                                   <Icon name="Edit2" size={16} />
                                 </button>
                               )}
-                              
+
+                              {/* Botones condicionales según el estado */}
                               {canDelete && (
-                                <button
-                                  onClick={() => handleDelete(usuario)}
-                                  className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
-                                  title="Eliminar usuario"
-                                >
-                                  <Icon name="Trash2" size={16} />
-                                </button>
+                                <>
+                                  {isUsuarioDeshabilitado(usuario) ? (
+                                    // Usuario deshabilitado - Mostrar botón de reactivar
+                                    <button
+                                      onClick={() => handleReactivate(usuario)}
+                                      className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50"
+                                      title="Reactivar usuario"
+                                    >
+                                      <Icon name="RotateCcw" size={16} />
+                                    </button>
+                                  ) : (
+                                    // Usuario activo - Mostrar botón de deshabilitar
+                                    <button
+                                      onClick={() => handleDelete(usuario)}
+                                      className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+                                      title="Deshabilitar usuario"
+                                    >
+                                      <Icon name="Trash2" size={16} />
+                                    </button>
+                                  )}
+                                </>
                               )}
                             </div>
                           </td>
@@ -691,8 +1072,8 @@ const UsuParamWindow = ({
           </div>
         ) : (
           // Pestaña de Perfiles
-          <PerParamWindow 
-            showMessage={showMessage} 
+          <PerParamWindow
+            showMessage={showMessage}
             onPerfilSelect={handlePerfilSelect}
             menuId={effectivePerfilesMenuId}
           />

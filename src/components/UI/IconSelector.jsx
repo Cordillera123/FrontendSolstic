@@ -1,4 +1,4 @@
-// src/components/UI/IconSelector.jsx - VERSIÓN CORREGIDA
+// src/components/UI/IconSelector.jsx - VERSIÓN LIMPIA FINAL
 import React, { useState, useMemo } from 'react';
 import { ChevronDown, Search, X, Check } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
@@ -6,7 +6,7 @@ import * as LucideIcons from 'lucide-react';
 // Función para obtener dinámicamente cualquier icono de Lucide
 const getLucideIcon = (iconName) => {
     if (!iconName) return null;
-
+    
     // Intentar diferentes variaciones del nombre del icono
     const variations = [
         iconName,                                    // Exacto como está en BD
@@ -14,44 +14,44 @@ const getLucideIcon = (iconName) => {
         iconName.toLowerCase(),                      // Todo minúscula
         iconName.toUpperCase(),                      // Todo mayúscula
         iconName.replace(/[-_\s]/g, ''),            // Sin guiones, guiones bajos o espacios
-        iconName.replace(/[-\s]/g, '').charAt(0).toUpperCase() + iconName.replace(/[-\s]/g, '').slice(1), // Sin separadores + primera mayúscula
+        iconName.replace(/[-_\s]/g, '').charAt(0).toUpperCase() + iconName.replace(/[-_\s]/g, '').slice(1), // Sin separadores + primera mayúscula
     ];
-
+    
     // Intentar cada variación
     for (const variation of variations) {
         if (LucideIcons[variation]) {
             return LucideIcons[variation];
         }
     }
-
+    
     // Si no se encuentra, intentar búsqueda más flexible
     const iconKeys = Object.keys(LucideIcons);
-    const flexibleMatch = iconKeys.find(key =>
+    const flexibleMatch = iconKeys.find(key => 
         key.toLowerCase().includes(iconName.toLowerCase()) ||
         iconName.toLowerCase().includes(key.toLowerCase())
     );
-
+    
     if (flexibleMatch && LucideIcons[flexibleMatch]) {
         return LucideIcons[flexibleMatch];
     }
-
+    
     return null;
 };
 
 // Componente para renderizar un icono dinámicamente
 const IconRenderer = ({ iconData, size = 20, className = "" }) => {
     if (!iconData) return null;
-
+    
     const iconName = iconData.ico_nom || iconData.nombre;
     const IconComponent = getLucideIcon(iconName);
-
+    
     if (IconComponent) {
         return <IconComponent size={size} className={className} />;
     }
-
+    
     // Placeholder mejorado si no se encuentra el icono
     return (
-        <div
+        <div 
             className={`flex items-center justify-center bg-gradient-to-br from-gray-200 to-gray-300 rounded border-2 border-dashed border-gray-400 ${className}`}
             style={{ width: size, height: size }}
             title={`Icono no encontrado: ${iconName}`}
@@ -63,12 +63,12 @@ const IconRenderer = ({ iconData, size = 20, className = "" }) => {
     );
 };
 
-const IconSelector = ({
-    icons = [],
-    selectedIcon = null,
-    onSelect,
+const IconSelector = ({ 
+    icons = [], 
+    selectedIcon = null, 
+    onSelect, 
     placeholder = "Seleccionar icono",
-    disabled = false
+    disabled = false 
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -78,7 +78,7 @@ const IconSelector = ({
     console.log('🎯 IconSelector - Total iconos desde BD:', icons.length);
     if (icons.length > 0) {
         console.log('🎯 IconSelector - Estructura primer icono:', icons[0]);
-        console.log('🎯 IconSelector - Nombres de iconos disponibles:',
+        console.log('🎯 IconSelector - Nombres de iconos disponibles:', 
             icons.slice(0, 10).map(icon => icon.ico_nom || icon.nombre)
         );
     }
@@ -88,21 +88,21 @@ const IconSelector = ({
         return icons.filter(icon => {
             const iconName = icon.ico_nom || icon.nombre || '';
             const iconCategory = icon.ico_cat || icon.categoria || '';
-
-            const matchesSearch = !searchTerm ||
+            
+            const matchesSearch = !searchTerm || 
                 iconName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 iconCategory.toLowerCase().includes(searchTerm.toLowerCase());
-
-            const matchesCategory = !selectedCategory ||
+            
+            const matchesCategory = !selectedCategory || 
                 iconCategory === selectedCategory;
-
+            
             return matchesSearch && matchesCategory;
         });
     }, [icons, searchTerm, selectedCategory]);
 
     // Obtener categorías únicas desde la BD
     const categories = useMemo(() => {
-        const cats = [...new Set(icons.map(icon =>
+        const cats = [...new Set(icons.map(icon => 
             icon.ico_cat || icon.categoria
         ).filter(Boolean))];
         return cats.sort();
@@ -111,7 +111,7 @@ const IconSelector = ({
     // Encontrar el icono seleccionado
     const selectedIconData = useMemo(() => {
         if (!selectedIcon) return null;
-        return icons.find(icon =>
+        return icons.find(icon => 
             (icon.ico_id || icon.id) == selectedIcon
         );
     }, [selectedIcon, icons]);
@@ -136,13 +136,6 @@ const IconSelector = ({
         }
     };
 
-    // Manejar clic fuera del componente
-    const handleOutsideClick = () => {
-        setIsOpen(false);
-        setSearchTerm('');
-        setSelectedCategory('');
-    };
-
     // Mostrar mensaje si no hay iconos cargados
     if (icons.length === 0) {
         return (
@@ -160,20 +153,20 @@ const IconSelector = ({
                 onClick={toggleDropdown}
                 disabled={disabled}
                 className={`w-full flex items-center justify-between px-4 py-3 border rounded-lg transition-all duration-300 ${
-                    disabled
-                        ? 'bg-gray-100 border-gray-200 cursor-not-allowed'
-                        : isOpen
-                            ? 'border-blue-500 ring-2 ring-blue-500 ring-opacity-20'
+                    disabled 
+                        ? 'bg-gray-100 border-gray-200 cursor-not-allowed' 
+                        : isOpen 
+                            ? 'border-blue-500 ring-2 ring-blue-500 ring-opacity-20' 
                             : 'border-gray-300 hover:border-gray-400'
                 } focus:outline-none`}
             >
                 <div className="flex items-center flex-1">
                     {selectedIconData ? (
                         <div className="flex items-center">
-                            <IconRenderer
-                                iconData={selectedIconData}
-                                size={20}
-                                className="text-gray-700 mr-3"
+                            <IconRenderer 
+                                iconData={selectedIconData} 
+                                size={20} 
+                                className="text-gray-700 mr-3" 
                             />
                             <div className="text-left">
                                 <div className="text-sm font-medium text-gray-900">
@@ -193,7 +186,7 @@ const IconSelector = ({
                         </div>
                     )}
                 </div>
-
+                
                 <div className="flex items-center ml-2">
                     {selectedIconData && !disabled && (
                         <button
@@ -204,11 +197,11 @@ const IconSelector = ({
                             <X size={14} className="text-gray-400" />
                         </button>
                     )}
-                    <ChevronDown
-                        size={16}
+                    <ChevronDown 
+                        size={16} 
                         className={`text-gray-400 transition-transform duration-200 ${
                             isOpen ? 'transform rotate-180' : ''
-                        }`}
+                        }`} 
                     />
                 </div>
             </button>
@@ -222,7 +215,7 @@ const IconSelector = ({
                         <div className="mb-2 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
                             📊 {icons.length} iconos cargados desde la base de datos
                         </div>
-
+                        
                         {/* Barra de búsqueda */}
                         <div className="relative mb-3">
                             <Search size={16} className="absolute left-3 top-3 text-gray-400" />
@@ -268,23 +261,23 @@ const IconSelector = ({
                                     const iconCategory = icon.ico_cat || icon.categoria;
                                     const isSelected = iconId == selectedIcon;
                                     const hasLucideIcon = getLucideIcon(iconName) !== null;
-
+                                    
                                     return (
                                         <button
                                             key={iconId}
                                             type="button"
                                             onClick={() => handleIconSelect(icon)}
                                             className={`flex items-center w-full px-3 py-2 text-left rounded-md transition-all duration-200 mb-1 ${
-                                                isSelected
-                                                    ? 'bg-blue-100 text-blue-900 border border-blue-300'
+                                                isSelected 
+                                                    ? 'bg-blue-100 text-blue-900 border border-blue-300' 
                                                     : 'hover:bg-gray-100 text-gray-700'
                                             }`}
                                         >
                                             <div className="flex items-center flex-1">
-                                                <IconRenderer
-                                                    iconData={icon}
-                                                    size={24}
-                                                    className={isSelected ? 'text-blue-600' : 'text-gray-600'}
+                                                <IconRenderer 
+                                                    iconData={icon} 
+                                                    size={24} 
+                                                    className={isSelected ? 'text-blue-600' : 'text-gray-600'} 
                                                 />
                                                 <div className="ml-3 flex-1">
                                                     <div className="text-sm font-medium flex items-center">
@@ -338,9 +331,9 @@ const IconSelector = ({
 
             {/* Overlay para cerrar al hacer click fuera */}
             {isOpen && (
-                <div
-                    className="fixed inset-0 z-40"
-                    onClick={handleOutsideClick}
+                <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setIsOpen(false)}
                 />
             )}
         </div>
