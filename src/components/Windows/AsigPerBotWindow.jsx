@@ -1,7 +1,204 @@
-// src/components/Windows/AsigPerBotWindow.jsx - CORREGIDO PARA VENTANAS DIRECTAS
+// src/components/Windows/AsigPerBotWindow.jsx - CORREGIDO PARA VENTANAS DIRECTAS CON ICONOS CRUD
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { adminService } from '../../services/apiService';
 import Icon from '../UI/Icon';
+
+// ===== UTILIDADES PARA ICONOS CRUD =====
+const getCrudIconInfo = (buttonCode, buttonName) => {
+  const code = buttonCode?.toLowerCase() || '';
+  const name = buttonName?.toLowerCase() || '';
+  
+  // Mapeo específico por código de botón
+  const codeMapping = {
+    // Operaciones CRUD principales
+    'crear': { icon: 'Plus', color: '#10b981', bgColor: 'bg-green-100', textColor: 'text-green-800', tooltip: 'Crear nuevo registro' },
+    'nuevo': { icon: 'Plus', color: '#10b981', bgColor: 'bg-green-100', textColor: 'text-green-800', tooltip: 'Crear nuevo registro' },
+    'agregar': { icon: 'Plus', color: '#10b981', bgColor: 'bg-green-100', textColor: 'text-green-800', tooltip: 'Agregar registro' },
+    'add': { icon: 'Plus', color: '#10b981', bgColor: 'bg-green-100', textColor: 'text-green-800', tooltip: 'Agregar' },
+    'create': { icon: 'Plus', color: '#10b981', bgColor: 'bg-green-100', textColor: 'text-green-800', tooltip: 'Crear' },
+    
+    'editar': { icon: 'Edit3', color: '#f59e0b', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Editar registro' },
+    'modificar': { icon: 'Edit3', color: '#f59e0b', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Modificar registro' },
+    'edit': { icon: 'Edit3', color: '#f59e0b', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Editar' },
+    'actualizar': { icon: 'Edit3', color: '#f59e0b', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Actualizar' },
+    'update': { icon: 'Edit3', color: '#f59e0b', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Actualizar' },
+    
+    'eliminar': { icon: 'Trash2', color: '#ef4444', bgColor: 'bg-red-100', textColor: 'text-red-800', tooltip: 'Eliminar registro' },
+    'borrar': { icon: 'Trash2', color: '#ef4444', bgColor: 'bg-red-100', textColor: 'text-red-800', tooltip: 'Borrar registro' },
+    'delete': { icon: 'Trash2', color: '#ef4444', bgColor: 'bg-red-100', textColor: 'text-red-800', tooltip: 'Eliminar' },
+    'remove': { icon: 'Trash2', color: '#ef4444', bgColor: 'bg-red-100', textColor: 'text-red-800', tooltip: 'Remover' },
+    
+    'guardar': { icon: 'Save', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Guardar cambios' },
+    'save': { icon: 'Save', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Guardar' },
+    
+    'cancelar': { icon: 'X', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Cancelar operación' },
+    'cancel': { icon: 'X', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Cancelar' },
+    
+    // Operaciones de visualización
+    'ver': { icon: 'Eye', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Ver detalles' },
+    'view': { icon: 'Eye', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Ver' },
+    'mostrar': { icon: 'Eye', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Mostrar' },
+    'detalles': { icon: 'FileText', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Ver detalles' },
+    'consultar': { icon: 'Eye', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Consultar' },
+    'read': { icon: 'Eye', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Leer' },
+    
+    // Operaciones de búsqueda y filtros
+    'buscar': { icon: 'Search', color: '#06b6d4', bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', tooltip: 'Buscar registros' },
+    'search': { icon: 'Search', color: '#06b6d4', bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', tooltip: 'Buscar' },
+    'filtrar': { icon: 'Filter', color: '#06b6d4', bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', tooltip: 'Filtrar resultados' },
+    'filter': { icon: 'Filter', color: '#06b6d4', bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', tooltip: 'Filtrar' },
+    
+    // Operaciones de importación/exportación
+    'importar': { icon: 'Upload', color: '#059669', bgColor: 'bg-emerald-100', textColor: 'text-emerald-800', tooltip: 'Importar datos' },
+    'import': { icon: 'Upload', color: '#059669', bgColor: 'bg-emerald-100', textColor: 'text-emerald-800', tooltip: 'Importar' },
+    'exportar': { icon: 'Download', color: '#059669', bgColor: 'bg-emerald-100', textColor: 'text-emerald-800', tooltip: 'Exportar datos' },
+    'export': { icon: 'Download', color: '#059669', bgColor: 'bg-emerald-100', textColor: 'text-emerald-800', tooltip: 'Exportar' },
+    
+    // Operaciones de impresión y reportes
+    'imprimir': { icon: 'Printer', color: '#4b5563', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Imprimir' },
+    'print': { icon: 'Printer', color: '#4b5563', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Imprimir' },
+    'reporte': { icon: 'FileBarChart', color: '#7c3aed', bgColor: 'bg-violet-100', textColor: 'text-violet-800', tooltip: 'Generar reporte' },
+    'report': { icon: 'FileBarChart', color: '#7c3aed', bgColor: 'bg-violet-100', textColor: 'text-violet-800', tooltip: 'Reporte' },
+    
+    // Operaciones de configuración
+    'configurar': { icon: 'Settings', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Configurar' },
+    'config': { icon: 'Settings', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Configuración' },
+    'ajustes': { icon: 'Settings', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Ajustes' },
+    
+    // Operaciones de navegación
+    'anterior': { icon: 'ChevronLeft', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Anterior' },
+    'siguiente': { icon: 'ChevronRight', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Siguiente' },
+    'primero': { icon: 'ChevronsLeft', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Primero' },
+    'ultimo': { icon: 'ChevronsRight', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Último' },
+    
+    // Operaciones de refrescar/actualizar
+    'refrescar': { icon: 'RefreshCw', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Refrescar datos' },
+    'refresh': { icon: 'RefreshCw', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Refrescar' },
+    
+    // Operaciones de ayuda
+    'ayuda': { icon: 'HelpCircle', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Ayuda' },
+    'help': { icon: 'HelpCircle', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Ayuda' },
+    
+    // Operaciones de correo/comunicación
+    'enviar': { icon: 'Send', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Enviar' },
+    'email': { icon: 'Mail', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Enviar email' },
+    'correo': { icon: 'Mail', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Correo electrónico' },
+  };
+  
+  // Buscar por código exacto primero
+  if (codeMapping[code]) {
+    return codeMapping[code];
+  }
+  
+  // Buscar por nombre si no se encuentra por código
+  if (codeMapping[name]) {
+    return codeMapping[name];
+  }
+  
+  // Buscar parcialmente en código
+  for (const [key, value] of Object.entries(codeMapping)) {
+    if (code.includes(key) || name.includes(key)) {
+      return value;
+    }
+  }
+  
+  // Valor por defecto si no se encuentra coincidencia
+  return { 
+    icon: 'Square', 
+    color: '#6b7280', 
+    bgColor: 'bg-gray-100', 
+    textColor: 'text-gray-800', 
+    tooltip: buttonName || buttonCode || 'Acción' 
+  };
+};
+
+// ===== COMPONENTE PARA BOTÓN CRUD CON ICONO =====
+const CrudButtonProfile = memo(({ 
+  boton, 
+  hasPermission, 
+  onTogglePermission,
+  savingPermissions,
+  elementType = 'option'
+}) => {
+  const iconInfo = getCrudIconInfo(boton.bot_codigo, boton.bot_nom);
+  
+  const getElementColors = () => {
+    switch (elementType) {
+      case 'menu':
+        return { 
+          activeColor: 'border-red-300 bg-red-100', 
+          inactiveColor: 'border-gray-200 bg-gray-50',
+          checkboxColor: 'text-red-600 focus:ring-red-500'
+        };
+      case 'submenu':
+        return { 
+          activeColor: 'border-orange-300 bg-orange-100', 
+          inactiveColor: 'border-gray-200 bg-gray-50',
+          checkboxColor: 'text-orange-600 focus:ring-orange-500'
+        };
+      case 'option':
+        return { 
+          activeColor: 'border-green-300 bg-green-100', 
+          inactiveColor: 'border-gray-200 bg-gray-50',
+          checkboxColor: 'text-green-600 focus:ring-green-500'
+        };
+    }
+  };
+
+  const elementColors = getElementColors();
+
+  return (
+    <div className={`p-3 rounded-lg border transition-all ${
+      hasPermission ? elementColors.activeColor : elementColors.inactiveColor
+    }`}>
+      <div className="flex items-center justify-between">
+        {/* Icono y información del botón */}
+        <div className="flex items-center flex-1">
+          <div 
+            className={`p-2 rounded-lg mr-3 ${iconInfo.bgColor} border border-opacity-30`}
+            style={{ borderColor: iconInfo.color }}
+            title={iconInfo.tooltip}
+          >
+            <Icon 
+              name={iconInfo.icon} 
+              size={14} 
+              style={{ color: iconInfo.color }}
+            />
+          </div>
+          
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-medium ${
+                hasPermission ? iconInfo.textColor : 'text-gray-700'
+              }`}>
+                {boton.bot_nom}
+              </span>
+              <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded">
+                {boton.bot_codigo}
+              </span>
+            </div>
+            
+            {/* Descripción del botón si existe */}
+            {boton.bot_descripcion && (
+              <p className="text-xs text-gray-500 mt-1">{boton.bot_descripcion}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Checkbox para activar/desactivar */}
+        <label className="flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            checked={hasPermission}
+            onChange={onTogglePermission}
+            disabled={savingPermissions}
+            className={`h-4 w-4 rounded border-gray-300 ${elementColors.checkboxColor}`}
+          />
+        </label>
+      </div>
+    </div>
+  );
+});
 
 // ===== UTILIDADES PARA FILTRADO DE VENTANAS DIRECTAS =====
 const isDirectWindow = (element, level = 'option') => {
@@ -285,6 +482,7 @@ const ButtonPermissionTreeItem = memo(({
   );
 });
 
+// ✅ SECCIÓN CORREGIDA: MenuButtonsSection CON ICONOS
 const MenuButtonsSection = memo(({ menu, menuId, buttonPermissions, toggleButtonPermission, savingPermissions }) => {
   // ✅ SOLO MOSTRAR SI EL MENÚ ES VENTANA DIRECTA
   if (!isDirectWindow(menu, 'menu') || !menu.botones || menu.botones.length === 0) {
@@ -304,7 +502,8 @@ const MenuButtonsSection = memo(({ menu, menuId, buttonPermissions, toggleButton
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {/* ✅ USAR COMPONENTE CrudButtonProfile EN LUGAR DEL DISEÑO ANTERIOR */}
+        <div className="space-y-2">
           {menu.botones.map((boton, botonIndex) => {
             const hasPermission = buttonPermissions.some(bp =>
               bp.men_id === menuId &&
@@ -318,34 +517,14 @@ const MenuButtonsSection = memo(({ menu, menuId, buttonPermissions, toggleButton
             };
 
             return (
-              <div
+              <CrudButtonProfile
                 key={`menu-${menuId}-boton-${boton.bot_id}-${botonIndex}`}
-                className={`flex items-center justify-between p-2 rounded border ${hasPermission ? 'bg-red-100 border-red-300' : 'bg-gray-50 border-gray-200'
-                  }`}
-              >
-                <div className="flex items-center">
-                  <div
-                    className="w-3 h-3 rounded mr-2"
-                    style={{ backgroundColor: boton.bot_color || '#6c757d' }}
-                  ></div>
-                  <span className={`text-sm ${hasPermission ? 'text-red-900' : 'text-gray-700'}`}>
-                    {boton.bot_nom}
-                  </span>
-                  <span className="ml-2 text-xs text-gray-500 font-mono">
-                    {boton.bot_codigo}
-                  </span>
-                </div>
-
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={hasPermission}
-                    onChange={handleTogglePermission}
-                    disabled={savingPermissions}
-                    className="text-red-600 focus:ring-2 focus:ring-red-500"
-                  />
-                </label>
-              </div>
+                boton={boton}
+                hasPermission={hasPermission}
+                onTogglePermission={handleTogglePermission}
+                savingPermissions={savingPermissions}
+                elementType="menu"
+              />
             );
           })}
         </div>

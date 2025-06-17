@@ -1,7 +1,259 @@
-// src/components/Windows/AsigPerBotUserWindow.jsx - VERSIÓN COMPLETA
+// src/components/Windows/AsigPerBotUserWindow.jsx - VERSIÓN CON ICONOS CRUD
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { adminService } from '../../services/apiService';
 import Icon from '../UI/Icon';
+
+// ===== UTILIDADES PARA ICONOS CRUD =====
+const getCrudIconInfo = (buttonCode, buttonName) => {
+  const code = buttonCode?.toLowerCase() || '';
+  const name = buttonName?.toLowerCase() || '';
+  
+  // Mapeo específico por código de botón
+  const codeMapping = {
+    // Operaciones CRUD principales
+    'crear': { icon: 'Plus', color: '#10b981', bgColor: 'bg-green-100', textColor: 'text-green-800', tooltip: 'Crear nuevo registro' },
+    'nuevo': { icon: 'Plus', color: '#10b981', bgColor: 'bg-green-100', textColor: 'text-green-800', tooltip: 'Crear nuevo registro' },
+    'agregar': { icon: 'Plus', color: '#10b981', bgColor: 'bg-green-100', textColor: 'text-green-800', tooltip: 'Agregar registro' },
+    'add': { icon: 'Plus', color: '#10b981', bgColor: 'bg-green-100', textColor: 'text-green-800', tooltip: 'Agregar' },
+    
+    'editar': { icon: 'Edit3', color: '#f59e0b', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Editar registro' },
+    'modificar': { icon: 'Edit3', color: '#f59e0b', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Modificar registro' },
+    'edit': { icon: 'Edit3', color: '#f59e0b', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Editar' },
+    'actualizar': { icon: 'Edit3', color: '#f59e0b', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Actualizar' },
+    
+    'eliminar': { icon: 'Trash2', color: '#ef4444', bgColor: 'bg-red-100', textColor: 'text-red-800', tooltip: 'Eliminar registro' },
+    'borrar': { icon: 'Trash2', color: '#ef4444', bgColor: 'bg-red-100', textColor: 'text-red-800', tooltip: 'Borrar registro' },
+    'delete': { icon: 'Trash2', color: '#ef4444', bgColor: 'bg-red-100', textColor: 'text-red-800', tooltip: 'Eliminar' },
+    'remove': { icon: 'Trash2', color: '#ef4444', bgColor: 'bg-red-100', textColor: 'text-red-800', tooltip: 'Remover' },
+    
+    'guardar': { icon: 'Save', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Guardar cambios' },
+    'save': { icon: 'Save', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Guardar' },
+    
+    'cancelar': { icon: 'X', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Cancelar operación' },
+    'cancel': { icon: 'X', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Cancelar' },
+    
+    // Operaciones de visualización
+    'ver': { icon: 'Eye', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Ver detalles' },
+    'view': { icon: 'Eye', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Ver' },
+    'mostrar': { icon: 'Eye', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Mostrar' },
+    'detalles': { icon: 'FileText', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Ver detalles' },
+    
+    // Operaciones de búsqueda y filtros
+    'buscar': { icon: 'Search', color: '#06b6d4', bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', tooltip: 'Buscar registros' },
+    'search': { icon: 'Search', color: '#06b6d4', bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', tooltip: 'Buscar' },
+    'filtrar': { icon: 'Filter', color: '#06b6d4', bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', tooltip: 'Filtrar resultados' },
+    'filter': { icon: 'Filter', color: '#06b6d4', bgColor: 'bg-cyan-100', textColor: 'text-cyan-800', tooltip: 'Filtrar' },
+    
+    // Operaciones de importación/exportación
+    'importar': { icon: 'Upload', color: '#059669', bgColor: 'bg-emerald-100', textColor: 'text-emerald-800', tooltip: 'Importar datos' },
+    'import': { icon: 'Upload', color: '#059669', bgColor: 'bg-emerald-100', textColor: 'text-emerald-800', tooltip: 'Importar' },
+    'exportar': { icon: 'Download', color: '#059669', bgColor: 'bg-emerald-100', textColor: 'text-emerald-800', tooltip: 'Exportar datos' },
+    'export': { icon: 'Download', color: '#059669', bgColor: 'bg-emerald-100', textColor: 'text-emerald-800', tooltip: 'Exportar' },
+    
+    // Operaciones de impresión y reportes
+    'imprimir': { icon: 'Printer', color: '#4b5563', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Imprimir' },
+    'print': { icon: 'Printer', color: '#4b5563', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Imprimir' },
+    'reporte': { icon: 'FileBarChart', color: '#7c3aed', bgColor: 'bg-violet-100', textColor: 'text-violet-800', tooltip: 'Generar reporte' },
+    'report': { icon: 'FileBarChart', color: '#7c3aed', bgColor: 'bg-violet-100', textColor: 'text-violet-800', tooltip: 'Reporte' },
+    
+    // Operaciones de configuración
+    'configurar': { icon: 'Settings', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Configurar' },
+    'config': { icon: 'Settings', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Configuración' },
+    'ajustes': { icon: 'Settings', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Ajustes' },
+    
+    // Operaciones de navegación
+    'anterior': { icon: 'ChevronLeft', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Anterior' },
+    'siguiente': { icon: 'ChevronRight', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Siguiente' },
+    'primero': { icon: 'ChevronsLeft', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Primero' },
+    'ultimo': { icon: 'ChevronsRight', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Último' },
+    
+    // Operaciones de refrescar/actualizar
+    'refrescar': { icon: 'RefreshCw', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Refrescar datos' },
+    'refresh': { icon: 'RefreshCw', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Refrescar' },
+    'actualizar': { icon: 'RefreshCw', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Actualizar' },
+    
+    // Operaciones de ayuda
+    'ayuda': { icon: 'HelpCircle', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Ayuda' },
+    'help': { icon: 'HelpCircle', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Ayuda' },
+    
+    // Operaciones de correo/comunicación
+    'enviar': { icon: 'Send', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Enviar' },
+    'email': { icon: 'Mail', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Enviar email' },
+    'correo': { icon: 'Mail', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Correo electrónico' },
+  };
+  
+  // Buscar por código exacto primero
+  if (codeMapping[code]) {
+    return codeMapping[code];
+  }
+  
+  // Buscar por nombre si no se encuentra por código
+  if (codeMapping[name]) {
+    return codeMapping[name];
+  }
+  
+  // Buscar parcialmente en código
+  for (const [key, value] of Object.entries(codeMapping)) {
+    if (code.includes(key) || name.includes(key)) {
+      return value;
+    }
+  }
+  
+  // Valor por defecto si no se encuentra coincidencia
+  return { 
+    icon: 'Square', 
+    color: '#6b7280', 
+    bgColor: 'bg-gray-100', 
+    textColor: 'text-gray-800', 
+    tooltip: buttonName || buttonCode || 'Acción' 
+  };
+};
+
+// ===== COMPONENTE PARA BOTÓN CRUD CON ICONO =====
+const CrudButton = memo(({ 
+  boton, 
+  hasEffectivePermission, 
+  profilePermission, 
+  isCustomized, 
+  customizationType,
+  onGrantPermission,
+  onDenyPermission,
+  onRemoveCustomization,
+  savingPermissions 
+}) => {
+  const iconInfo = getCrudIconInfo(boton.bot_codigo, boton.bot_nom);
+  
+  return (
+    <div className={`p-3 rounded-lg border transition-all ${
+      hasEffectivePermission 
+        ? `${iconInfo.bgColor} border-opacity-50 shadow-sm` 
+        : 'bg-gray-50 border-gray-200'
+    }`}>
+      <div className="flex items-center justify-between">
+        {/* Icono y nombre del botón */}
+        <div className="flex items-center flex-1">
+          <div 
+            className={`p-2 rounded-lg mr-3 ${iconInfo.bgColor} border border-opacity-30`}
+            style={{ borderColor: iconInfo.color }}
+            title={iconInfo.tooltip}
+          >
+            <Icon 
+              name={iconInfo.icon} 
+              size={16} 
+              style={{ color: iconInfo.color }}
+            />
+          </div>
+          
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-medium ${
+                hasEffectivePermission ? iconInfo.textColor : 'text-gray-700'
+              }`}>
+                {boton.bot_nom}
+              </span>
+              <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded">
+                {boton.bot_codigo}
+              </span>
+              {isCustomized && (
+                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                  customizationType === 'C' 
+                    ? 'bg-green-100 text-green-800 border border-green-200' 
+                    : 'bg-red-100 text-red-800 border border-red-200'
+                }`}>
+                  {customizationType === 'C' ? '✅ Concedido' : '❌ Denegado'}
+                </span>
+              )}
+            </div>
+
+            {/* Estados del permiso */}
+            <div className="text-xs text-gray-600 mt-1 flex items-center gap-4">
+              <span className={`px-2 py-1 rounded ${
+                profilePermission ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'
+              }`}>
+                Perfil: {profilePermission ? '✅ SÍ' : '❌ NO'}
+              </span>
+              <span className={`px-2 py-1 rounded ${
+                hasEffectivePermission ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              }`}>
+                Efectivo: {hasEffectivePermission ? '✅ PERMITIDO' : '❌ DENEGADO'}
+              </span>
+              {isCustomized && (
+                <span className={`px-2 py-1 rounded ${
+                  customizationType === 'C' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                }`}>
+                  Usuario: {customizationType === 'C' ? '✅ Concedido' : '❌ Denegado'}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Botones de acción */}
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            {/* Botón CONCEDER */}
+            <button
+              onClick={onGrantPermission}
+              disabled={savingPermissions || !profilePermission}
+              className={`p-2 rounded transition-colors ${
+                hasEffectivePermission && customizationType === 'C'
+                  ? 'bg-green-500 text-white shadow-sm'
+                  : profilePermission
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+              title={profilePermission ? "Conceder acceso específico" : "El perfil no tiene acceso a este botón"}
+            >
+              <Icon name="Check" size={14} />
+            </button>
+
+            {/* Botón DENEGAR */}
+            <button
+              onClick={onDenyPermission}
+              disabled={savingPermissions || !profilePermission}
+              className={`p-2 rounded transition-colors ${
+                !hasEffectivePermission && customizationType === 'D'
+                  ? 'bg-red-500 text-white shadow-sm'
+                  : profilePermission
+                    ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+              title={profilePermission ? "Denegar acceso específico" : "El perfil no tiene acceso a este botón"}
+            >
+              <Icon name="X" size={14} />
+            </button>
+
+            {/* Botón RESETEAR */}
+            {isCustomized && (
+              <button
+                onClick={onRemoveCustomization}
+                disabled={savingPermissions}
+                className="p-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded transition-colors border border-gray-300"
+                title="Remover personalización (volver a herencia del perfil)"
+              >
+                <Icon name="RotateCcw" size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Indicadores visuales */}
+          <div className="flex flex-col items-center gap-1">
+            {!profilePermission && (
+              <span className="text-xs text-gray-400" title="El perfil no tiene acceso">
+                <Icon name="Lock" size={12} />
+              </span>
+            )}
+            {isCustomized && (
+              <span className="text-xs text-blue-500" title="Permiso personalizado">
+                <Icon name="Settings" size={12} />
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 // ===== UTILIDADES REUTILIZADAS =====
 const isDirectWindow = (element, level = 'option') => {
@@ -111,29 +363,6 @@ const UserCard = memo(({ usuario, isSelected, onClick }) => {
   );
 });
 
-const CustomizationBadge = memo(({ isCustomized, customizationType, profilePermission }) => {
-  if (!isCustomized) return null;
-
-  const isGranted = customizationType === 'C';
-  const isOverride = profilePermission !== isGranted;
-
-  return (
-    <div className="flex items-center gap-1">
-      <span className={`px-2 py-0.5 rounded text-xs font-medium ${isGranted
-        ? 'bg-green-100 text-green-800 border border-green-200'
-        : 'bg-red-100 text-red-800 border border-red-200'
-        }`}>
-        {isGranted ? '✅ Concedido' : '❌ Denegado'}
-      </span>
-      {isOverride && (
-        <span className="px-2 py-0.5 bg-orange-100 text-orange-800 rounded text-xs border border-orange-200">
-          🔄 Personalizado
-        </span>
-      )}
-    </div>
-  );
-});
-
 const UserButtonsSection = memo(({
   element,
   elementType,
@@ -156,7 +385,7 @@ const UserButtonsSection = memo(({
           bgColor: 'bg-red-50',
           borderColor: 'border-red-200',
           iconColor: 'text-red-600',
-          checkboxColor: 'text-red-600 focus:ring-red-500'
+          icon: 'Square'
         };
       case 'submenu':
         return {
@@ -164,7 +393,7 @@ const UserButtonsSection = memo(({
           bgColor: 'bg-orange-50',
           borderColor: 'border-orange-200',
           iconColor: 'text-orange-600',
-          checkboxColor: 'text-orange-600 focus:ring-orange-500'
+          icon: 'Circle'
         };
       case 'option':
         return {
@@ -172,7 +401,7 @@ const UserButtonsSection = memo(({
           bgColor: 'bg-green-50',
           borderColor: 'border-green-200',
           iconColor: 'text-green-600',
-          checkboxColor: 'text-green-600 focus:ring-green-500'
+          icon: 'Hexagon'
         };
     }
   };
@@ -184,7 +413,7 @@ const UserButtonsSection = memo(({
       <div className={`${elementInfo.bgColor} border ${elementInfo.borderColor} rounded p-3`}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center">
-            <Icon name="Square" size={14} className={`mr-2 ${elementInfo.iconColor}`} />
+            <Icon name={elementInfo.icon} size={14} className={`mr-2 ${elementInfo.iconColor}`} />
             <span className={`text-sm font-medium ${elementInfo.iconColor.replace('text-', 'text-').replace('-600', '-900')}`}>
               {elementInfo.title}
             </span>
@@ -194,134 +423,26 @@ const UserButtonsSection = memo(({
           </span>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           {element.botones.map((boton, botonIndex) => {
             const hasEffectivePermission = boton.has_permission === true;
             const profilePermission = boton.profile_permission === true;
             const isCustomized = boton.is_customized === true;
             const customizationType = boton.customization_type;
-            console.log(`🔘 Renderizando botón ${boton.bot_codigo}:`, {
-              has_permission: hasEffectivePermission,
-              profile_permission: profilePermission,
-              is_customized: isCustomized,
-              customization_type: customizationType
-            });
+
             return (
-              <div
+              <CrudButton
                 key={`${elementType}-${menuId}-${submenuId}-${opcionId}-boton-${boton.bot_id}-${botonIndex}`}
-                className={`p-3 rounded border ${hasEffectivePermission  // ✅ USAR PERMISO EFECTIVO PARA EL COLOR
-                    ? `${elementInfo.bgColor.replace('-50', '-100')} ${elementInfo.borderColor.replace('-200', '-300')}`
-                    : 'bg-gray-50 border-gray-200'
-                  }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center flex-1">
-                    <div
-                      className="w-3 h-3 rounded mr-3"
-                      style={{ backgroundColor: boton.bot_color || '#6c757d' }}
-                    ></div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-sm font-medium ${hasEffectivePermission  // ✅ USAR PERMISO EFECTIVO PARA EL COLOR
-                            ? elementInfo.iconColor.replace('-600', '-900')
-                            : 'text-gray-700'
-                          }`}>
-                          {boton.bot_nom}
-                        </span>
-                        <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded">
-                          {boton.bot_codigo}
-                        </span>
-                        <CustomizationBadge
-                          isCustomized={isCustomized}
-                          customizationType={customizationType}
-                          profilePermission={profilePermission}
-                        />
-                      </div>
-
-                      {/* ✅ MEJORAR LA VISUALIZACIÓN DEL ESTADO */}
-                      <div className="text-xs text-gray-600 mt-1 flex items-center gap-4">
-                        <span className={`px-2 py-1 rounded ${profilePermission ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'
-                          }`}>
-                          Perfil: {profilePermission ? '✅ SÍ' : '❌ NO'}
-                        </span>
-                        <span className={`px-2 py-1 rounded ${hasEffectivePermission ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                          Efectivo: {hasEffectivePermission ? '✅ PERMITIDO' : '❌ DENEGADO'}
-                        </span>
-                        {isCustomized && (
-                          <span className={`px-2 py-1 rounded ${customizationType === 'C' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                            }`}>
-                            Usuario: {customizationType === 'C' ? '✅ Concedido' : '❌ Denegado'}
-                          </span>
-                        )}
-                      </div>
-
-                      {boton.customization_notes && (
-                        <div className="text-xs text-blue-600 mt-1 italic">
-                          Nota: {boton.customization_notes}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {/* ✅ CORREGIR LOS BOTONES DE ACCIÓN */}
-                    <div className="flex gap-1">
-                      {/* Botón CONCEDER */}
-                      <button
-                        onClick={() => toggleButtonPermission(menuId, submenuId, opcionId, boton.bot_id, 'C')}
-                        disabled={savingPermissions || !profilePermission} // ✅ Solo permitir si el perfil tiene acceso
-                        className={`px-2 py-1 text-xs rounded transition-colors ${hasEffectivePermission && customizationType === 'C'
-                            ? 'bg-green-500 text-white'
-                            : profilePermission
-                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          }`}
-                        title={profilePermission ? "Conceder acceso específico" : "El perfil no tiene acceso a este botón"}
-                      >
-                        ✅
-                      </button>
-
-                      {/* Botón DENEGAR */}
-                      <button
-                        onClick={() => toggleButtonPermission(menuId, submenuId, opcionId, boton.bot_id, 'D')}
-                        disabled={savingPermissions || !profilePermission} // ✅ Solo permitir si el perfil tiene acceso
-                        className={`px-2 py-1 text-xs rounded transition-colors ${!hasEffectivePermission && customizationType === 'D'
-                            ? 'bg-red-500 text-white'
-                            : profilePermission
-                              ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          }`}
-                        title={profilePermission ? "Denegar acceso específico" : "El perfil no tiene acceso a este botón"}
-                      >
-                        ❌
-                      </button>
-
-                      {/* Botón RESETEAR (solo si está personalizado) */}
-                      {isCustomized && (
-                        <button
-                          onClick={() => removeCustomization(menuId, submenuId, opcionId, boton.bot_id)}
-                          disabled={savingPermissions}
-                          className="px-2 py-1 text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 rounded transition-colors"
-                          title="Remover personalización (volver a herencia del perfil)"
-                        >
-                          🔄
-                        </button>
-                      )}
-                    </div>
-
-                    {/* ✅ INDICADORES VISUALES MEJORADOS */}
-                    <div className="flex flex-col items-center gap-1">
-                      {!profilePermission && (
-                        <span className="text-xs text-gray-400" title="El perfil no tiene acceso">🔒</span>
-                      )}
-                      {isCustomized && (
-                        <span className="text-xs text-blue-500" title="Permiso personalizado">⚙️</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                boton={boton}
+                hasEffectivePermission={hasEffectivePermission}
+                profilePermission={profilePermission}
+                isCustomized={isCustomized}
+                customizationType={customizationType}
+                onGrantPermission={() => toggleButtonPermission(menuId, submenuId, opcionId, boton.bot_id, 'C')}
+                onDenyPermission={() => toggleButtonPermission(menuId, submenuId, opcionId, boton.bot_id, 'D')}
+                onRemoveCustomization={() => removeCustomization(menuId, submenuId, opcionId, boton.bot_id)}
+                savingPermissions={savingPermissions}
+              />
             );
           })}
         </div>
@@ -590,16 +711,14 @@ const AsigPerBotUserWindow = ({ showMessage }) => {
     try {
       console.log('🔍 Cargando permisos para usuario:', usuarioId);
 
-      // ✅ USAR EL MÉTODO CORREGIDO DEL APISERVICE
       const result = await adminService.userButtonPermissions.getUserButtonPermissions(usuarioId);
 
       console.log('📥 Respuesta de permisos:', result);
 
-      if (result.success) {  // ✅ CAMBIAR: result.status por result.success
+      if (result.success) {
         console.log('✅ Estructura de menús cargada:', result.menuStructure);
         setMenuStructure(result.menuStructure || []);
 
-        // ✅ NUEVO: Log de estadísticas
         if (result.summary) {
           console.log('📊 Estadísticas de permisos:', result.summary);
         }
@@ -614,6 +733,7 @@ const AsigPerBotUserWindow = ({ showMessage }) => {
       setLoadingPermissions(false);
     }
   }, [showMessage]);
+
   // ===== MANEJO DE PERMISOS =====
   const toggleButtonPermission = useCallback(async (menId, subId, opcId, botId, permTipo) => {
     if (!selectedUser) return;
@@ -627,7 +747,6 @@ const AsigPerBotUserWindow = ({ showMessage }) => {
         tipo: permTipo
       });
 
-      // ✅ USAR LA ESTRUCTURA CORRECTA PARA LA API
       const requestData = {
         usu_id: selectedUser.usu_id,
         men_id: menId,
@@ -643,10 +762,8 @@ const AsigPerBotUserWindow = ({ showMessage }) => {
       if (result.status === 'success') {
         console.log('✅ Permiso actualizado correctamente');
 
-        // ✅ RECARGAR PERMISOS PARA VER LOS CAMBIOS
         await loadUserButtonPermissions(selectedUser.usu_id);
 
-        // ✅ ACTUALIZAR TAMBIÉN LA LISTA DE USUARIOS (para mostrar contador de personalizados)
         if (selectedProfile) {
           await loadUsersByProfile(selectedProfile.per_id);
         }
@@ -705,7 +822,7 @@ const AsigPerBotUserWindow = ({ showMessage }) => {
 
       if (result.status === 'success') {
         await loadUserButtonPermissions(selectedUser.usu_id);
-        await loadUsersByProfile(selectedProfile.per_id); // Actualizar contador
+        await loadUsersByProfile(selectedProfile.per_id);
         showMessage('success', result.message);
       }
     } catch (error) {
@@ -904,26 +1021,29 @@ const AsigPerBotUserWindow = ({ showMessage }) => {
               <div className="flex gap-2">
                 <button
                   onClick={expandAllMenus}
-                  className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                  className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center"
                   disabled={savingPermissions}
                 >
+                  <Icon name="Maximize" size={14} className="mr-1" />
                   Expandir todo
                 </button>
                 <button
                   onClick={collapseAllMenus}
-                  className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                  className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center"
                   disabled={savingPermissions}
                 >
+                  <Icon name="Minimize" size={14} className="mr-1" />
                   Colapsar todo
                 </button>
                 {userStats.customized > 0 && (
                   <button
                     onClick={resetAllCustomizations}
-                    className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
+                    className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center"
                     disabled={savingPermissions}
                     title="Eliminar todas las personalizaciones"
                   >
-                    🔄 Reset
+                    <Icon name="RotateCcw" size={14} className="mr-1" />
+                    Reset
                   </button>
                 )}
               </div>

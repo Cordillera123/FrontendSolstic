@@ -872,6 +872,8 @@ const ParameWindows = ({ data }) => {
   ]);
 
   // ===== COMPONENTES MEMOIZADOS =====
+ // FRAGMENTO ACTUALIZADO: Lista de Menús con botón de icono únicamente
+
   const MenusList = useMemo(
     () => (
       <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -879,24 +881,26 @@ const ParameWindows = ({ data }) => {
           <h3 className="text-lg font-semibold">
             Lista de Menús ({menus.length})
           </h3>
-          {/* ✅ BOTÓN CREATE CON PERMISOS EFECTIVOS */}
+          {/* ✅ BOTÓN CREATE CON SOLO ICONO */}
           {effectivePermissions.canCreate ? (
             <button
               onClick={handleNewMenu}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center transition-all duration-300"
+              className="w-10 h-10 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center justify-center transition-all duration-300 transform hover:scale-105 hover:shadow-lg group"
               disabled={loading}
-              title="Crear nuevo menú - Permiso efectivo concedido"
+              title="Crear nuevo menú"
             >
-              <Icon name="Plus" size={16} className="mr-2" />
-              Nuevo Menú ✅
+              <Icon 
+                name="Plus" 
+                size={20} 
+                className="transition-transform duration-300 group-hover:rotate-90" 
+              />
             </button>
           ) : (
             <div
-              className="px-4 py-2 bg-gray-300 text-gray-500 rounded-md flex items-center"
-              title="Sin permisos efectivos para crear"
+              className="w-10 h-10 bg-gray-300 text-gray-500 rounded-lg flex items-center justify-center cursor-not-allowed"
+              title="Sin permisos para crear menús"
             >
-              <Icon name="Lock" size={16} className="mr-2" />
-              Nuevo Menú ❌
+              <Icon name="Lock" size={16} />
             </div>
           )}
         </div>
@@ -909,6 +913,9 @@ const ParameWindows = ({ data }) => {
               className="mx-auto mb-4 text-gray-300"
             />
             <p>No hay menús registrados</p>
+            {effectivePermissions.canCreate && (
+              <p className="text-sm text-gray-400 mt-2">Haz clic en el botón + para crear un nuevo menú</p>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -958,38 +965,38 @@ const ParameWindows = ({ data }) => {
                         {effectivePermissions.canUpdate ? (
                           <button
                             onClick={() => handleEditMenu(menu)}
-                            className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors duration-300"
+                            className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-all duration-300 transform hover:scale-110"
                             disabled={loading}
-                            title="Editar menú - Permiso efectivo concedido"
+                            title="Editar menú"
                           >
-                            <Icon name="Edit" size={14} />
+                            <Icon name="Edit" size={16} />
                           </button>
                         ) : (
                           <button
-                            className="p-1 text-gray-400 cursor-not-allowed rounded"
+                            className="p-2 text-gray-400 cursor-not-allowed rounded-lg"
                             disabled={true}
-                            title="Sin permisos efectivos para editar"
+                            title="Sin permisos para editar"
                           >
-                            <Icon name="Edit" size={14} />
+                            <Icon name="Edit" size={16} />
                           </button>
                         )}
                         {/* ✅ BOTÓN DELETE CON PERMISOS EFECTIVOS */}
                         {effectivePermissions.canDelete ? (
                           <button
                             onClick={() => handleDeleteMenu(menu)}
-                            className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors duration-300"
+                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-all duration-300 transform hover:scale-110"
                             disabled={loading}
-                            title="Eliminar menú - Permiso efectivo concedido"
+                            title="Eliminar menú"
                           >
-                            <Icon name="Trash" size={14} />
+                            <Icon name="Trash" size={16} />
                           </button>
                         ) : (
                           <button
-                            className="p-1 text-gray-400 cursor-not-allowed rounded"
+                            className="p-2 text-gray-400 cursor-not-allowed rounded-lg"
                             disabled={true}
-                            title="Sin permisos efectivos para eliminar"
+                            title="Sin permisos para eliminar"
                           >
-                            <Icon name="Trash" size={14} />
+                            <Icon name="Trash" size={16} />
                           </button>
                         )}
                       </div>

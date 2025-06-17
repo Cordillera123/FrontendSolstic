@@ -1,10 +1,11 @@
-// src/components/Windows/SubmenuComponents.jsx - MIGRADO A BOTONES PARAMETRIZADOS
+// src/components/Windows/SubmenuComponents.jsx - MIGRADO A BOTONES PARAMETRIZADOS CON ICONSELECTOR
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useButtonPermissions } from '../../hooks/useButtonPermissions';
 import { adminService } from '../../services/apiService';
 import Icon from '../UI/Icon';
+import IconSelector from '../UI/IconSelector'; // ✅ IMPORTAR ICONSELECTOR
 
-// ✅ Componente SubmenuForm independiente (sin cambios - mantiene funcionalidad original)
+// ✅ Componente SubmenuForm con IconSelector mejorado
 const SubmenuForm = React.memo(({
     editingSubmenu,
     icons,
@@ -309,29 +310,52 @@ const SubmenuForm = React.memo(({
                         </div>
                     </div>
 
-                    {/* Icono */}
+                    {/* ✅ ICONO CON ICONSELECTOR MEJORADO */}
                     <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700">
                             Icono
                         </label>
-                        <div className="relative">
-                            <select
-                                value={formData.ico_id || ''}
-                                onChange={(e) => handleInputChange('ico_id', e.target.value)}
-                                className="w-full border border-gray-300 rounded-lg px-4 py-3 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent hover:border-gray-400 appearance-none bg-white"
-                                disabled={loading || isSubmitting}
-                            >
-                                <option value="">Seleccionar icono</option>
-                                {icons.map((icon) => (
-                                    <option key={icon.id || icon.ico_id} value={icon.id || icon.ico_id}>
-                                        {icon.nombre || icon.ico_nom} ({icon.categoria || icon.ico_cat})
-                                    </option>
-                                ))}
-                            </select>
-                            <div className="absolute right-3 top-3.5 pointer-events-none">
-                                <Icon name="ChevronDown" size={16} className="text-gray-400" />
-                            </div>
+                        <IconSelector
+                            icons={icons}
+                            selectedIcon={formData.ico_id}
+                            onSelect={(iconId) => handleInputChange('ico_id', iconId)}
+                            placeholder="Seleccionar icono"
+                            disabled={loading || isSubmitting}
+                        />
+                        <div className="text-xs text-gray-500">
+                            Elige un icono para representar visualmente el submenú
                         </div>
+
+                        {/* ✅ VISTA PREVIA DEL ICONO (igual que en MenuForm) */}
+                        {formData.ico_id && (
+                            <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                <div className="flex items-center space-x-3">
+                                    <div className="flex items-center justify-center w-12 h-12 bg-white rounded-lg border-2 border-gray-300">
+                                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                                            <span className="text-purple-600 font-bold text-sm">
+                                                {icons
+                                                    .find(
+                                                        (icon) =>
+                                                            (icon.ico_id || icon.id) == formData.ico_id
+                                                    )
+                                                    ?.ico_nom?.charAt(0)
+                                                    .toUpperCase() || "?"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="text-sm font-medium text-gray-900">
+                                            Vista previa del icono
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                            {icons.find(
+                                                (icon) => (icon.ico_id || icon.id) == formData.ico_id
+                                            )?.ico_nom || "Icono seleccionado"}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Componente */}
@@ -628,16 +652,27 @@ const SubmenusList = React.memo(({
                         Menu ID: {MENU_ID}
                     </span>
                 </h3>
-                {/* ✅ BOTÓN CREATE PARAMETRIZADO */}
-                {canCreate && (
+                {/* ✅ BOTÓN CREATE CON SOLO ICONO */}
+                {canCreate ? (
                     <button
                         onClick={onNew}
-                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center transition-all duration-300"
+                        className="w-10 h-10 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center justify-center transition-all duration-300 transform hover:scale-105 hover:shadow-lg group"
                         disabled={loading}
+                        title="Crear nuevo submenú"
                     >
-                        <Icon name="Plus" size={16} className="mr-2" />
-                        Nuevo Submenú
+                        <Icon 
+                            name="Plus" 
+                            size={20} 
+                            className="transition-transform duration-300 group-hover:rotate-90" 
+                        />
                     </button>
+                ) : (
+                    <div
+                        className="w-10 h-10 bg-gray-300 text-gray-500 rounded-lg flex items-center justify-center cursor-not-allowed"
+                        title="Sin permisos para crear submenús"
+                    >
+                        <Icon name="Lock" size={16} />
+                    </div>
                 )}
             </div>
 
@@ -648,7 +683,7 @@ const SubmenusList = React.memo(({
                     CREATE: {canCreate ? 'SÍ' : 'NO'}
                 </span>
                 <span className={`ml-2 px-2 py-0.5 rounded ${canRead ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    READ: {canRead ? 'SÍ' : 'NO'}
+                    read: {canRead ? 'SÍ' : 'NO'}
                 </span>
                 <span className={`ml-2 px-2 py-0.5 rounded ${canUpdate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                     UPDATE: {canUpdate ? 'SÍ' : 'NO'}
@@ -663,7 +698,7 @@ const SubmenusList = React.memo(({
                     <Icon name="Layers" size={48} className="mx-auto mb-4 text-gray-300" />
                     <p>No hay submenús registrados</p>
                     {canCreate && (
-                        <p className="text-sm text-gray-400 mt-2">Haz clic en "Nuevo Submenú" para empezar</p>
+                        <p className="text-sm text-gray-400 mt-2">Haz clic en el botón + para crear un nuevo submenú</p>
                     )}
                 </div>
             ) : (
@@ -725,33 +760,43 @@ const SubmenusList = React.memo(({
                                     </td>
                                     <td className="py-2">
                                         <div className="flex gap-2">
-                                            {/* ✅ BOTÓN UPDATE PARAMETRIZADO */}
-                                            {canUpdate && (
+                                            {/* ✅ BOTÓN UPDATE MEJORADO */}
+                                            {canUpdate ? (
                                                 <button
                                                     onClick={() => onEdit(submenu)}
-                                                    className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors duration-300"
+                                                    className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-all duration-300 transform hover:scale-110"
                                                     disabled={loading}
                                                     title="Editar submenú"
                                                 >
-                                                    <Icon name="Edit" size={14} />
+                                                    <Icon name="Edit" size={16} />
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    className="p-2 text-gray-400 cursor-not-allowed rounded-lg"
+                                                    disabled={true}
+                                                    title="Sin permisos para editar"
+                                                >
+                                                    <Icon name="Edit" size={16} />
                                                 </button>
                                             )}
-                                            {/* ✅ BOTÓN DELETE PARAMETRIZADO */}
-                                            {canDelete && (
+                                            {/* ✅ BOTÓN DELETE MEJORADO */}
+                                            {canDelete ? (
                                                 <button
                                                     onClick={() => onDelete(submenu)}
-                                                    className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors duration-300"
+                                                    className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-all duration-300 transform hover:scale-110"
                                                     disabled={loading}
                                                     title="Eliminar submenú"
                                                 >
-                                                    <Icon name="Trash" size={14} />
+                                                    <Icon name="Trash" size={16} />
                                                 </button>
-                                            )}
-                                            {/* Mostrar mensaje si no hay permisos */}
-                                            {!canUpdate && !canDelete && (
-                                                <span className="text-xs text-gray-400 px-2 py-1">
-                                                    Sin permisos
-                                                </span>
+                                            ) : (
+                                                <button
+                                                    className="p-2 text-gray-400 cursor-not-allowed rounded-lg"
+                                                    disabled={true}
+                                                    title="Sin permisos para eliminar"
+                                                >
+                                                    <Icon name="Trash" size={16} />
+                                                </button>
                                             )}
                                         </div>
                                     </td>
