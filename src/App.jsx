@@ -1,6 +1,6 @@
 // src/App.jsx
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import Login from './components/Auth/Login';
@@ -10,7 +10,7 @@ function App() {
   return (
     <AuthProvider>
       {/* ✅ Agregar basename para manejar la base URL correctamente */}
-      <Router basename="/FrontendSolstic">
+     <Router>
         <Routes>
           {/* ✅ Ruta raíz - redirigir a login si no está autenticado */}
           <Route 
