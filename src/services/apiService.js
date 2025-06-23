@@ -299,6 +299,541 @@ export const adminService = {
   // ===== AGREGAR ESTA SECCIÓN AL OBJETO adminService =====
 // En tu apiService.js, dentro del objeto adminService, agrega:
 
+// ===== AGREGAR DENTRO DEL OBJETO adminService EN tu apiService.js =====
+
+oficinas: {
+  async getAll(params = {}) {
+    try {
+      console.log('🔍 Oficinas API - Obteniendo todas las oficinas con params:', params);
+      
+      const queryString = apiUtils.buildQueryParams(params);
+      const url = queryString ? `/oficinas?${queryString}` : "/oficinas";
+      
+      const response = await apiClient.get(url);
+      console.log('📥 Oficinas API - Respuesta:', response.data);
+
+      // ✅ NORMALIZACIÓN: Manejar diferentes formatos de respuesta
+      let normalizedResponse = {
+        status: "success",
+        data: null,
+        message: "Oficinas obtenidas correctamente",
+      };
+
+      if (response.data) {
+        if (response.data.status === "success" && response.data.data) {
+          normalizedResponse.data = response.data.data;
+          normalizedResponse.message = response.data.message || normalizedResponse.message;
+          normalizedResponse.debug_info = response.data.debug_info;
+        } else if (Array.isArray(response.data)) {
+          normalizedResponse.data = response.data;
+        } else if (response.data.data) {
+          normalizedResponse.data = response.data.data;
+        } else {
+          console.warn('⚠️ Formato de respuesta inesperado:', response.data);
+          normalizedResponse.data = response.data;
+        }
+      }
+
+      console.log('✅ Oficinas API - Respuesta normalizada:', normalizedResponse);
+      return normalizedResponse;
+
+    } catch (error) {
+      console.error('❌ Error en oficinas.getAll:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+        data: null
+      };
+    }
+  },
+
+  async getActivas(params = {}) {
+    try {
+      console.log('🔍 Oficinas API - Obteniendo oficinas activas');
+      
+      const activeParams = { ...params, solo_activas: true };
+      return await this.getAll(activeParams);
+    } catch (error) {
+      console.error('❌ Error en oficinas.getActivas:', error);
+      throw error;
+    }
+  },
+
+  async listar(params = {}) {
+    try {
+      console.log('🔍 Oficinas API - Obteniendo lista para selects:', params);
+      
+      const queryString = apiUtils.buildQueryParams(params);
+      const url = queryString ? `/oficinas/listar?${queryString}` : "/oficinas/listar";
+      
+      const response = await apiClient.get(url);
+      console.log('📥 Oficinas API - Lista:', response.data);
+
+      return {
+        status: "success",
+        data: response.data.data || response.data || [],
+        message: response.data.message || "Lista de oficinas obtenida correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en oficinas.listar:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+        data: []
+      };
+    }
+  },
+
+  async getById(id) {
+    try {
+      console.log('🔍 Oficinas API - Obteniendo oficina por ID:', id);
+      
+      if (!id || isNaN(id)) {
+        throw new Error('ID de oficina inválido');
+      }
+      
+      const response = await apiClient.get(`/oficinas/${id}`);
+      console.log('📥 Oficinas API - Oficina obtenida:', response.data);
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: response.data.message || "Oficina obtenida correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en oficinas.getById:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  async create(data) {
+    try {
+      console.log('🔍 Oficinas API - Creando oficina:', data);
+      
+      // Validaciones básicas
+      if (!data.oficin_nombre || !data.oficin_instit_codigo || !data.oficin_tofici_codigo) {
+        throw new Error('Nombre, institución y tipo de oficina son requeridos');
+      }
+
+      const response = await apiClient.post("/oficinas", data);
+      console.log('📥 Oficinas API - Oficina creada:', response.data);
+
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: response.data.message || "Oficina creada correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en oficinas.create:', error);
+      console.error('❌ Error details:', error.response?.data);
+      
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  async update(id, data) {
+    try {
+      console.log('🔍 Oficinas API - Actualizando oficina:', id, data);
+      
+      if (!id || isNaN(id)) {
+        throw new Error('ID de oficina inválido');
+      }
+      
+      if (!data.oficin_nombre || !data.oficin_instit_codigo || !data.oficin_tofici_codigo) {
+        throw new Error('Nombre, institución y tipo de oficina son requeridos');
+      }
+
+      const response = await apiClient.put(`/oficinas/${id}`, data);
+      console.log('📥 Oficinas API - Oficina actualizada:', response.data);
+
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: response.data.message || "Oficina actualizada correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en oficinas.update:', error);
+      console.error('❌ Error details:', error.response?.data);
+      
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  async delete(id) {
+    try {
+      console.log('🔍 Oficinas API - Eliminando oficina:', id);
+      
+      if (!id || isNaN(id)) {
+        throw new Error('ID de oficina inválido');
+      }
+      
+      const response = await apiClient.delete(`/oficinas/${id}`);
+      console.log('📥 Oficinas API - Oficina eliminada:', response.data);
+
+      return {
+        status: "success",
+        data: response.data.data || null,
+        message: response.data.message || "Oficina eliminada correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en oficinas.delete:', error);
+      console.error('❌ Error details:', error.response?.data);
+      
+      const apiError = apiUtils.handleApiError(error);
+      
+      let errorMessage = apiError.message;
+      
+      if (error.response?.status === 422) {
+        // Error por usuarios asignados
+        errorMessage = error.response.data?.message || "No se puede eliminar: la oficina tiene usuarios asignados";
+      } else if (error.response?.status === 404) {
+        errorMessage = "Oficina no encontrada";
+      } else if (errorMessage.includes("constraint") || errorMessage.includes("foreign key")) {
+        errorMessage = "No se puede eliminar: existen registros dependientes";
+      }
+      
+      throw {
+        status: "error",
+        message: errorMessage,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  async getUsuarios(id, params = {}) {
+    try {
+      console.log('🔍 Oficinas API - Obteniendo usuarios de oficina:', id, params);
+      
+      if (!id || isNaN(id)) {
+        throw new Error('ID de oficina inválido');
+      }
+      
+      const queryString = apiUtils.buildQueryParams(params);
+      const url = queryString ? `/oficinas/${id}/usuarios?${queryString}` : `/oficinas/${id}/usuarios`;
+      
+      const response = await apiClient.get(url);
+      console.log('📥 Oficinas API - Usuarios de oficina:', response.data);
+
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: response.data.message || "Usuarios de oficina obtenidos correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en oficinas.getUsuarios:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  async getStats() {
+    try {
+      console.log('🔍 Oficinas API - Obteniendo estadísticas');
+      
+      const response = await apiClient.get("/oficinas/stats");
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: response.data.message || "Estadísticas obtenidas correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error obteniendo estadísticas de oficinas:', error);
+      // Fallback: calcular estadísticas básicas
+      try {
+        const allOficinas = await this.getAll();
+        return {
+          status: "success",
+          data: {
+            total: allOficinas.data?.total || 0,
+            activas: allOficinas.data?.current_page ? 
+              allOficinas.data.data?.filter(o => o.oficin_ctractual === 1).length || 0 : 0
+          },
+          message: "Estadísticas básicas calculadas",
+        };
+      } catch (fallbackError) {
+        console.error('❌ Error en fallback de estadísticas:', fallbackError);
+        return {
+          status: "success",
+          data: { total: 0, activas: 0 },
+          message: "Estadísticas no disponibles",
+        };
+      }
+    }
+  },
+
+  // Métodos de utilidad para filtros
+  async getByInstitucion(institucionId, params = {}) {
+    try {
+      console.log('🔍 Oficinas API - Filtrando por institución:', institucionId);
+      const filterParams = { ...params, instit_codigo: institucionId };
+      return await this.getAll(filterParams);
+    } catch (error) {
+      console.error('❌ Error filtrando oficinas por institución:', error);
+      throw error;
+    }
+  },
+
+  async getByTipo(tipoId, params = {}) {
+    try {
+      console.log('🔍 Oficinas API - Filtrando por tipo:', tipoId);
+      const filterParams = { ...params, tofici_codigo: tipoId };
+      return await this.getAll(filterParams);
+    } catch (error) {
+      console.error('❌ Error filtrando oficinas por tipo:', error);
+      throw error;
+    }
+  },
+
+  async getByParroquia(parroquiaId, params = {}) {
+    try {
+      console.log('🔍 Oficinas API - Filtrando por parroquia:', parroquiaId);
+      const filterParams = { ...params, parroq_codigo: parroquiaId };
+      return await this.getAll(filterParams);
+    } catch (error) {
+      console.error('❌ Error filtrando oficinas por parroquia:', error);
+      throw error;
+    }
+  },
+
+  async search(searchTerm, params = {}) {
+    try {
+      console.log('🔍 Oficinas API - Búsqueda:', searchTerm);
+      const searchParams = { ...params, search: searchTerm };
+      return await this.getAll(searchParams);
+    } catch (error) {
+      console.error('❌ Error en búsqueda de oficinas:', error);
+      throw error;
+    }
+  }
+},
+
+// ===== AGREGAR TAMBIÉN ESTOS SERVICIOS AUXILIARES =====
+
+// Servicios para los selects/dropdowns de oficinas
+instituciones: {
+  async getAll() {
+    try {
+      console.log('🔍 Instituciones API - Obteniendo todas');
+      const response = await apiClient.get("/instituciones");
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data || [],
+        message: response.data.message || "Instituciones obtenidas correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en instituciones.getAll:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+        data: []
+      };
+    }
+  },
+
+  async listar() {
+    try {
+      console.log('🔍 Instituciones API - Lista para selects');
+      const response = await apiClient.get("/instituciones/listar");
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data || [],
+        message: "Lista de instituciones obtenida correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en instituciones.listar:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        data: []
+      };
+    }
+  }
+},
+
+parroquias: {
+  async getAll() {
+    try {
+      console.log('🔍 Parroquias API - Obteniendo todas');
+      const response = await apiClient.get("/parroquias");
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data || [],
+        message: response.data.message || "Parroquias obtenidas correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en parroquias.getAll:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+        data: []
+      };
+    }
+  },
+
+  async listar() {
+    try {
+      console.log('🔍 Parroquias API - Lista para selects');
+      const response = await apiClient.get("/parroquias/listar");
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data || [],
+        message: "Lista de parroquias obtenida correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en parroquias.listar:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        data: []
+      };
+    }
+  },
+
+  async getByCanton(cantonId) {
+    try {
+      console.log('🔍 Parroquias API - Por cantón:', cantonId);
+      const response = await apiClient.get(`/parroquias/canton/${cantonId}`);
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data || [],
+        message: "Parroquias por cantón obtenidas correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en parroquias.getByCanton:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        data: []
+      };
+    }
+  }
+},
+
+cantones: {
+  async getAll() {
+    try {
+      console.log('🔍 Cantones API - Obteniendo todos');
+      const response = await apiClient.get("/cantones");
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data || [],
+        message: response.data.message || "Cantones obtenidos correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en cantones.getAll:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+        data: []
+      };
+    }
+  },
+
+  async getByProvincia(provinciaId) {
+    try {
+      console.log('🔍 Cantones API - Por provincia:', provinciaId);
+      const response = await apiClient.get(`/cantones/provincia/${provinciaId}`);
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data || [],
+        message: "Cantones por provincia obtenidos correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en cantones.getByProvincia:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        data: []
+      };
+    }
+  }
+},
+
+provincias: {
+  async getAll() {
+    try {
+      console.log('🔍 Provincias API - Obteniendo todas');
+      const response = await apiClient.get("/provincias");
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data || [],
+        message: response.data.message || "Provincias obtenidas correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en provincias.getAll:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+        data: []
+      };
+    }
+  },
+
+  async listar() {
+    try {
+      console.log('🔍 Provincias API - Lista para selects');
+      const response = await apiClient.get("/provincias/listar");
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data || [],
+        message: "Lista de provincias obtenida correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en provincias.listar:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        data: []
+      };
+    }
+  }
+},
 tiposOficina: {
   async getAll() {
     try {
