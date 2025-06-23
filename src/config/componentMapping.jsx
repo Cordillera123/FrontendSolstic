@@ -11,6 +11,7 @@ import ParameWindows from '../components/Windows/ParameWindows';
 import AsgiPerWindows from '../components/Windows/AsgiPerWindows';
 import UsuParamWindow from '../components/Windows/UsuParamWindow';
 import ConfigWindow from '../components/Windows/ConfigWindow';
+import TiOficinWindow from '../components/Windows/TiOficinWindow';
 import OficinWindow from '../components/Windows/OficinWindow';
 
 // Componente por defecto para desarrollo
@@ -50,6 +51,7 @@ export const componentMap = {
   'UsuParamWindow': UsuParamWindow,
   'ConfigWindow': ConfigWindow,
   'OficinWindow': OficinWindow,
+  'TiOficinWindow': TiOficinWindow,
 
   // Componentes con props de submódulo
   'ClientRegistry': (props) => <ClientsWindow {...props} subModule="registry" />,

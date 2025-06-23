@@ -296,7 +296,285 @@ export const menuService = {
 
 // ===== SERVICIOS CRUD PARA ADMINISTRACIÓN =====
 export const adminService = {
+  // ===== AGREGAR ESTA SECCIÓN AL OBJETO adminService =====
+// En tu apiService.js, dentro del objeto adminService, agrega:
+
+tiposOficina: {
+  async getAll() {
+    try {
+      console.log('🔍 TiposOficina API - Obteniendo todos los tipos');
+      
+      const response = await apiClient.get("/tipos-oficina");
+      console.log('📥 TiposOficina API - Respuesta:', response.data);
+
+      // ✅ NORMALIZACIÓN MEJORADA: Manejar diferentes formatos de respuesta
+      let normalizedResponse = {
+        status: "success",
+        data: [],
+        message: "Tipos de oficina obtenidos correctamente",
+      };
+
+      if (response.data) {
+        // Caso 1: Respuesta con status y data
+        if (response.data.status === "success" && response.data.data) {
+          normalizedResponse.data = Array.isArray(response.data.data) 
+            ? response.data.data 
+            : [];
+          normalizedResponse.message = response.data.message || normalizedResponse.message;
+        }
+        // Caso 2: Array directo desde Laravel Resource
+        else if (Array.isArray(response.data)) {
+          normalizedResponse.data = response.data;
+        }
+        // Caso 3: Formato de paginación Laravel
+        else if (response.data.data && Array.isArray(response.data.data)) {
+          normalizedResponse.data = response.data.data;
+        }
+        // Caso 4: Objeto con tipos_oficina
+        else if (response.data.tipos_oficina && Array.isArray(response.data.tipos_oficina)) {
+          normalizedResponse.data = response.data.tipos_oficina;
+        }
+        // Caso 5: Formato inesperado
+        else {
+          console.warn('⚠️ Formato de respuesta inesperado:', response.data);
+          normalizedResponse.data = [];
+          normalizedResponse.message = "Formato de respuesta no reconocido";
+        }
+      }
+
+      console.log('✅ TiposOficina API - Respuesta normalizada:', normalizedResponse);
+      return normalizedResponse;
+
+    } catch (error) {
+      console.error('❌ Error en tiposOficina.getAll:', error);
+      console.error('❌ Error response:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
+      
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+        data: []
+      };
+    }
+  },
+
+  async getActivos() {
+    try {
+      console.log('🔍 TiposOficina API - Obteniendo tipos activos');
+      
+      const response = await apiClient.get("/tipos-oficina/activos");
+      console.log('📥 TiposOficina API - Tipos activos:', response.data);
+
+      return {
+        status: "success",
+        data: response.data.data || response.data || [],
+        message: response.data.message || "Tipos activos obtenidos correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en tiposOficina.getActivos:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+        data: []
+      };
+    }
+  },
+
+  async getById(id) {
+    try {
+      console.log('🔍 TiposOficina API - Obteniendo tipo por ID:', id);
+      
+      if (!id || isNaN(id)) {
+        throw new Error('ID de tipo de oficina inválido');
+      }
+      
+      const response = await apiClient.get(`/tipos-oficina/${id}`);
+      console.log('📥 TiposOficina API - Tipo obtenido:', response.data);
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: response.data.message || "Tipo de oficina obtenido correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en tiposOficina.getById:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  async create(data) {
+    try {
+      console.log('🔍 TiposOficina API - Creando tipo:', data);
+      
+      if (!data.tofici_descripcion || !data.tofici_abreviatura) {
+        throw new Error('Descripción y abreviatura son requeridas');
+      }
+
+      const cleanData = {
+        tofici_descripcion: data.tofici_descripcion.trim(),
+        tofici_abreviatura: data.tofici_abreviatura.trim().toUpperCase(),
+      };
+
+      const response = await apiClient.post("/tipos-oficina", cleanData);
+      console.log('📥 TiposOficina API - Tipo creado:', response.data);
+
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: response.data.message || "Tipo de oficina creado correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en tiposOficina.create:', error);
+      console.error('❌ Error details:', error.response?.data);
+      
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  async update(id, data) {
+    try {
+      console.log('🔍 TiposOficina API - Actualizando tipo:', id, data);
+      
+      if (!id || isNaN(id)) {
+        throw new Error('ID de tipo de oficina inválido');
+      }
+      
+      if (!data.tofici_descripcion || !data.tofici_abreviatura) {
+        throw new Error('Descripción y abreviatura son requeridas');
+      }
+
+      const cleanData = {
+        tofici_descripcion: data.tofici_descripcion.trim(),
+        tofici_abreviatura: data.tofici_abreviatura.trim().toUpperCase(),
+      };
+
+      const response = await apiClient.put(`/tipos-oficina/${id}`, cleanData);
+      console.log('📥 TiposOficina API - Tipo actualizado:', response.data);
+
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: response.data.message || "Tipo de oficina actualizado correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en tiposOficina.update:', error);
+      console.error('❌ Error details:', error.response?.data);
+      
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  async delete(id) {
+    try {
+      console.log('🔍 TiposOficina API - Eliminando tipo:', id);
+      
+      if (!id || isNaN(id)) {
+        throw new Error('ID de tipo de oficina inválido');
+      }
+      
+      const response = await apiClient.delete(`/tipos-oficina/${id}`);
+      console.log('📥 TiposOficina API - Tipo eliminado:', response.data);
+
+      return {
+        status: "success",
+        data: response.data.data || null,
+        message: response.data.message || "Tipo de oficina eliminado correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error en tiposOficina.delete:', error);
+      console.error('❌ Error details:', error.response?.data);
+      
+      const apiError = apiUtils.handleApiError(error);
+      
+      let errorMessage = apiError.message;
+      
+      if (error.response?.status === 409) {
+        errorMessage = "No se puede eliminar: existen oficinas asociadas a este tipo";
+      } else if (error.response?.status === 404) {
+        errorMessage = "Tipo de oficina no encontrado";
+      } else if (errorMessage.includes("constraint") || errorMessage.includes("foreign key")) {
+        errorMessage = "No se puede eliminar: existen registros dependientes";
+      }
+      
+      throw {
+        status: "error",
+        message: errorMessage,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  async checkUsage(id) {
+    try {
+      console.log('🔍 TiposOficina API - Verificando uso del tipo:', id);
+      
+      if (!id || isNaN(id)) {
+        throw new Error('ID de tipo de oficina inválido');
+      }
+      
+      const response = await apiClient.get(`/tipos-oficina/${id}/usage`);
+      
+      return {
+        status: "success",
+        data: response.data.data || { canDelete: true, usageCount: 0 },
+        message: response.data.message || "Verificación completada",
+      };
+    } catch (error) {
+      console.error('❌ Error verificando uso del tipo:', error);
+      return {
+        status: "success",
+        data: { canDelete: true, usageCount: 0 },
+        message: "Verificación no disponible",
+      };
+    }
+  },
+
+  async getStats() {
+    try {
+      console.log('🔍 TiposOficina API - Obteniendo estadísticas');
+      
+      const response = await apiClient.get("/tipos-oficina/stats");
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: response.data.message || "Estadísticas obtenidas correctamente",
+      };
+    } catch (error) {
+      console.error('❌ Error obteniendo estadísticas:', error);
+      const allTypes = await this.getAll();
+      return {
+        status: "success",
+        data: {
+          total: allTypes.data?.length || 0,
+          activos: allTypes.data?.length || 0
+        },
+        message: "Estadísticas básicas calculadas",
+      };
+    }
+  }
+},
   // Menús
+  
   menus: {
     async getAll() {
       const response = await apiClient.get("/menus");
