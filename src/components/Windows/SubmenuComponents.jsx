@@ -1,11 +1,12 @@
-// src/components/Windows/SubmenuComponents.jsx - MIGRADO A BOTONES PARAMETRIZADOS CON ICONSELECTOR
+// src/components/Windows/SubmenuComponents.jsx - ACTUALIZADO CON PERMISOS HÍBRIDOS (PERFIL + USUARIO)
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useButtonPermissions } from '../../hooks/useButtonPermissions';
 import { adminService } from '../../services/apiService';
+import { getCurrentUser } from '../../context/AuthContext'; // ✅ IMPORTAR getCurrentUser
 import Icon from '../UI/Icon';
-import IconSelector from '../UI/IconSelector'; // ✅ IMPORTAR ICONSELECTOR
+import IconSelector from '../UI/IconSelector';
 
-// ✅ Componente SubmenuForm con IconSelector mejorado
+// ✅ Componente SubmenuForm con IconSelector mejorado (sin cambios en lógica de permisos)
 const SubmenuForm = React.memo(({
     editingSubmenu,
     icons,
@@ -579,7 +580,7 @@ const SubmenuForm = React.memo(({
 
 SubmenuForm.displayName = 'SubmenuForm';
 
-// ✅ Componente de Lista de Submenús MIGRADO A BOTONES PARAMETRIZADOS
+// ✅ COMPONENTE SubmenusList ACTUALIZADO CON SISTEMA HÍBRIDO DE PERMISOS
 const SubmenusList = React.memo(({
     submenus,
     loading,
@@ -591,41 +592,174 @@ const SubmenusList = React.memo(({
     // ===== CONFIGURACIÓN =====
     const MENU_ID = 1; // ID del menú "Parametrización de Módulos"
 
-    // ===== HOOK DE PERMISOS =====
+    // ===== OBTENER USUARIO ACTUAL =====
+    const currentUser = getCurrentUser();
+    const currentUserId = currentUser?.usu_id;
+
+    console.log('🔍 SubmenusList - Usuario actual:', {
+        usu_id: currentUserId,
+        usu_nom: currentUser?.usu_nom,
+        per_id: currentUser?.per_id
+    });
+
+    // ===== HOOK DE PERMISOS GENERALES =====
     const {
         canCreate,
         canRead,
         canUpdate,
         canDelete,
         loading: permissionsLoading,
-        error: permissionsError
+        error: permissionsError,
+        buttonPermissions
     } = useButtonPermissions(MENU_ID, null, true, 'menu');
 
-    // ===== VALIDACIONES DE PERMISOS =====
-    if (permissionsLoading) {
+    // ===== ESTADOS PARA PERMISOS ESPECÍFICOS DEL USUARIO =====
+    const [userSpecificPermissions, setUserSpecificPermissions] = useState(null);
+    const [loadingUserPermissions, setLoadingUserPermissions] = useState(false);
+    const [userPermissionsError, setUserPermissionsError] = useState(null);
+
+    // ===== FUNCIÓN PARA CARGAR PERMISOS ESPECÍFICOS DEL USUARIO =====
+    const loadUserSpecificPermissions = useCallback(async () => {
+        if (!currentUserId) return;
+
+        setLoadingUserPermissions(true);
+        setUserPermissionsError(null);
+
+        try {
+            console.log('🔍 SubmenusList - Cargando permisos específicos para usuario:', currentUserId);
+
+            const result = await adminService.userButtonPermissions.getUserButtonPermissions(currentUserId);
+
+            console.log('📥 SubmenusList - Respuesta permisos específicos:', result);
+
+            if (result.success && result.menuStructure) {
+                const menuData = result.menuStructure.find(menu => menu.men_id === MENU_ID);
+
+                if (menuData && menuData.botones) {
+                    console.log('✅ SubmenusList - Permisos específicos encontrados:', menuData.botones);
+                    setUserSpecificPermissions(menuData.botones);
+                } else {
+                    console.log('❌ SubmenusList - Menú no encontrado en estructura');
+                    setUserSpecificPermissions([]);
+                }
+            } else {
+                console.log('❌ SubmenusList - Error en respuesta de permisos específicos');
+                setUserPermissionsError('Error al cargar permisos específicos');
+            }
+        } catch (error) {
+            console.error('❌ SubmenusList - Error cargando permisos específicos:', error);
+            setUserPermissionsError(error.message);
+        } finally {
+            setLoadingUserPermissions(false);
+        }
+    }, [currentUserId]);
+
+    // ===== FUNCIÓN PARA OBTENER PERMISO ESPECÍFICO =====
+    const getUserSpecificButtonPermission = useCallback((buttonCode) => {
+        if (!userSpecificPermissions) {
+            // Fallback a permisos generales si no hay específicos
+            const generalPermission = buttonPermissions?.find(btn => btn.bot_codigo === buttonCode)?.has_permission;
+            console.log(`🔍 SubmenusList - Usando permiso general para ${buttonCode}:`, generalPermission);
+            return generalPermission || false;
+        }
+
+        const button = userSpecificPermissions.find(btn => btn.bot_codigo === buttonCode);
+
+        if (button) {
+            const hasPermission = button.has_permission === true;
+            console.log(`🎯 SubmenusList - Permiso específico ${buttonCode}:`, {
+                has_permission: hasPermission,
+                profile_permission: button.profile_permission,
+                is_customized: button.is_customized,
+                customization_type: button.customization_type
+            });
+            return hasPermission;
+        }
+
+        console.log(`❌ SubmenusList - Botón ${buttonCode} no encontrado`);
+        return false;
+    }, [userSpecificPermissions, buttonPermissions]);
+
+    // ===== PERMISOS EFECTIVOS CALCULADOS =====
+    const effectivePermissions = useMemo(() => {
+        const permissions = {
+            canCreate: getUserSpecificButtonPermission('CREATE'),
+            canRead: getUserSpecificButtonPermission('READ'),
+            canUpdate: getUserSpecificButtonPermission('UPDATE'),
+            canDelete: getUserSpecificButtonPermission('DELETE'),
+            canExport: getUserSpecificButtonPermission('EXPORT')
+        };
+
+        console.log('🎯 SubmenusList - Permisos efectivos calculados:', permissions);
+        return permissions;
+    }, [getUserSpecificButtonPermission]);
+
+    // ===== EFFECT PARA CARGAR PERMISOS ESPECÍFICOS =====
+    useEffect(() => {
+        if (currentUserId && !permissionsError) {
+            loadUserSpecificPermissions();
+        }
+    }, [currentUserId, loadUserSpecificPermissions, permissionsError]);
+
+    // ===== EFFECT PARA DEBUG =====
+    useEffect(() => {
+        console.log('🔍 SubmenusList - Permisos actualizados:', {
+            general: { canCreate, canRead, canUpdate, canDelete },
+            effective: effectivePermissions,
+            userSpecific: userSpecificPermissions ? 'Cargados' : 'No cargados',
+            permissionsLoading,
+            loadingUserPermissions,
+            currentUserId
+        });
+    }, [canCreate, canRead, canUpdate, canDelete, effectivePermissions, userSpecificPermissions, permissionsLoading, loadingUserPermissions, currentUserId]);
+
+    // ===== VALIDACIONES DE CARGA =====
+    if (permissionsLoading || loadingUserPermissions) {
         return (
             <div className="bg-white rounded-lg border border-gray-200 p-4">
                 <div className="flex items-center justify-center py-8">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mr-3"></div>
-                    <span className="text-gray-600">Cargando permisos de submenús...</span>
+                    <span className="text-gray-600">
+                        {permissionsLoading ? 'Cargando permisos generales...' : 'Cargando permisos específicos...'}
+                    </span>
                 </div>
             </div>
         );
     }
 
-    if (permissionsError) {
+    if (permissionsError && !userSpecificPermissions) {
         return (
             <div className="bg-white rounded-lg border border-red-200 p-4">
                 <div className="text-center py-8">
                     <Icon name="AlertCircle" size={24} className="mx-auto mb-3 text-red-300" />
                     <p className="text-red-600 mb-2">Error al cargar permisos de submenús</p>
-                    <p className="text-sm text-red-500">{permissionsError}</p>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-left max-w-md mx-auto">
+                        <p className="text-xs text-red-700 mb-2">
+                            <strong>Error General:</strong> {permissionsError}
+                        </p>
+                        {userPermissionsError && (
+                            <p className="text-xs text-red-700 mb-2">
+                                <strong>Error Específico:</strong> {userPermissionsError}
+                            </p>
+                        )}
+                        <ul className="text-xs text-red-700 space-y-1">
+                            <li>• Menu ID: <code className="bg-red-100 px-1 rounded">{MENU_ID}</code></li>
+                            <li>• Usuario ID: <code className="bg-red-100 px-1 rounded">{currentUserId}</code></li>
+                        </ul>
+                    </div>
+                    <button
+                        onClick={loadUserSpecificPermissions}
+                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        disabled={loadingUserPermissions}
+                    >
+                        {loadingUserPermissions ? 'Cargando...' : 'Reintentar'}
+                    </button>
                 </div>
             </div>
         );
     }
 
-    if (!canRead) {
+    if (!canRead && !effectivePermissions.canRead) {
         return (
             <div className="bg-white rounded-lg border border-yellow-200 p-4">
                 <div className="text-center py-8">
@@ -634,7 +768,11 @@ const SubmenusList = React.memo(({
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-left max-w-md mx-auto">
                         <p className="text-xs text-yellow-700">
                             <strong>Menu ID:</strong> {MENU_ID} | 
-                            <strong> READ:</strong> {canRead ? 'SÍ' : 'NO'}
+                            <strong> Usuario ID:</strong> {currentUserId}
+                        </p>
+                        <p className="text-xs text-yellow-700 mt-1">
+                            <strong>READ General:</strong> {canRead ? 'SÍ' : 'NO'} | 
+                            <strong> READ Efectivo:</strong> {effectivePermissions.canRead ? 'SÍ' : 'NO'}
                         </p>
                     </div>
                 </div>
@@ -649,11 +787,11 @@ const SubmenusList = React.memo(({
                     <Icon name="Layers" size={20} className="mr-2 text-purple-600" />
                     Lista de Submenús ({submenus.length})
                     <span className="ml-3 text-sm bg-purple-100 text-purple-800 px-2 py-1 rounded">
-                        Menu ID: {MENU_ID}
+                        Menu ID: {MENU_ID} | Usuario: {currentUserId}
                     </span>
                 </h3>
-                {/* ✅ BOTÓN CREATE CON SOLO ICONO */}
-                {canCreate ? (
+                {/* ✅ BOTÓN CREATE CON PERMISOS EFECTIVOS */}
+                {effectivePermissions.canCreate ? (
                     <button
                         onClick={onNew}
                         className="w-10 h-10 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center justify-center transition-all duration-300 transform hover:scale-105 hover:shadow-lg group"
@@ -676,28 +814,65 @@ const SubmenusList = React.memo(({
                 )}
             </div>
 
-            {/* Debug de permisos */}
-            <div className="mb-4 p-2 bg-purple-50 border border-purple-200 rounded text-xs">
-                <strong>Permisos Submenús:</strong>
-                <span className={`ml-2 px-2 py-0.5 rounded ${canCreate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    CREATE: {canCreate ? 'SÍ' : 'NO'}
-                </span>
-                <span className={`ml-2 px-2 py-0.5 rounded ${canRead ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    read: {canRead ? 'SÍ' : 'NO'}
-                </span>
-                <span className={`ml-2 px-2 py-0.5 rounded ${canUpdate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    UPDATE: {canUpdate ? 'SÍ' : 'NO'}
-                </span>
-                <span className={`ml-2 px-2 py-0.5 rounded ${canDelete ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    DELETE: {canDelete ? 'SÍ' : 'NO'}
-                </span>
+            {/* ✅ PANEL DEBUG MEJORADO - Sistema híbrido */}
+            <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded text-xs">
+                {/* Información básica */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2">
+                    <div><strong>Usuario:</strong> {currentUser?.usu_nom} (ID: {currentUserId})</div>
+                    <div><strong>Perfil:</strong> {currentUser?.per_id}</div>
+                    <div><strong>Submenús:</strong> {submenus.length}</div>
+                </div>
+
+                {/* Estado de carga */}
+                <div className="mb-2 pb-2 border-b border-purple-200">
+                    <strong>Estado:</strong>
+                    <span className={`ml-2 px-2 py-0.5 rounded ${permissionsLoading ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                        General: {permissionsLoading ? 'Cargando...' : 'Listo'}
+                    </span>
+                    <span className={`ml-2 px-2 py-0.5 rounded ${loadingUserPermissions ? 'bg-yellow-100 text-yellow-700' : userSpecificPermissions ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        Específicos: {loadingUserPermissions ? 'Cargando...' : userSpecificPermissions ? 'Cargados' : 'Error'}
+                    </span>
+                </div>
+
+                {/* Permisos generales vs efectivos */}
+                <div className="mb-2 pb-2 border-b border-purple-200">
+                    <strong>Permisos Generales:</strong>
+                    <span className={`ml-2 px-2 py-0.5 rounded ${canCreate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        CREATE: {canCreate ? 'SÍ' : 'NO'}
+                    </span>
+                    <span className={`ml-2 px-2 py-0.5 rounded ${canRead ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        READ: {canRead ? 'SÍ' : 'NO'}
+                    </span>
+                    <span className={`ml-2 px-2 py-0.5 rounded ${canUpdate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        UPDATE: {canUpdate ? 'SÍ' : 'NO'}
+                    </span>
+                    <span className={`ml-2 px-2 py-0.5 rounded ${canDelete ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        DELETE: {canDelete ? 'SÍ' : 'NO'}
+                    </span>
+                </div>
+
+                <div>
+                    <strong>Permisos Efectivos (Usados en UI):</strong>
+                    <span className={`ml-2 px-2 py-0.5 rounded ${effectivePermissions.canCreate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        CREATE: {effectivePermissions.canCreate ? 'SÍ' : 'NO'}
+                    </span>
+                    <span className={`ml-2 px-2 py-0.5 rounded ${effectivePermissions.canRead ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        read: {effectivePermissions.canRead ? 'SÍ' : 'NO'}
+                    </span>
+                    <span className={`ml-2 px-2 py-0.5 rounded ${effectivePermissions.canUpdate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        UPDATE: {effectivePermissions.canUpdate ? 'SÍ' : 'NO'}
+                    </span>
+                    <span className={`ml-2 px-2 py-0.5 rounded ${effectivePermissions.canDelete ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        DELETE: {effectivePermissions.canDelete ? 'SÍ' : 'NO'}
+                    </span>
+                </div>
             </div>
 
             {submenus.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                     <Icon name="Layers" size={48} className="mx-auto mb-4 text-gray-300" />
                     <p>No hay submenús registrados</p>
-                    {canCreate && (
+                    {effectivePermissions.canCreate && (
                         <p className="text-sm text-gray-400 mt-2">Haz clic en el botón + para crear un nuevo submenú</p>
                     )}
                 </div>
@@ -760,8 +935,8 @@ const SubmenusList = React.memo(({
                                     </td>
                                     <td className="py-2">
                                         <div className="flex gap-2">
-                                            {/* ✅ BOTÓN UPDATE MEJORADO */}
-                                            {canUpdate ? (
+                                            {/* ✅ BOTÓN UPDATE CON PERMISOS EFECTIVOS */}
+                                            {effectivePermissions.canUpdate ? (
                                                 <button
                                                     onClick={() => onEdit(submenu)}
                                                     className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-all duration-300 transform hover:scale-110"
@@ -779,8 +954,8 @@ const SubmenusList = React.memo(({
                                                     <Icon name="Edit" size={16} />
                                                 </button>
                                             )}
-                                            {/* ✅ BOTÓN DELETE MEJORADO */}
-                                            {canDelete ? (
+                                            {/* ✅ BOTÓN DELETE CON PERMISOS EFECTIVOS */}
+                                            {effectivePermissions.canDelete ? (
                                                 <button
                                                     onClick={() => onDelete(submenu)}
                                                     className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-all duration-300 transform hover:scale-110"
@@ -812,34 +987,89 @@ const SubmenusList = React.memo(({
 
 SubmenusList.displayName = 'SubmenusList';
 
-// ✅ Hook personalizado para gestión de submenús MIGRADO CON VALIDACIONES DE PERMISOS
+// ✅ HOOK useSubmenuManagement ACTUALIZADO CON PERMISOS EFECTIVOS
 const useSubmenuManagement = (showMessage, loadSubmenus) => {
     // ===== CONFIGURACIÓN =====
     const MENU_ID = 1; // ID del menú "Parametrización de Módulos"
 
-    // ===== HOOK DE PERMISOS =====
+    // ===== OBTENER USUARIO ACTUAL =====
+    const currentUser = getCurrentUser();
+    const currentUserId = currentUser?.usu_id;
+
+    // ===== HOOK DE PERMISOS GENERALES =====
     const {
         canCreate,
         canUpdate,
-        canDelete
+        canDelete,
+        buttonPermissions
     } = useButtonPermissions(MENU_ID, null, true, 'menu');
 
-    // ===== ESTADOS =====
+    // ===== ESTADOS PARA PERMISOS ESPECÍFICOS =====
+    const [userSpecificPermissions, setUserSpecificPermissions] = useState(null);
+
+    // ===== FUNCIÓN PARA CARGAR PERMISOS ESPECÍFICOS =====
+    const loadUserSpecificPermissions = useCallback(async () => {
+        if (!currentUserId) return;
+
+        try {
+            console.log('🔍 useSubmenuManagement - Cargando permisos específicos para usuario:', currentUserId);
+
+            const result = await adminService.userButtonPermissions.getUserButtonPermissions(currentUserId);
+
+            if (result.success && result.menuStructure) {
+                const menuData = result.menuStructure.find(menu => menu.men_id === MENU_ID);
+                if (menuData && menuData.botones) {
+                    setUserSpecificPermissions(menuData.botones);
+                }
+            }
+        } catch (error) {
+            console.error('❌ useSubmenuManagement - Error cargando permisos específicos:', error);
+        }
+    }, [currentUserId]);
+
+    // ===== FUNCIÓN PARA OBTENER PERMISO ESPECÍFICO =====
+    const getUserSpecificButtonPermission = useCallback((buttonCode) => {
+        if (!userSpecificPermissions) {
+            const generalPermission = buttonPermissions?.find(btn => btn.bot_codigo === buttonCode)?.has_permission;
+            return generalPermission || false;
+        }
+
+        const button = userSpecificPermissions.find(btn => btn.bot_codigo === buttonCode);
+        return button ? button.has_permission === true : false;
+    }, [userSpecificPermissions, buttonPermissions]);
+
+    // ===== PERMISOS EFECTIVOS =====
+    const effectivePermissions = useMemo(() => ({
+        canCreate: getUserSpecificButtonPermission('CREATE'),
+        canUpdate: getUserSpecificButtonPermission('UPDATE'),
+        canDelete: getUserSpecificButtonPermission('DELETE')
+    }), [getUserSpecificButtonPermission]);
+
+    // ===== ESTADOS DEL HOOK =====
     const [showSubmenuForm, setShowSubmenuForm] = useState(false);
     const [editingSubmenu, setEditingSubmenu] = useState(null);
     const [submenuFormKey, setSubmenuFormKey] = useState(0);
 
-    // ===== HANDLERS CON VALIDACIÓN DE PERMISOS =====
+    // ===== CARGAR PERMISOS AL INICIALIZAR =====
+    useEffect(() => {
+        if (currentUserId) {
+            loadUserSpecificPermissions();
+        }
+    }, [currentUserId, loadUserSpecificPermissions]);
+
+    // ===== HANDLERS CON VALIDACIÓN DE PERMISOS EFECTIVOS =====
     const handleSubmenuSave = useCallback(async (formData, editingSubmenu) => {
         console.log('💾 Guardando submenú:', formData);
 
-        // ✅ VALIDACIÓN DE PERMISOS
-        if (editingSubmenu && !canUpdate) {
+        // ✅ VALIDACIÓN CON PERMISOS EFECTIVOS
+        if (editingSubmenu && !effectivePermissions.canUpdate) {
+            console.log('❌ useSubmenuManagement - UPDATE denegado (efectivo)');
             showMessage('error', 'No tienes permisos para actualizar submenús');
             return;
         }
         
-        if (!editingSubmenu && !canCreate) {
+        if (!editingSubmenu && !effectivePermissions.canCreate) {
+            console.log('❌ useSubmenuManagement - CREATE denegado (efectivo)');
             showMessage('error', 'No tienes permisos para crear submenús');
             return;
         }
@@ -886,7 +1116,7 @@ const useSubmenuManagement = (showMessage, loadSubmenus) => {
 
             showMessage('error', errorMsg);
         }
-    }, [showMessage, loadSubmenus, canCreate, canUpdate]);
+    }, [showMessage, loadSubmenus, effectivePermissions]);
 
     const handleSubmenuCancel = useCallback(() => {
         console.log('❌ Cancelando formulario de submenú');
@@ -896,34 +1126,37 @@ const useSubmenuManagement = (showMessage, loadSubmenus) => {
     }, []);
 
     const handleNewSubmenu = useCallback(() => {
-        // ✅ VALIDACIÓN DE PERMISOS
-        if (!canCreate) {
+        // ✅ VALIDACIÓN CON PERMISOS EFECTIVOS
+        if (!effectivePermissions.canCreate) {
+            console.log('❌ useSubmenuManagement - CREATE denegado para nuevo submenú (efectivo)');
             showMessage('error', 'No tienes permisos para crear submenús');
             return;
         }
 
-        console.log('➕ Nuevo submenú');
+        console.log('➕ Nuevo submenú - Permiso concedido (efectivo)');
         setEditingSubmenu(null);
         setShowSubmenuForm(true);
         setSubmenuFormKey(prev => prev + 1);
-    }, [canCreate, showMessage]);
+    }, [effectivePermissions.canCreate, showMessage]);
 
     const handleEditSubmenu = useCallback((submenu) => {
-        // ✅ VALIDACIÓN DE PERMISOS
-        if (!canUpdate) {
+        // ✅ VALIDACIÓN CON PERMISOS EFECTIVOS
+        if (!effectivePermissions.canUpdate) {
+            console.log('❌ useSubmenuManagement - UPDATE denegado para editar submenú (efectivo)');
             showMessage('error', 'No tienes permisos para editar submenús');
             return;
         }
 
-        console.log('✏️ Editar submenú:', submenu.sub_id);
+        console.log('✏️ Editar submenú - Permiso concedido (efectivo):', submenu.sub_id);
         setEditingSubmenu(submenu);
         setShowSubmenuForm(true);
         setSubmenuFormKey(prev => prev + 1);
-    }, [canUpdate, showMessage]);
+    }, [effectivePermissions.canUpdate, showMessage]);
 
     const handleDeleteSubmenu = useCallback(async (submenu) => {
-        // ✅ VALIDACIÓN DE PERMISOS
-        if (!canDelete) {
+        // ✅ VALIDACIÓN CON PERMISOS EFECTIVOS
+        if (!effectivePermissions.canDelete) {
+            console.log('❌ useSubmenuManagement - DELETE denegado (efectivo)');
             showMessage('error', 'No tienes permisos para eliminar submenús');
             return;
         }
@@ -933,6 +1166,7 @@ const useSubmenuManagement = (showMessage, loadSubmenus) => {
         }
 
         try {
+            console.log('🗑️ Eliminando submenú - Permiso concedido (efectivo):', submenu.sub_id);
             await adminService.submenus.delete(submenu.sub_id);
             showMessage('success', 'Submenú eliminado correctamente');
             await loadSubmenus();
@@ -941,7 +1175,7 @@ const useSubmenuManagement = (showMessage, loadSubmenus) => {
             const errorMsg = error.response?.data?.message || 'Error al eliminar el submenú';
             showMessage('error', errorMsg);
         }
-    }, [canDelete, showMessage, loadSubmenus]);
+    }, [effectivePermissions.canDelete, showMessage, loadSubmenus]);
 
     return {
         showSubmenuForm,
@@ -951,9 +1185,13 @@ const useSubmenuManagement = (showMessage, loadSubmenus) => {
         handleSubmenuCancel,
         handleNewSubmenu,
         handleEditSubmenu,
-        handleDeleteSubmenu
+        handleDeleteSubmenu,
+        // ✅ EXPORTAR PERMISOS EFECTIVOS PARA DEBUG
+        effectivePermissions,
+        userSpecificPermissions,
+        currentUserId
     };
 };
 
-// ✅ Exportar componentes y hook
+// ✅ Exportar componentes y hook actualizados
 export { SubmenuForm, SubmenusList, useSubmenuManagement };
