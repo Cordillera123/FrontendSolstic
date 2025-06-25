@@ -1,15 +1,36 @@
-// src/components/Dashboard/Sidebar.jsx - CORREGIDO
-import React, { useState, useEffect } from "react";
-import { ChevronDown, ChevronRight, HelpCircle, Info } from "lucide-react";
+// src/components/Dashboard/Sidebar.jsx - OPTIMIZADO para evitar re-renders
+import React, { useState, useEffect, memo } from "react";
+import { ChevronDown, ChevronRight, HelpCircle, Info, Building, MapPin, User } from "lucide-react";
 import { useAuth } from '../../context/AuthContext';
+import { useUserInfo } from '../../hooks/useUserInfo';
 import LogoutButton from '../Auth/LogoutButton';
 import Icon from "../UI/Icon";
 
-const Sidebar = ({
-  onOpenWindow, // Función para abrir ventanas desde el Dashboard
+const Sidebar = memo(({
+  onOpenWindow,
   currentDate,
 }) => {
-  const { user, permissions, getAllowedMenus } = useAuth(); // Usar permisos del contexto
+  const { user, permissions } = useAuth();
+  
+  // ✅ OPTIMIZADO: Hook para información del usuario con configuración específica
+  const {
+    userInfo,
+    loading: userInfoLoading,
+    error: userInfoError,
+    displayName,
+    userInitials,
+    institucion,
+    oficina,
+    fullLocation,
+    hasOffice,
+    hasInstitution,
+    refresh: refreshUserInfo,
+    isReady
+  } = useUserInfo({
+    autoLoad: true,
+    basicOnly: true,
+    refreshInterval: 5 * 60 * 1000 // 5 minutos
+  });
   
   // Estados para el menú dinámico
   const [menuData, setMenuData] = useState([]);
@@ -17,29 +38,38 @@ const Sidebar = ({
   const [expandedMenus, setExpandedMenus] = useState(new Set());
   const [expandedSubmenus, setExpandedSubmenus] = useState(new Set());
 
-  // Cargar menús del contexto de autenticación al montar el componente
+  // Cargar menús del contexto de autenticación
   useEffect(() => {
-    console.log('🔄 Cargando permisos desde AuthContext...');
-    console.log('📋 Permisos desde contexto:', permissions);
+    console.log('🔄 Sidebar - Cargando permisos desde AuthContext...');
     
-    // Usar los permisos que ya vienen del login
     if (permissions && permissions.length > 0) {
-      console.log('✅ Usando permisos del login:', permissions);
+      console.log('✅ Sidebar - Usando permisos del login:', permissions.length, 'menús');
       setMenuData(permissions);
       setLoading(false);
     } else {
-      console.log('⚠️ No hay permisos en el contexto');
+      console.log('⚠️ Sidebar - No hay permisos en el contexto');
       setMenuData([]);
       setLoading(false);
     }
-  }, [permissions]); // Dependencia: cuando cambien los permisos
+  }, [permissions]);
+
+  // ✅ OPTIMIZADO: Logs solo cuando cambie la información del usuario
+  useEffect(() => {
+    if (isReady && userInfo) {
+      console.log('✅ Sidebar - Información del usuario lista:', {
+        nombre: displayName,
+        institucion: institucion.nombre,
+        oficina: oficina.nombre,
+        hasOffice
+      });
+    }
+  }, [isReady, displayName, institucion.nombre, oficina.nombre, hasOffice]);
 
   // Manejar expansión de menús principales
   const toggleMenu = (menuId) => {
     const newExpanded = new Set(expandedMenus);
     if (newExpanded.has(menuId)) {
       newExpanded.delete(menuId);
-      // También cerrar todos los submenús de este menú
       const relatedSubmenus = menuData.find(m => m.id === menuId)?.submenus || [];
       relatedSubmenus.forEach(sub => {
         const newSubExpanded = new Set(expandedSubmenus);
@@ -52,7 +82,6 @@ const Sidebar = ({
     setExpandedMenus(newExpanded);
   };
 
-  // Manejar expansión de submenús
   const toggleSubmenu = (submenuId) => {
     const newExpanded = new Set(expandedSubmenus);
     if (newExpanded.has(submenuId)) {
@@ -63,101 +92,68 @@ const Sidebar = ({
     setExpandedSubmenus(newExpanded);
   };
 
-  // Manejar clic en elementos del menú
-  // Actualizar estas funciones en el Sidebar.jsx:
+  // Handlers de clic en elementos del menú
+  const handleMenuClick = (menu) => {
+    if (menu.ventana_directa && menu.componente) {
+      onOpenWindow({
+        id: `menu-${menu.id}`,
+        title: menu.nombre,
+        component: menu.componente,
+        type: 'menu',
+        data: menu,
+      });
+      return;
+    }
 
-// Manejar clic en elementos del menú
-const handleMenuClick = (menu) => {
-  console.log('Menu clicked:', menu);
-  console.log('Menu componente:', menu.componente);
-  console.log('Menu ventana_directa:', menu.ventana_directa);
-  
-  // Si el menú tiene ventana directa, abrir como ventana
-  if (menu.ventana_directa && menu.componente) {
-    console.log('Opening direct window with component:', menu.componente);
+    if (menu.submenus && menu.submenus.length > 0) {
+      toggleMenu(menu.id);
+    } else {
+      onOpenWindow({
+        id: `menu-${menu.id}`,
+        title: menu.nombre,
+        component: menu.componente || 'DefaultWindow',
+        type: 'menu',
+        data: menu,
+      });
+    }
+  };
+
+  const handleSubmenuClick = (submenu, parentMenu) => {
+    if (submenu.ventana_directa && submenu.componente) {
+      onOpenWindow({
+        id: `submenu-${submenu.id}`,
+        title: `${parentMenu.nombre} > ${submenu.nombre}`,
+        component: submenu.componente,
+        type: 'submenu',
+        data: { submenu, parentMenu },
+      });
+      return;
+    }
+
+    if (submenu.opciones && submenu.opciones.length > 0) {
+      toggleSubmenu(submenu.id);
+    } else {
+      onOpenWindow({
+        id: `submenu-${submenu.id}`,
+        title: `${parentMenu.nombre} > ${submenu.nombre}`,
+        component: submenu.componente || 'DefaultWindow',
+        type: 'submenu',
+        data: { submenu, parentMenu },
+      });
+    }
+  };
+
+  const handleOptionClick = (option, parentSubmenu, parentMenu) => {
     onOpenWindow({
-      id: `menu-${menu.id}`,
-      title: menu.nombre,
-      component: menu.componente, // ← Usar menu.componente
-      type: 'menu',
-      data: menu,
+      id: `option-${option.id}`,
+      title: `${parentMenu.nombre} > ${parentSubmenu.nombre} > ${option.nombre}`,
+      component: option.componente || 'DefaultWindow',
+      type: 'option',
+      data: { option, parentSubmenu, parentMenu },
     });
-    return;
-  }
+  };
 
-  // Si tiene submenús, expandir/contraer
-  if (menu.submenus && menu.submenus.length > 0) {
-    toggleMenu(menu.id);
-  } else {
-    // Si no tiene submenús ni ventana directa, abrir ventana con componente o DefaultWindow
-    onOpenWindow({
-      id: `menu-${menu.id}`,
-      title: menu.nombre,
-      component: menu.componente || 'DefaultWindow', // ← Usar menu.componente
-      type: 'menu',
-      data: menu,
-    });
-  }
-};
-
-const handleSubmenuClick = (submenu, parentMenu) => {
-  console.log('Submenu clicked:', submenu);
-  console.log('Submenu componente:', submenu.componente);
-  console.log('Submenu ventana_directa:', submenu.ventana_directa);
-  
-  // Si el submenú tiene ventana directa, abrir como ventana
-  if (submenu.ventana_directa && submenu.componente) {
-    console.log('Opening submenu direct window:', submenu.componente);
-    onOpenWindow({
-      id: `submenu-${submenu.id}`,
-      title: `${parentMenu.nombre} > ${submenu.nombre}`,
-      component: submenu.componente, // ← Usar submenu.componente
-      type: 'submenu',
-      data: {
-        submenu,
-        parentMenu,
-      },
-    });
-    return;
-  }
-
-  // Si tiene opciones, expandir/contraer
-  if (submenu.opciones && submenu.opciones.length > 0) {
-    toggleSubmenu(submenu.id);
-  } else {
-    // Si no tiene opciones ni ventana directa, abrir ventana con componente o DefaultWindow
-    onOpenWindow({
-      id: `submenu-${submenu.id}`,
-      title: `${parentMenu.nombre} > ${submenu.nombre}`,
-      component: submenu.componente || 'DefaultWindow', // ← Usar submenu.componente
-      type: 'submenu',
-      data: {
-        submenu,
-        parentMenu,
-      },
-    });
-  }
-};
-
-const handleOptionClick = (option, parentSubmenu, parentMenu) => {
-  console.log('Option clicked:', option);
-  console.log('Option componente:', option.componente);
-  
-  // Las opciones siempre abren como ventanas
-  onOpenWindow({
-    id: `option-${option.id}`,
-    title: `${parentMenu.nombre} > ${parentSubmenu.nombre} > ${option.nombre}`,
-    component: option.componente || 'DefaultWindow', // ← Usar option.componente
-    type: 'option',
-    data: {
-      option,
-      parentSubmenu,
-      parentMenu,
-    },
-  });
-};
-
-  // Estilos (mantener los mismos)
+  // Estilos
   const sidebarStyle = {
     width: "16rem",
     backgroundColor: "#0c4a6e",
@@ -223,7 +219,16 @@ const handleOptionClick = (option, parentSubmenu, parentMenu) => {
     justifyContent: "center",
     color: "white",
     fontWeight: "bold",
+    fontSize: "0.875rem",
     boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)",
+  };
+
+  const userInfoStyle = {
+    padding: "0.75rem",
+    borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(12, 74, 110, 0.7)",
+    fontSize: "0.75rem",
+    color: "rgba(255, 255, 255, 0.9)",
   };
 
   // Renderizar contenido de carga
@@ -254,7 +259,59 @@ const handleOptionClick = (option, parentSubmenu, parentMenu) => {
         <div style={dateStyle}>{currentDate}</div>
       </div>
 
-      {/* Módulos dinámicos desde el AuthContext */}
+      {/* ✅ OPTIMIZADO: Información de ubicación del usuario */}
+      {isReady && userInfo && (
+        <div style={userInfoStyle}>
+          <div className="space-y-2">
+            {/* Institución */}
+            <div className="flex items-center">
+              <Building size={12} className="mr-2 text-blue-300" />
+              <span className="text-white font-medium text-xs" title={institucion.nombre}>
+                {hasInstitution ? institucion.nombre : 'Sin institución'}
+              </span>
+            </div>
+            
+            {/* Oficina */}
+            <div className="flex items-center">
+              <MapPin size={12} className="mr-2 text-green-300" />
+              <span className="text-white text-xs" title={oficina.completa}>
+                {hasOffice ? oficina.nombre : 'Sin oficina asignada'}
+              </span>
+            </div>
+            
+            {/* Indicador de estado */}
+            <div className="flex items-center justify-between pt-1 border-t border-white border-opacity-20">
+              <div className="flex items-center">
+                <div className={`w-2 h-2 rounded-full mr-2 ${hasOffice ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
+                <span className="text-xs text-white text-opacity-80">
+                  {hasOffice ? 'Ubicación definida' : 'Sin ubicación'}
+                </span>
+              </div>
+              {userInfoError && (
+                <button 
+                  onClick={refreshUserInfo}
+                  className="text-xs text-yellow-300 hover:text-yellow-100 transition-colors"
+                  title="Recargar información"
+                >
+                  ↻
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ OPTIMIZADO: Mostrar indicador de carga solo cuando sea necesario */}
+      {userInfoLoading && !isReady && (
+        <div style={userInfoStyle}>
+          <div className="flex items-center justify-center py-2">
+            <div className="animate-spin rounded-full h-4 w-4 border border-white border-t-transparent mr-2"></div>
+            <span className="text-xs text-white text-opacity-80">Cargando ubicación...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Módulos dinámicos */}
       <div className="flex-1 overflow-y-auto py-2">
         <div style={sectionTitleStyle}>
           Módulos del Sistema
@@ -298,7 +355,6 @@ const handleOptionClick = (option, parentSubmenu, parentMenu) => {
                 <ul className="pl-10 mt-1 space-y-1">
                   {menu.submenus.map((submenu) => (
                     <li key={submenu.id}>
-                      {/* Submenú */}
                       <div
                         className={`flex items-center p-1.5 rounded-md cursor-pointer transition-all duration-150 ${
                           expandedSubmenus.has(submenu.id)
@@ -382,22 +438,43 @@ const handleOptionClick = (option, parentSubmenu, parentMenu) => {
         </ul>
       </div>
 
-      {/* Perfil de usuario */}
+      {/* ✅ ACTUALIZADO: Perfil de usuario con información completa */}
       <div style={profileContainerStyle}>
         <div className="flex items-center p-2">
           <div style={profileAvatarStyle}>
-            {user?.fullName 
+            {userInitials || (user?.fullName 
               ? user.fullName.split(' ').map(n => n[0]).join('').toUpperCase() 
-              : user?.email?.substring(0, 2).toUpperCase() || 'UA'}
+              : user?.email?.substring(0, 2).toUpperCase() || 'UA')}
           </div>
-          <div className="ml-3">
+          <div className="ml-3 flex-1">
+            {/* Nombre del usuario */}
             <div className="font-medium text-sm text-white">
-              {user?.fullName || user?.email || 'Usuario Admin'}
+              {displayName || user?.fullName || user?.email || 'Usuario Admin'}
             </div>
+            
+            {/* Información de conexión y perfil */}
             <div className="text-xs text-white text-opacity-90 flex items-center">
               <div className="w-2 h-2 rounded-full bg-green-500 mr-1.5"></div>
-              Conectado - {user?.perfil || 'Sin perfil'}
+              Conectado - {userInfo?.perfil || user?.perfil || 'Sin perfil'}
             </div>
+
+            {/* ✅ NUEVA LÍNEA: Mostrar ubicación laboral compacta */}
+            {isReady && userInfo && (
+              <div className="text-xs text-white text-opacity-75 mt-1 flex items-center">
+                <User size={10} className="mr-1" />
+                <span className="truncate">
+                  {hasOffice ? oficina.tipo || 'Oficina' : 'Sin ubicación'}
+                </span>
+              </div>
+            )}
+
+            {/* Indicador de error */}
+            {userInfoError && (
+              <div className="text-xs text-red-300 mt-1 flex items-center">
+                <span className="mr-1">⚠</span>
+                Error al cargar ubicación
+              </div>
+            )}
           </div>
           <div className="ml-auto">
             <LogoutButton iconOnly={true} />
@@ -406,6 +483,8 @@ const handleOptionClick = (option, parentSubmenu, parentMenu) => {
       </div>
     </div>
   );
-};
+});
+
+Sidebar.displayName = 'Sidebar';
 
 export default Sidebar;

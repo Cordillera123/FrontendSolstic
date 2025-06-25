@@ -1425,325 +1425,479 @@ tiposOficina: {
     },
   },
 
-  // ✅ USUARIOS - Sección actualizada para eliminado lógico
-  usuarios: {
-    async getAll(params = {}) {
-      try {
-        console.log("🔍 Usuarios API - Enviando params:", params);
-        const queryString = apiUtils.buildQueryParams(params);
-        const url = queryString ? `/usuarios?${queryString}` : "/usuarios";
+  // ✅ REEMPLAZAR la sección usuarios en tu apiService.js con este código corregido
 
-        const response = await apiClient.get(url);
-        console.log("📥 Usuarios API - Respuesta RAW:", response);
-        console.log("📥 Usuarios API - Response.data:", response.data);
+usuarios: {
+  // ===== MÉTODOS EXISTENTES DE GESTIÓN DE USUARIOS =====
+  async getAll(params = {}) {
+    try {
+      console.log("🔍 Usuarios API - Enviando params:", params);
+      const queryString = apiUtils.buildQueryParams(params);
+      const url = queryString ? `/usuarios?${queryString}` : "/usuarios";
 
-        // ✅ NORMALIZAR RESPUESTA: Convertir siempre al formato estándar
-        let normalizedResponse = {
-          status: "success",
-          data: null,
-          message: "Usuarios obtenidos correctamente",
-        };
+      const response = await apiClient.get(url);
+      console.log("📥 Usuarios API - Respuesta RAW:", response);
+      console.log("📥 Usuarios API - Response.data:", response.data);
 
-        // Verificar diferentes estructuras de respuesta del backend
-        if (response.data) {
-          if (response.data.status === "success") {
-            // Formato: { status: 'success', data: {...} }
-            normalizedResponse.data = response.data.data;
-            normalizedResponse.message =
-              response.data.message || normalizedResponse.message;
-          } else if (Array.isArray(response.data)) {
-            // Formato: [array directo]
-            normalizedResponse.data = response.data;
-          } else if (response.data.data) {
-            // Formato: { data: {...} } (paginación Laravel)
-            normalizedResponse.data = response.data.data;
-          } else {
-            // Formato inesperado
-            console.warn(
-              "⚠️ Formato de respuesta inesperado usuarios:",
-              response.data
-            );
-            normalizedResponse.data = response.data;
-          }
+      // ✅ NORMALIZAR RESPUESTA: Convertir siempre al formato estándar
+      let normalizedResponse = {
+        status: "success",
+        data: null,
+        message: "Usuarios obtenidos correctamente",
+      };
+
+      // Verificar diferentes estructuras de respuesta del backend
+      if (response.data) {
+        if (response.data.status === "success") {
+          // Formato: { status: 'success', data: {...} }
+          normalizedResponse.data = response.data.data;
+          normalizedResponse.message =
+            response.data.message || normalizedResponse.message;
+        } else if (Array.isArray(response.data)) {
+          // Formato: [array directo]
+          normalizedResponse.data = response.data;
+        } else if (response.data.data) {
+          // Formato: { data: {...} } (paginación Laravel)
+          normalizedResponse.data = response.data.data;
+        } else {
+          // Formato inesperado
+          console.warn(
+            "⚠️ Formato de respuesta inesperado usuarios:",
+            response.data
+          );
+          normalizedResponse.data = response.data;
         }
-
-        console.log(
-          "✅ Usuarios API - Respuesta normalizada:",
-          normalizedResponse
-        );
-        return normalizedResponse;
-      } catch (error) {
-        console.error("❌ Error en usuarios.getAll:", error);
-        const apiError = apiUtils.handleApiError(error);
-        throw {
-          status: "error",
-          message: apiError.message,
-          errors: apiError.errors,
-        };
       }
-    },
-    // ✅ MÉTODO PARA OBTENER USUARIOS ACTIVOS (por defecto)
-    /*************  ✨ Windsurf Command 🌟  *************/
-    /**
-     * @function getById
-     * @description Obtener un usuario por su id
-     * @param {number} id - Identificador del usuario
-     * @returns {Promise<{status: string, data: object, message: string}>}
-     */
-    async getActive(params = {}) {
-      try {
-        // Llamar al endpoint de obtener usuario por id
-        console.log("🔍 Usuarios API - Obteniendo usuarios activos");
 
-        // Normalizar la respuesta
-        // No incluir deshabilitados por defecto
-        const activeParams = { ...params, incluir_deshabilitados: false };
-        return await this.getAll(activeParams);
-      } catch (error) {
-        console.error("❌ Error en usuarios.getActive:", error);
-        throw error;
-        // Manejar errores
-      }
-    },
-
-    // ✅ MÉTODO PARA OBTENER TODOS LOS USUARIOS (incluyendo deshabilitados)
-    async getAllIncludingDisabled(params = {}) {
-      try {
-        console.log(
-          "🔍 Usuarios API - Obteniendo todos los usuarios (incluyendo deshabilitados)"
-        );
-        const allParams = { ...params, incluir_deshabilitados: true };
-        return await this.getAll(allParams);
-        /*******  65e6a924-a54c-48af-b565-65b339f0b697  *******/
-      } catch (error) {
-        console.error("❌ Error en usuarios.getAllIncludingDisabled:", error);
-        throw error;
-      }
-    },
-
-    // ✅ MÉTODO PARA OBTENER SOLO USUARIOS DESHABILITADOS
-    async getDisabled(params = {}) {
-      try {
-        console.log("🔍 Usuarios API - Obteniendo usuarios deshabilitados");
-        const disabledParams = {
-          ...params,
-          incluir_deshabilitados: true,
-          activo: false, // Filtrar solo los deshabilitados
-        };
-        return await this.getAll(disabledParams);
-      } catch (error) {
-        console.error("❌ Error en usuarios.getDisabled:", error);
-        throw error;
-      }
-    },
-
-    async getById(id) {
-      try {
-        const response = await apiClient.get(`/usuarios/${id}`);
-        return {
-          status: "success",
-          data: response.data.data || response.data,
-          message: "Usuario obtenido correctamente",
-        };
-      } catch (error) {
-        console.error("❌ Error en usuarios.getById:", error);
-        const apiError = apiUtils.handleApiError(error);
-        throw {
-          status: "error",
-          message: apiError.message,
-          errors: apiError.errors,
-        };
-      }
-    },
-
-    async create(data) {
-      try {
-        console.log("🔍 Usuarios API - Creando usuario:", data);
-        const response = await apiClient.post("/usuarios", data);
-        console.log("📥 Usuarios API - Usuario creado:", response.data);
-
-        return {
-          status: "success",
-          data: response.data.data || response.data,
-          message: response.data.message || "Usuario creado correctamente",
-        };
-      } catch (error) {
-        console.error("❌ Error en usuarios.create:", error);
-        const apiError = apiUtils.handleApiError(error);
-        throw {
-          status: "error",
-          message: apiError.message,
-          errors: apiError.errors,
-        };
-      }
-    },
-
-    async update(id, data) {
-      try {
-        console.log("🔍 Usuarios API - Actualizando usuario:", id, data);
-        const response = await apiClient.put(`/usuarios/${id}`, data);
-        console.log("📥 Usuarios API - Usuario actualizado:", response.data);
-
-        return {
-          status: "success",
-          data: response.data.data || response.data,
-          message: response.data.message || "Usuario actualizado correctamente",
-        };
-      } catch (error) {
-        console.error("❌ Error en usuarios.update:", error);
-        const apiError = apiUtils.handleApiError(error);
-        throw {
-          status: "error",
-          message: apiError.message,
-          errors: apiError.errors,
-        };
-      }
-    },
-
-    // ✅ ACTUALIZADO: Método delete ahora es "desactivar" (eliminado lógico)
-    async delete(id) {
-      try {
-        console.log("🔍 Usuarios API - Desactivando usuario:", id);
-        const response = await apiClient.delete(`/usuarios/${id}`);
-        console.log("📥 Usuarios API - Usuario desactivado:", response.data);
-
-        return {
-          status: "success",
-          data: response.data.data || null,
-          message: response.data.message || "Usuario desactivado correctamente",
-        };
-      } catch (error) {
-        console.error("❌ Error en usuarios.delete:", error);
-        const apiError = apiUtils.handleApiError(error);
-        throw {
-          status: "error",
-          message: apiError.message,
-          errors: apiError.errors,
-        };
-      }
-    },
-    // ✅ MÉTODO ADICIONAL: Para reactivar usuarios (ya lo tienes bien)
-    async reactivate(id) {
-      try {
-        console.log("🔍 Usuarios API - Reactivando usuario:", id);
-        const response = await apiClient.patch(`/usuarios/${id}/reactivate`);
-        console.log("📥 Usuarios API - Usuario reactivado:", response.data);
-
-        return {
-          status: "success",
-          data: response.data.data || null,
-          message: response.data.message || "Usuario reactivado correctamente",
-        };
-      } catch (error) {
-        console.error("❌ Error en usuarios.reactivate:", error);
-        const apiError = apiUtils.handleApiError(error);
-        throw {
-          status: "error",
-          message: apiError.message,
-          errors: apiError.errors,
-        };
-      }
-    },
-
-    // ✅ MÉTODO ALIAS: Para deshabilitar explícitamente
-    async disable(id) {
-      try {
-        console.log("🔍 Usuarios API - Deshabilitando usuario:", id);
-        return await this.delete(id); // Reutiliza el método delete
-      } catch (error) {
-        console.error("❌ Error en usuarios.disable:", error);
-        throw error;
-      }
-    },
-
-    // ✅ MÉTODO ALIAS: Para habilitar explícitamente
-    async enable(id) {
-      try {
-        console.log("🔍 Usuarios API - Habilitando usuario:", id);
-        return await this.reactivate(id); // Reutiliza el método reactivate
-      } catch (error) {
-        console.error("❌ Error en usuarios.enable:", error);
-        throw error;
-      }
-    },
-
-    // ✅ MANTENER: toggleStatus para compatibilidad (si lo usas en algún lado)
-    async toggleStatus(id) {
-      try {
-        const response = await apiClient.put(`/usuarios/${id}/toggle-status`);
-        return {
-          status: "success",
-          data: response.data.data || response.data,
-          message:
-            response.data.message || "Estado de usuario cambiado correctamente",
-        };
-      } catch (error) {
-        console.error("❌ Error en usuarios.toggleStatus:", error);
-        const apiError = apiUtils.handleApiError(error);
-        throw {
-          status: "error",
-          message: apiError.message,
-          errors: apiError.errors,
-        };
-      }
-    },
-
-    // ✅ NUEVO: Método para verificar si un usuario está deshabilitado
-    isDisabled(usuario) {
-      return usuario?.usu_deshabilitado === true;
-    },
-
-    // ✅ NUEVO: Método para verificar si un usuario está habilitado
-    isEnabled(usuario) {
-      return usuario?.usu_deshabilitado === false;
-    },
-
-    // ✅ NUEVO: Obtener estadísticas de usuarios
-    async getStats() {
-      try {
-        console.log("🔍 Usuarios API - Obteniendo estadísticas");
-        const response = await apiClient.get("/usuarios/stats");
-
-        return {
-          status: "success",
-          data: response.data.data || response.data,
-          message: "Estadísticas obtenidas correctamente",
-        };
-      } catch (error) {
-        console.error("❌ Error en usuarios.getStats:", error);
-        const apiError = apiUtils.handleApiError(error);
-        throw {
-          status: "error",
-          message: apiError.message,
-          errors: apiError.errors,
-        };
-      }
-    },
-
-    // ✅ NUEVO: Búsqueda avanzada de usuarios
-    async search(searchParams) {
-      try {
-        console.log("🔍 Usuarios API - Búsqueda avanzada:", searchParams);
-        const response = await apiClient.get("/usuarios/search", {
-          params: searchParams,
-        });
-
-        return {
-          status: "success",
-          data: response.data.data || response.data,
-          message: "Búsqueda completada correctamente",
-        };
-      } catch (error) {
-        console.error("❌ Error en usuarios.search:", error);
-        const apiError = apiUtils.handleApiError(error);
-        throw {
-          status: "error",
-          message: apiError.message,
-          errors: apiError.errors,
-        };
-      }
-    },
+      console.log(
+        "✅ Usuarios API - Respuesta normalizada:",
+        normalizedResponse
+      );
+      return normalizedResponse;
+    } catch (error) {
+      console.error("❌ Error en usuarios.getAll:", error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
   },
+
+  async getActive(params = {}) {
+    try {
+      console.log("🔍 Usuarios API - Obteniendo usuarios activos");
+      const activeParams = { ...params, incluir_deshabilitados: false };
+      return await this.getAll(activeParams);
+    } catch (error) {
+      console.error("❌ Error en usuarios.getActive:", error);
+      throw error;
+    }
+  },
+
+  async getAllIncludingDisabled(params = {}) {
+    try {
+      console.log(
+        "🔍 Usuarios API - Obteniendo todos los usuarios (incluyendo deshabilitados)"
+      );
+      const allParams = { ...params, incluir_deshabilitados: true };
+      return await this.getAll(allParams);
+    } catch (error) {
+      console.error("❌ Error en usuarios.getAllIncludingDisabled:", error);
+      throw error;
+    }
+  },
+
+  async getDisabled(params = {}) {
+    try {
+      console.log("🔍 Usuarios API - Obteniendo usuarios deshabilitados");
+      const disabledParams = {
+        ...params,
+        incluir_deshabilitados: true,
+        activo: false,
+      };
+      return await this.getAll(disabledParams);
+    } catch (error) {
+      console.error("❌ Error en usuarios.getDisabled:", error);
+      throw error;
+    }
+  },
+
+  async getById(id) {
+    try {
+      const response = await apiClient.get(`/usuarios/${id}`);
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: "Usuario obtenido correctamente",
+      };
+    } catch (error) {
+      console.error("❌ Error en usuarios.getById:", error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  async create(data) {
+    try {
+      console.log("🔍 Usuarios API - Creando usuario:", data);
+      const response = await apiClient.post("/usuarios", data);
+      console.log("📥 Usuarios API - Usuario creado:", response.data);
+
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: response.data.message || "Usuario creado correctamente",
+      };
+    } catch (error) {
+      console.error("❌ Error en usuarios.create:", error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  async update(id, data) {
+    try {
+      console.log("🔍 Usuarios API - Actualizando usuario:", id, data);
+      const response = await apiClient.put(`/usuarios/${id}`, data);
+      console.log("📥 Usuarios API - Usuario actualizado:", response.data);
+
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: response.data.message || "Usuario actualizado correctamente",
+      };
+    } catch (error) {
+      console.error("❌ Error en usuarios.update:", error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  async delete(id) {
+    try {
+      console.log("🔍 Usuarios API - Desactivando usuario:", id);
+      const response = await apiClient.delete(`/usuarios/${id}`);
+      console.log("📥 Usuarios API - Usuario desactivado:", response.data);
+
+      return {
+        status: "success",
+        data: response.data.data || null,
+        message: response.data.message || "Usuario desactivado correctamente",
+      };
+    } catch (error) {
+      console.error("❌ Error en usuarios.delete:", error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  async reactivate(id) {
+    try {
+      console.log("🔍 Usuarios API - Reactivando usuario:", id);
+      const response = await apiClient.patch(`/usuarios/${id}/reactivate`);
+      console.log("📥 Usuarios API - Usuario reactivado:", response.data);
+
+      return {
+        status: "success",
+        data: response.data.data || null,
+        message: response.data.message || "Usuario reactivado correctamente",
+      };
+    } catch (error) {
+      console.error("❌ Error en usuarios.reactivate:", error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  async disable(id) {
+    try {
+      console.log("🔍 Usuarios API - Deshabilitando usuario:", id);
+      return await this.delete(id);
+    } catch (error) {
+      console.error("❌ Error en usuarios.disable:", error);
+      throw error;
+    }
+  },
+
+  async enable(id) {
+    try {
+      console.log("🔍 Usuarios API - Habilitando usuario:", id);
+      return await this.reactivate(id);
+    } catch (error) {
+      console.error("❌ Error en usuarios.enable:", error);
+      throw error;
+    }
+  },
+
+  async toggleStatus(id) {
+    try {
+      const response = await apiClient.put(`/usuarios/${id}/toggle-status`);
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message:
+          response.data.message || "Estado de usuario cambiado correctamente",
+      };
+    } catch (error) {
+      console.error("❌ Error en usuarios.toggleStatus:", error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  isDisabled(usuario) {
+    return usuario?.usu_deshabilitado === true;
+  },
+
+  isEnabled(usuario) {
+    return usuario?.usu_deshabilitado === false;
+  },
+
+  async getStats() {
+    try {
+      console.log("🔍 Usuarios API - Obteniendo estadísticas");
+      const response = await apiClient.get("/usuarios/stats");
+
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: "Estadísticas obtenidas correctamente",
+      };
+    } catch (error) {
+      console.error("❌ Error en usuarios.getStats:", error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  async search(searchParams) {
+    try {
+      console.log("🔍 Usuarios API - Búsqueda avanzada:", searchParams);
+      const response = await apiClient.get("/usuarios/search", {
+        params: searchParams,
+      });
+
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: "Búsqueda completada correctamente",
+      };
+    } catch (error) {
+      console.error("❌ Error en usuarios.search:", error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  // ===== ✅ NUEVOS MÉTODOS DEL USUARIO LOGUEADO =====
+
+  /**
+   * Obtener información completa del usuario logueado
+   */
+  async getMe() {
+    try {
+      console.log('🔍 Usuario API - Obteniendo información completa del usuario logueado');
+      
+      const response = await apiClient.get('/usuario/me');
+      console.log('📥 Usuario API - Información completa:', response.data);
+
+      return {
+        status: 'success',
+        data: response.data.data || response.data,
+        message: response.data.message || 'Información del usuario obtenida correctamente',
+      };
+    } catch (error) {
+      console.error('❌ Error en usuarios.getMe:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: 'error',
+        message: apiError.message,
+        errors: apiError.errors,
+        data: null
+      };
+    }
+  },
+
+  /**
+   * Obtener información básica del usuario logueado (más rápido)
+   */
+  async getMeBasica() {
+    try {
+      console.log('🔍 Usuario API - Obteniendo información básica del usuario logueado');
+      
+      const response = await apiClient.get('/usuario/me/basica');
+      console.log('📥 Usuario API - Información básica:', response.data);
+
+      return {
+        status: 'success',
+        data: response.data.data || response.data,
+        message: response.data.message || 'Información básica del usuario obtenida correctamente',
+      };
+    } catch (error) {
+      console.error('❌ Error en usuarios.getMeBasica:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: 'error',
+        message: apiError.message,
+        errors: apiError.errors,
+        data: null
+      };
+    }
+  },
+
+  /**
+   * Obtener solo la institución del usuario logueado
+   */
+  async getMeInstitucion() {
+    try {
+      console.log('🔍 Usuario API - Obteniendo institución del usuario logueado');
+      
+      const response = await apiClient.get('/usuario/me/institucion');
+      console.log('📥 Usuario API - Institución:', response.data);
+
+      return {
+        status: 'success',
+        data: response.data.data || response.data,
+        message: response.data.message || 'Institución del usuario obtenida correctamente',
+      };
+    } catch (error) {
+      console.error('❌ Error en usuarios.getMeInstitucion:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: 'error',
+        message: apiError.message,
+        errors: apiError.errors,
+        data: null
+      };
+    }
+  },
+
+  /**
+   * Obtener solo la oficina del usuario logueado
+   */
+  async getMeOficina() {
+    try {
+      console.log('🔍 Usuario API - Obteniendo oficina del usuario logueado');
+      
+      const response = await apiClient.get('/usuario/me/oficina');
+      console.log('📥 Usuario API - Oficina:', response.data);
+
+      return {
+        status: 'success',
+        data: response.data.data || response.data,
+        message: response.data.message || 'Oficina del usuario obtenida correctamente',
+      };
+    } catch (error) {
+      console.error('❌ Error en usuarios.getMeOficina:', error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: 'error',
+        message: apiError.message,
+        errors: apiError.errors,
+        data: null
+      };
+    }
+  },
+
+  /**
+   * ✅ MÉTODO OPTIMIZADO: Obtener resumen rápido del usuario (solo lo esencial para UI)
+   * Este método procesa los datos que ya vienen del backend correctamente
+   */
+  async getMeResumen() {
+    try {
+      console.log('🔍 Usuario API - Obteniendo resumen del usuario');
+      
+      // Usar el endpoint básico que es más rápido
+      const result = await this.getMeBasica();
+      
+      if (result.status === 'success' && result.data) {
+        const userData = result.data;
+        
+        console.log('🔍 Datos originales del backend:', userData);
+        
+        // ✅ FORMATEAR CORRECTAMENTE según la respuesta real del backend
+        const resumen = {
+          nombre_usuario: userData.nombre_usuario || 'Usuario',
+          email: userData.usu_cor || '',
+          perfil: userData.perfil || 'Sin perfil',
+          institucion: {
+            // ✅ CORREGIR: Usar los campos reales del backend
+            nombre: (userData.institucion?.instit_nombre || 'Sin institución').trim(),
+            codigo: userData.institucion?.instit_codigo || null
+          },
+          oficina: {
+            // ✅ CORREGIR: Usar los campos reales del backend
+            nombre: (userData.oficina?.oficin_nombre || 'Sin oficina').trim(),
+            codigo: userData.oficina?.oficin_codigo || null,
+            tipo: (userData.oficina?.tipo_oficina || '').trim(),
+            completa: (userData.oficina?.oficina_completa || 'Sin oficina asignada').trim()
+          },
+          tiene_oficina: userData.tiene_oficina_asignada || false,
+          ubicacion_laboral: (userData.oficina?.oficina_completa || 'Sin ubicación asignada').trim()
+        };
+        
+        console.log('✅ Usuario API - Resumen formateado:', resumen);
+        return {
+          status: 'success',
+          data: resumen,
+          message: 'Resumen del usuario obtenido correctamente'
+        };
+      }
+      
+      throw new Error('No se pudo obtener información del usuario');
+      
+    } catch (error) {
+      console.error('❌ Error en usuarios.getMeResumen:', error);
+      return {
+        status: 'error',
+        message: error.message || 'Error al obtener resumen del usuario',
+        data: {
+          nombre_usuario: 'Usuario',
+          email: '',
+          perfil: 'Sin perfil',
+          institucion: { nombre: 'Sin institución', codigo: null },
+          oficina: { nombre: 'Sin oficina', codigo: null, tipo: '', completa: 'Sin oficina asignada' },
+          tiene_oficina: false,
+          ubicacion_laboral: 'Sin ubicación asignada'
+        }
+      };
+    }
+  }
+},
 
   // ✅ CORRECCIÓN: Perfiles con manejo robusto de respuestas
   perfiles: {
