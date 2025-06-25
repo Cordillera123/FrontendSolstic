@@ -63,71 +63,94 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
         try {
             console.log("🔍 Determinando ubicación actual para parroquia:", parroquiaId);
 
-            // Buscar la parroquia actual en los datos cargados
-            const parroquiaActual = selectsData.parroquias.find(p => p.value === parseInt(parroquiaId));
-
-            if (parroquiaActual) {
-                // Si ya tenemos los datos, usar esos
-                const cantonId = parroquiaActual.canton_codigo;
-                const canton = selectsData.cantones.find(c => c.value === cantonId);
-
-                if (canton) {
-                    setSelectedCanton(cantonId);
-                    setSelectedProvincia(canton.provincia_codigo);
-                    return;
-                }
-            }
-
-            // Si no tenemos los datos en memoria, hacer consulta directa
+            // Obtener información completa de la parroquia
             const result = await adminService.parroquias.getAll();
             if (result.status === "success") {
                 const todasParroquias = result.data;
                 const parroquia = todasParroquias.find(p => p.parroq_codigo === parseInt(parroquiaId));
 
                 if (parroquia) {
+                    console.log("🔍 Estructura completa de parroquia:", parroquia);
+
+                    // ✅ BUSCAR EL CÓDIGO DE PROVINCIA POR NOMBRE
+                    const provinciaEncontrada = selectsData.provincias.find(
+                        prov => prov.label === parroquia.provin_nombre
+                    );
+
+                    if (!provinciaEncontrada) {
+                        console.error("❌ No se encontró la provincia:", parroquia.provin_nombre);
+                        console.log("🔍 Provincias disponibles:", selectsData.provincias);
+                        showMessage("error", "No se pudo encontrar la provincia en los datos");
+                        return;
+                    }
+
+                    const provinciaId = provinciaEncontrada.value;
+
                     console.log("📍 Ubicación encontrada:", {
                         parroquia: parroquia.parroq_nombre,
                         canton: parroquia.canton_nombre,
-                        provincia: parroquia.provin_nombre
+                        provincia: parroquia.provin_nombre,
+                        canton_codigo: parroquia.parroq_canton_codigo,
+                        provincia_codigo: provinciaId,
+                        provincia_encontrada: provinciaEncontrada
                     });
 
-                    // Cargar cantones de la provincia
-                    await loadCantonesByProvincia(parroquia.canton_provin_codigo);
-                    setSelectedProvincia(parroquia.canton_provin_codigo);
-                    setSelectedCanton(parroquia.parroq_canton_codigo);
+                    // ✅ ESTABLECER LA PROVINCIA PRIMERO
+                    setSelectedProvincia(provinciaId);
+
+                    // ✅ CARGAR CANTONES DE ESA PROVINCIA
+                    const cantonesResult = await adminService.cantones.getByProvincia(provinciaId);
+                    if (cantonesResult.status === "success") {
+                        setSelectsData(prev => ({
+                            ...prev,
+                            cantones: cantonesResult.data || []
+                        }));
+
+                        // ✅ ESTABLECER EL CANTÓN
+                        setSelectedCanton(parroquia.parroq_canton_codigo);
+
+                        // ✅ CARGAR PARROQUIAS DE ESE CANTÓN
+                        const parroquiasResult = await adminService.parroquias.getByCanton(parroquia.parroq_canton_codigo);
+                        if (parroquiasResult.status === "success") {
+                            setSelectsData(prev => ({
+                                ...prev,
+                                parroquias: parroquiasResult.data || []
+                            }));
+
+                            console.log("✅ Ubicación geográfica precargada completamente");
+                        }
+                    } else {
+                        console.error("❌ Error cargando cantones:", cantonesResult);
+                        showMessage("error", "Error al cargar cantones");
+                    }
+                } else {
+                    console.error("❌ No se encontró la parroquia con ID:", parroquiaId);
+                    showMessage("error", "No se encontró la parroquia");
                 }
             }
         } catch (error) {
             console.error("❌ Error determinando ubicación actual:", error);
+            showMessage("error", "Error al cargar la ubicación geográfica");
         }
-    }, [selectsData]);
-
+    }, [selectsData.provincias, showMessage]); // ✅ Agregar selectsData.provincias a las dependencias
     // ✅ FUNCIÓN MEJORADA PARA CARGAR DATOS INICIALES
     const loadInitialData = useCallback(async () => {
         setLoadingSelects(prev => ({ ...prev, initial: true }));
 
+
         try {
             console.log("🔄 Cargando datos iniciales para editar oficina...");
 
-            // Cargar datos básicos en paralelo con manejo individual de errores
+            // Cargar datos básicos en paralelo
             const results = await Promise.allSettled([
-                adminService.tiposOficina.getActivos().catch(err => {
-                    console.error("❌ Error cargando tipos de oficina:", err);
-                    return { status: "error", data: [] };
-                }),
-                adminService.instituciones.listar().catch(err => {
-                    console.error("❌ Error cargando instituciones:", err);
-                    return { status: "error", data: [] };
-                }),
-                adminService.provincias.listar().catch(err => {
-                    console.error("❌ Error cargando provincias:", err);
-                    return { status: "error", data: [] };
-                }),
+                adminService.tiposOficina.getActivos(),
+                adminService.instituciones.listar(),
+                adminService.provincias.listar(),
             ]);
 
             const [tiposResult, institucionesResult, provinciasResult] = results;
 
-            // Procesar resultados con fallbacks
+            // Procesar resultados
             const newSelectsData = {
                 tiposOficina: tiposResult.status === 'fulfilled' && tiposResult.value?.status === "success"
                     ? tiposResult.value.data || []
@@ -150,29 +173,22 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
                 provincias: newSelectsData.provincias.length,
             });
 
-            // Si hay una parroquia seleccionada, cargar su ubicación
-            if (oficina?.oficin_parroq_codigo) {
-                await determineCurrentLocation(oficina.oficin_parroq_codigo);
-            }
-
-            // Mostrar advertencias si algunos datos no se cargaron
-            const warnings = [];
-            if (newSelectsData.tiposOficina.length === 0) warnings.push("tipos de oficina");
-            if (newSelectsData.instituciones.length === 0) warnings.push("instituciones");
-            if (newSelectsData.provincias.length === 0) warnings.push("provincias");
-
-            if (warnings.length > 0) {
-                showMessage("warning", `No se pudieron cargar: ${warnings.join(", ")}. Verifique la conexión.`);
-            }
-
         } catch (error) {
             console.error("❌ Error crítico cargando datos iniciales:", error);
             showMessage("error", "Error crítico al cargar datos del formulario");
         } finally {
             setLoadingSelects(prev => ({ ...prev, initial: false }));
         }
-    }, [showMessage, oficina, determineCurrentLocation]);
+    }, [showMessage]);
 
+    // ✅ AGREGAR ESTE useEffect DESPUÉS DE loadInitialData
+    // Cargar datos iniciales cuando cambie la oficina
+    useEffect(() => {
+        if (oficina) {
+            console.log("🔍 DEBUG - Oficina completa:", oficina);
+            loadInitialData();
+        }
+    }, [oficina?.oficin_codigo]);
     // ✅ FUNCIÓN MEJORADA PARA CARGAR CANTONES
     const loadCantonesByProvincia = useCallback(async (provinciaId) => {
         if (!provinciaId) {
@@ -267,8 +283,11 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
 
     // Cargar datos iniciales al montar el componente
     useEffect(() => {
-        loadInitialData();
-    }, []);
+        if (oficina?.oficin_parroq_codigo && selectsData.provincias.length > 0) {
+            console.log("🌍 Cargando ubicación geográfica para:", oficina.oficin_parroq_codigo);
+            determineCurrentLocation(oficina.oficin_parroq_codigo);
+        }
+    }, [oficina?.oficin_parroq_codigo, selectsData.provincias.length, determineCurrentLocation]);
 
     // ✅ VALIDACIÓN MEJORADA EN TIEMPO REAL
     const validateField = useCallback((field, value) => {
@@ -569,10 +588,10 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
                 {/* Loading inicial */}
                 {loadingSelects.initial && (
                     <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-600 flex items-center">
+                        <div className="text-sm text-blue-600 flex items-center">
                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
                             Cargando datos del formulario...
-                        </p>
+                        </div>
                     </div>
                 )}
 
@@ -596,10 +615,10 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
                                         value={formData.oficin_nombre || ""}
                                         onChange={(e) => handleInputChange("oficin_nombre", e.target.value)}
                                         className={`w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.oficin_nombre
-                                                ? "border-red-300 bg-red-50"
-                                                : formData.oficin_nombre?.trim()
-                                                    ? "border-green-300 bg-green-50"
-                                                    : "border-gray-300 hover:border-gray-400"
+                                            ? "border-red-300 bg-red-50"
+                                            : formData.oficin_nombre?.trim()
+                                                ? "border-green-300 bg-green-50"
+                                                : "border-gray-300 hover:border-gray-400"
                                             }`}
                                         placeholder="Ej: Oficina Principal Quito"
                                         disabled={externalLoading || isSubmitting}
@@ -634,10 +653,10 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
                                         value={formData.oficin_rucoficina || ""}
                                         onChange={(e) => handleInputChange("oficin_rucoficina", e.target.value.replace(/\D/g, ''))}
                                         className={`w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.oficin_rucoficina
-                                                ? "border-red-300 bg-red-50"
-                                                : formData.oficin_rucoficina?.length === 13
-                                                    ? "border-green-300 bg-green-50"
-                                                    : "border-gray-300 hover:border-gray-400"
+                                            ? "border-red-300 bg-red-50"
+                                            : formData.oficin_rucoficina?.length === 13
+                                                ? "border-green-300 bg-green-50"
+                                                : "border-gray-300 hover:border-gray-400"
                                             }`}
                                         placeholder="1234567890001"
                                         disabled={externalLoading || isSubmitting}
@@ -680,10 +699,10 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
                                     value={formData.oficin_instit_codigo || ""}
                                     onChange={(e) => handleInputChange("oficin_instit_codigo", e.target.value)}
                                     className={`w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.oficin_instit_codigo
-                                            ? "border-red-300 bg-red-50"
-                                            : formData.oficin_instit_codigo
-                                                ? "border-green-300 bg-green-50"
-                                                : "border-gray-300 hover:border-gray-400"
+                                        ? "border-red-300 bg-red-50"
+                                        : formData.oficin_instit_codigo
+                                            ? "border-green-300 bg-green-50"
+                                            : "border-gray-300 hover:border-gray-400"
                                         }`}
                                     disabled={externalLoading || isSubmitting || loadingSelects.initial}
                                 >
@@ -716,10 +735,10 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
                                     value={formData.oficin_tofici_codigo || ""}
                                     onChange={(e) => handleInputChange("oficin_tofici_codigo", e.target.value)}
                                     className={`w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.oficin_tofici_codigo
-                                            ? "border-red-300 bg-red-50"
-                                            : formData.oficin_tofici_codigo
-                                                ? "border-green-300 bg-green-50"
-                                                : "border-gray-300 hover:border-gray-400"
+                                        ? "border-red-300 bg-red-50"
+                                        : formData.oficin_tofici_codigo
+                                            ? "border-green-300 bg-green-50"
+                                            : "border-gray-300 hover:border-gray-400"
                                         }`}
                                     disabled={externalLoading || isSubmitting || loadingSelects.initial}
                                 >
@@ -815,10 +834,10 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
                                         value={formData.oficin_parroq_codigo || ""}
                                         onChange={(e) => handleInputChange("oficin_parroq_codigo", e.target.value)}
                                         className={`w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.oficin_parroq_codigo
-                                                ? "border-red-300 bg-red-50"
-                                                : formData.oficin_parroq_codigo
-                                                    ? "border-green-300 bg-green-50"
-                                                    : "border-gray-300 hover:border-gray-400"
+                                            ? "border-red-300 bg-red-50"
+                                            : formData.oficin_parroq_codigo
+                                                ? "border-green-300 bg-green-50"
+                                                : "border-gray-300 hover:border-gray-400"
                                             }`}
                                         disabled={externalLoading || isSubmitting || loadingSelects.parroquias || selectsData.parroquias.length === 0}
                                     >
@@ -868,10 +887,10 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
                                         value={formData.oficin_direccion || ""}
                                         onChange={(e) => handleInputChange("oficin_direccion", e.target.value)}
                                         className={`w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.oficin_direccion
-                                                ? "border-red-300 bg-red-50"
-                                                : formData.oficin_direccion?.trim()
-                                                    ? "border-green-300 bg-green-50"
-                                                    : "border-gray-300 hover:border-gray-400"
+                                            ? "border-red-300 bg-red-50"
+                                            : formData.oficin_direccion?.trim()
+                                                ? "border-green-300 bg-green-50"
+                                                : "border-gray-300 hover:border-gray-400"
                                             }`}
                                         placeholder="Ej: Av. Amazonas N24-03 y Colón"
                                         disabled={externalLoading || isSubmitting}
@@ -907,10 +926,10 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
                                             value={formData.oficin_telefono || ""}
                                             onChange={(e) => handleInputChange("oficin_telefono", e.target.value)}
                                             className={`w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.oficin_telefono
-                                                    ? "border-red-300 bg-red-50"
-                                                    : formData.oficin_telefono?.trim()
-                                                        ? "border-green-300 bg-green-50"
-                                                        : "border-gray-300 hover:border-gray-400"
+                                                ? "border-red-300 bg-red-50"
+                                                : formData.oficin_telefono?.trim()
+                                                    ? "border-green-300 bg-green-50"
+                                                    : "border-gray-300 hover:border-gray-400"
                                                 }`}
                                             placeholder="Ej: 02-2234567"
                                             disabled={externalLoading || isSubmitting}
@@ -942,10 +961,10 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
                                             value={formData.oficin_diremail || ""}
                                             onChange={(e) => handleInputChange("oficin_diremail", e.target.value)}
                                             className={`w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.oficin_diremail
-                                                    ? "border-red-300 bg-red-50"
-                                                    : formData.oficin_diremail?.trim() && !formErrors.oficin_diremail
-                                                        ? "border-green-300 bg-green-50"
-                                                        : "border-gray-300 hover:border-gray-400"
+                                                ? "border-red-300 bg-red-50"
+                                                : formData.oficin_diremail?.trim() && !formErrors.oficin_diremail
+                                                    ? "border-green-300 bg-green-50"
+                                                    : "border-gray-300 hover:border-gray-400"
                                                 }`}
                                             placeholder="oficina@empresa.com"
                                             disabled={externalLoading || isSubmitting}
@@ -1088,8 +1107,8 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
                             type="submit"
                             disabled={externalLoading || isSubmitting || !isFormValid || !hasChanges || loadingSelects.initial}
                             className={`relative flex-1 px-6 py-4 rounded-lg font-medium transition-all duration-300 transform ${isFormValid && hasChanges && !isSubmitting && !loadingSelects.initial
-                                    ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-                                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                                : "bg-gray-300 text-gray-500 cursor-not-allowed"
                                 }`}
                             title={!hasChanges ? "No hay cambios para guardar" : ""}
                         >
