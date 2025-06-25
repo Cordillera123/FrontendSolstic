@@ -236,7 +236,7 @@ const Sidebar = memo(({
     return (
       <div style={sidebarStyle}>
         <div style={headerStyle}>
-          <div style={logoStyle}>COAC SISTEMA</div>
+          <div style={logoStyle}>COAC PRINCIPAL</div>
           <div style={dateStyle}>{currentDate}</div>
         </div>
         
@@ -255,7 +255,7 @@ const Sidebar = memo(({
     <div style={sidebarStyle}>
       {/* Logo y encabezado */}
       <div style={headerStyle}>
-        <div style={logoStyle}>COAC SISTEMA</div>
+        <div style={logoStyle}>COAC PRINCIPAL</div>
         <div style={dateStyle}>{currentDate}</div>
       </div>
 
