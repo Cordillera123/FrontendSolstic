@@ -404,81 +404,84 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
     }, [onCancel]);
 
     return (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-lg transition-all duration-300">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 rounded-t-xl">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-lg relative overflow-hidden">
+            {/* Header Compacto */}
+            <div className="bg-gradient-to-r from-green-500 to-green-600 px-6 py-5">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                        <div className="p-2 bg-white bg-opacity-20 rounded-lg mr-3">
-                            <Icon name="Plus" size={24} className="text-white" />
+                    {/* Lado izquierdo - Icono y texto */}
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Icon name="Plus" size={20} className="text-white" />
                         </div>
-                        <div>
-                            <h2 className="text-2xl font-bold text-white">Crear Nueva Oficina</h2>
-                            <p className="text-green-100 mt-1">Complete los campos para crear una nueva oficina</p>
+                        <div className="min-w-0">
+                            <h2 className="text-xl font-bold text-white">Crear Nueva Oficina</h2>
+                            <p className="text-green-100 text-sm">Complete los campos para crear una nueva oficina</p>
                         </div>
                     </div>
 
                     {/* Botón de volver */}
-                    <button
-                        onClick={handleCancel}
-                        disabled={isSubmitting}
-                        className="flex items-center px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-lg transition-all duration-200 disabled:opacity-50"
-                    >
-                        <Icon name="ArrowLeft" size={16} className="mr-2" />
-                        Volver a la Lista
-                    </button>
+                    <div className="flex-shrink-0">
+                        <button
+                            onClick={handleCancel}
+                            disabled={isSubmitting}
+                            className="flex items-center gap-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-lg transition-all duration-200 disabled:opacity-50 text-sm font-medium"
+                        >
+                            <Icon name="ArrowLeft" size={16} />
+                            Volver
+                        </button>
+                    </div>
                 </div>
+
 
                 {/* Indicadores de estado */}
-                <div className="mt-4 flex items-center space-x-4">
-                    {isSubmitting && (
-                        <div className="flex items-center space-x-2 text-white">
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                            <span className="text-sm font-medium">Creando oficina...</span>
-                        </div>
-                    )}
+                {(isSubmitting || showSuccess) && (
+                    <div className="mt-4 flex items-center gap-4">
+                        {isSubmitting && (
+                            <div className="flex items-center gap-2 text-white">
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                <span className="text-sm font-medium">Creando oficina...</span>
+                            </div>
+                        )}
 
-                    {showSuccess && (
-                        <div className="flex items-center space-x-2 text-white animate-bounce">
-                            <Icon name="CheckCircle" size={16} />
-                            <span className="text-sm font-medium">¡Oficina creada exitosamente!</span>
-                        </div>
-                    )}
-                </div>
+                        {showSuccess && (
+                            <div className="flex items-center gap-2 text-white animate-bounce">
+                                <Icon name="CheckCircle" size={16} />
+                                <span className="text-sm font-medium">¡Oficina creada exitosamente!</span>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
-
-            {/* Formulario */}
-            <div className="p-6">
+            {/* Contenido del formulario compacto */}
+            <div className="p-5">
                 {/* Mensajes de error */}
                 {formErrors.submit && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-sm text-red-600 flex items-center">
-                            <Icon name="AlertCircle" size={16} className="mr-2" />
-                            {formErrors.submit}
-                        </p>
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-600">
+                        <Icon name="AlertCircle" size={16} />
+                        {formErrors.submit}
                     </div>
                 )}
 
                 {/* Loading inicial */}
                 {loadingSelects.initial && (
-                    <div className="text-sm text-blue-600 flex items-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2 text-sm text-blue-600">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
                         Cargando datos del formulario...
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Información Básica */}
-                    <div className="bg-gray-50 p-6 rounded-lg">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                            <Icon name="Building" size={20} className="mr-2 text-gray-600" />
-                            Información Básica
-                        </h3>
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
+                            <Icon name="Building" size={16} className="text-slate-600" />
+                            <h3 className="text-base font-semibold text-slate-800">Información Básica</h3>
+                        </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Nombre */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-700">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Nombre de la Oficina <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
@@ -486,37 +489,38 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
                                         type="text"
                                         value={formData.oficin_nombre}
                                         onChange={(e) => handleInputChange("oficin_nombre", e.target.value)}
-                                        className={`w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${formErrors.oficin_nombre
+                                        className={`w-full px-3 py-2 border rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                                            formErrors.oficin_nombre
                                                 ? "border-red-300 bg-red-50"
                                                 : formData.oficin_nombre?.trim()
                                                     ? "border-green-300 bg-green-50"
                                                     : "border-gray-300 hover:border-gray-400"
-                                            }`}
+                                        }`}
                                         placeholder="Ej: Oficina Principal Quito"
                                         disabled={externalLoading || isSubmitting}
                                         maxLength={60}
                                         autoComplete="off"
                                     />
                                     {formData.oficin_nombre?.trim() && !formErrors.oficin_nombre && (
-                                        <div className="absolute right-3 top-3.5">
+                                        <div className="absolute right-2 top-2.5">
                                             <Icon name="Check" size={16} className="text-green-500" />
                                         </div>
                                     )}
                                 </div>
                                 {formErrors.oficin_nombre && (
-                                    <p className="text-sm text-red-600 flex items-center">
-                                        <Icon name="AlertCircle" size={14} className="mr-1" />
+                                    <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
+                                        <Icon name="AlertCircle" size={12} />
                                         {formErrors.oficin_nombre}
                                     </p>
                                 )}
-                                <p className="text-xs text-gray-500">
+                                <p className="text-xs text-gray-500 mt-1">
                                     {formData.oficin_nombre?.length || 0}/60 caracteres
                                 </p>
                             </div>
 
                             {/* RUC */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-700">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                     RUC de la Oficina <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
@@ -524,30 +528,31 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
                                         type="text"
                                         value={formData.oficin_rucoficina}
                                         onChange={(e) => handleInputChange("oficin_rucoficina", e.target.value.replace(/\D/g, ''))}
-                                        className={`w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${formErrors.oficin_rucoficina
+                                        className={`w-full px-3 py-2 border rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                                            formErrors.oficin_rucoficina
                                                 ? "border-red-300 bg-red-50"
                                                 : formData.oficin_rucoficina?.length === 13
                                                     ? "border-green-300 bg-green-50"
                                                     : "border-gray-300 hover:border-gray-400"
-                                            }`}
+                                        }`}
                                         placeholder="1234567890001"
                                         disabled={externalLoading || isSubmitting}
                                         maxLength={13}
                                         autoComplete="off"
                                     />
                                     {formData.oficin_rucoficina?.length === 13 && !formErrors.oficin_rucoficina && (
-                                        <div className="absolute right-3 top-3.5">
+                                        <div className="absolute right-2 top-2.5">
                                             <Icon name="Check" size={16} className="text-green-500" />
                                         </div>
                                     )}
                                 </div>
                                 {formErrors.oficin_rucoficina && (
-                                    <p className="text-sm text-red-600 flex items-center">
-                                        <Icon name="AlertCircle" size={14} className="mr-1" />
+                                    <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
+                                        <Icon name="AlertCircle" size={12} />
                                         {formErrors.oficin_rucoficina}
                                     </p>
                                 )}
-                                <p className="text-xs text-gray-500">
+                                <p className="text-xs text-gray-500 mt-1">
                                     {formData.oficin_rucoficina?.length || 0}/13 dígitos
                                 </p>
                             </div>
@@ -555,27 +560,28 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
                     </div>
 
                     {/* Clasificación */}
-                    <div className="bg-gray-50 p-6 rounded-lg">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                            <Icon name="Tags" size={20} className="mr-2 text-gray-600" />
-                            Clasificación
-                        </h3>
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
+                            <Icon name="Tags" size={16} className="text-slate-600" />
+                            <h3 className="text-base font-semibold text-slate-800">Clasificación</h3>
+                        </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Institución */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-700">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Institución <span className="text-red-500">*</span>
                                 </label>
                                 <select
                                     value={formData.oficin_instit_codigo}
                                     onChange={(e) => handleInputChange("oficin_instit_codigo", e.target.value)}
-                                    className={`w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${formErrors.oficin_instit_codigo
+                                    className={`w-full px-3 py-2 border rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                                        formErrors.oficin_instit_codigo
                                             ? "border-red-300 bg-red-50"
                                             : formData.oficin_instit_codigo
                                                 ? "border-green-300 bg-green-50"
                                                 : "border-gray-300 hover:border-gray-400"
-                                        }`}
+                                    }`}
                                     disabled={externalLoading || isSubmitting || loadingSelects.initial}
                                 >
                                     <option value="">Seleccione una institución</option>
@@ -586,32 +592,33 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
                                     ))}
                                 </select>
                                 {formErrors.oficin_instit_codigo && (
-                                    <p className="text-sm text-red-600 flex items-center">
-                                        <Icon name="AlertCircle" size={14} className="mr-1" />
+                                    <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
+                                        <Icon name="AlertCircle" size={12} />
                                         {formErrors.oficin_instit_codigo}
                                     </p>
                                 )}
                                 {selectsData.instituciones.length === 0 && !loadingSelects.initial && (
-                                    <p className="text-xs text-amber-600">
+                                    <p className="text-xs text-amber-600 mt-1">
                                         ⚠️ No se pudieron cargar las instituciones
                                     </p>
                                 )}
                             </div>
 
                             {/* Tipo de Oficina */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-700">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Tipo de Oficina <span className="text-red-500">*</span>
                                 </label>
                                 <select
                                     value={formData.oficin_tofici_codigo}
                                     onChange={(e) => handleInputChange("oficin_tofici_codigo", e.target.value)}
-                                    className={`w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${formErrors.oficin_tofici_codigo
+                                    className={`w-full px-3 py-2 border rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                                        formErrors.oficin_tofici_codigo
                                             ? "border-red-300 bg-red-50"
                                             : formData.oficin_tofici_codigo
                                                 ? "border-green-300 bg-green-50"
                                                 : "border-gray-300 hover:border-gray-400"
-                                        }`}
+                                    }`}
                                     disabled={externalLoading || isSubmitting || loadingSelects.initial}
                                 >
                                     <option value="">Seleccione un tipo</option>
@@ -622,8 +629,8 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
                                     ))}
                                 </select>
                                 {formErrors.oficin_tofici_codigo && (
-                                    <p className="text-sm text-red-600 flex items-center">
-                                        <Icon name="AlertCircle" size={14} className="mr-1" />
+                                    <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
+                                        <Icon name="AlertCircle" size={12} />
                                         {formErrors.oficin_tofici_codigo}
                                     </p>
                                 )}
@@ -632,22 +639,22 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
                     </div>
 
                     {/* Ubicación Geográfica */}
-                    <div className="bg-gray-50 p-6 rounded-lg">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                            <Icon name="MapPin" size={20} className="mr-2 text-gray-600" />
-                            Ubicación Geográfica
-                        </h3>
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
+                            <Icon name="MapPin" size={16} className="text-slate-600" />
+                            <h3 className="text-base font-semibold text-slate-800">Ubicación Geográfica</h3>
+                        </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {/* Provincia */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-700">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Provincia <span className="text-red-500">*</span>
                                 </label>
                                 <select
                                     value={selectedProvincia}
                                     onChange={(e) => handleProvinciaChange(e.target.value)}
-                                    className="w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent border-gray-300 hover:border-gray-400"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent hover:border-gray-400"
                                     disabled={externalLoading || isSubmitting || loadingSelects.initial}
                                 >
                                     <option value="">Seleccione provincia</option>
@@ -658,22 +665,22 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
                                     ))}
                                 </select>
                                 {selectsData.provincias.length === 0 && !loadingSelects.initial && (
-                                    <p className="text-xs text-amber-600">
+                                    <p className="text-xs text-amber-600 mt-1">
                                         ⚠️ No se pudieron cargar las provincias
                                     </p>
                                 )}
                             </div>
 
                             {/* Cantón */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-700">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Cantón <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
                                     <select
                                         value={selectedCanton}
                                         onChange={(e) => handleCantonChange(e.target.value)}
-                                        className="w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent border-gray-300 hover:border-gray-400"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent hover:border-gray-400"
                                         disabled={externalLoading || isSubmitting || loadingSelects.cantones || selectsData.cantones.length === 0}
                                     >
                                         <option value="">Seleccione cantón</option>
@@ -684,33 +691,34 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
                                         ))}
                                     </select>
                                     {loadingSelects.cantones && (
-                                        <div className="absolute right-3 top-3.5">
+                                        <div className="absolute right-2 top-2.5">
                                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-600 border-t-transparent"></div>
                                         </div>
                                     )}
                                 </div>
                                 {!selectedProvincia && (
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-xs text-gray-500 mt-1">
                                         Seleccione una provincia primero
                                     </p>
                                 )}
                             </div>
 
                             {/* Parroquia */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-700">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Parroquia <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
                                     <select
                                         value={formData.oficin_parroq_codigo}
                                         onChange={(e) => handleInputChange("oficin_parroq_codigo", e.target.value)}
-                                        className={`w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${formErrors.oficin_parroq_codigo
+                                        className={`w-full px-3 py-2 border rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                                            formErrors.oficin_parroq_codigo
                                                 ? "border-red-300 bg-red-50"
                                                 : formData.oficin_parroq_codigo
                                                     ? "border-green-300 bg-green-50"
                                                     : "border-gray-300 hover:border-gray-400"
-                                            }`}
+                                        }`}
                                         disabled={externalLoading || isSubmitting || loadingSelects.parroquias || selectsData.parroquias.length === 0}
                                     >
                                         <option value="">Seleccione parroquia</option>
@@ -721,19 +729,19 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
                                         ))}
                                     </select>
                                     {loadingSelects.parroquias && (
-                                        <div className="absolute right-3 top-3.5">
+                                        <div className="absolute right-2 top-2.5">
                                             <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-600 border-t-transparent"></div>
                                         </div>
                                     )}
                                 </div>
                                 {formErrors.oficin_parroq_codigo && (
-                                    <p className="text-sm text-red-600 flex items-center">
-                                        <Icon name="AlertCircle" size={14} className="mr-1" />
+                                    <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
+                                        <Icon name="AlertCircle" size={12} />
                                         {formErrors.oficin_parroq_codigo}
                                     </p>
                                 )}
                                 {!selectedCanton && (
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-xs text-gray-500 mt-1">
                                         Seleccione un cantón primero
                                     </p>
                                 )}
@@ -742,54 +750,55 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
                     </div>
 
                     {/* Información de Contacto */}
-                    <div className="bg-gray-50 p-6 rounded-lg">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                            <Icon name="Phone" size={20} className="mr-2 text-gray-600" />
-                            Información de Contacto
-                        </h3>
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
+                            <Icon name="Phone" size={16} className="text-slate-600" />
+                            <h3 className="text-base font-semibold text-slate-800">Información de Contacto</h3>
+                        </div>
 
-                        <div className="space-y-6">
+                        <div className="space-y-4">
                             {/* Dirección */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-700">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Dirección <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
                                     <textarea
                                         value={formData.oficin_direccion}
                                         onChange={(e) => handleInputChange("oficin_direccion", e.target.value)}
-                                        className={`w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${formErrors.oficin_direccion
+                                        className={`w-full px-3 py-2 border rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-vertical ${
+                                            formErrors.oficin_direccion
                                                 ? "border-red-300 bg-red-50"
                                                 : formData.oficin_direccion?.trim()
                                                     ? "border-green-300 bg-green-50"
                                                     : "border-gray-300 hover:border-gray-400"
-                                            }`}
+                                        }`}
                                         placeholder="Ej: Av. Amazonas N24-03 y Colón"
                                         disabled={externalLoading || isSubmitting}
                                         maxLength={80}
                                         rows={3}
                                     />
                                     {formData.oficin_direccion?.trim() && !formErrors.oficin_direccion && (
-                                        <div className="absolute right-3 top-3">
+                                        <div className="absolute right-2 top-2">
                                             <Icon name="Check" size={16} className="text-green-500" />
                                         </div>
                                     )}
                                 </div>
                                 {formErrors.oficin_direccion && (
-                                    <p className="text-sm text-red-600 flex items-center">
-                                        <Icon name="AlertCircle" size={14} className="mr-1" />
+                                    <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
+                                        <Icon name="AlertCircle" size={12} />
                                         {formErrors.oficin_direccion}
                                     </p>
                                 )}
-                                <p className="text-xs text-gray-500">
+                                <p className="text-xs text-gray-500 mt-1">
                                     {formData.oficin_direccion?.length || 0}/80 caracteres
                                 </p>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* Teléfono */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Teléfono <span className="text-red-500">*</span>
                                     </label>
                                     <div className="relative">
@@ -797,34 +806,35 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
                                             type="text"
                                             value={formData.oficin_telefono}
                                             onChange={(e) => handleInputChange("oficin_telefono", e.target.value)}
-                                            className={`w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${formErrors.oficin_telefono
+                                            className={`w-full px-3 py-2 border rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                                                formErrors.oficin_telefono
                                                     ? "border-red-300 bg-red-50"
                                                     : formData.oficin_telefono?.trim()
                                                         ? "border-green-300 bg-green-50"
                                                         : "border-gray-300 hover:border-gray-400"
-                                                }`}
+                                            }`}
                                             placeholder="Ej: 02-2234567"
                                             disabled={externalLoading || isSubmitting}
                                             maxLength={30}
                                             autoComplete="tel"
                                         />
                                         {formData.oficin_telefono?.trim() && !formErrors.oficin_telefono && (
-                                            <div className="absolute right-3 top-3.5">
+                                            <div className="absolute right-2 top-2.5">
                                                 <Icon name="Check" size={16} className="text-green-500" />
                                             </div>
                                         )}
                                     </div>
                                     {formErrors.oficin_telefono && (
-                                        <p className="text-sm text-red-600 flex items-center">
-                                            <Icon name="AlertCircle" size={14} className="mr-1" />
+                                        <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
+                                            <Icon name="AlertCircle" size={12} />
                                             {formErrors.oficin_telefono}
                                         </p>
                                     )}
                                 </div>
 
                                 {/* Email */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Email <span className="text-red-500">*</span>
                                     </label>
                                     <div className="relative">
@@ -832,26 +842,27 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
                                             type="email"
                                             value={formData.oficin_diremail}
                                             onChange={(e) => handleInputChange("oficin_diremail", e.target.value)}
-                                            className={`w-full border rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${formErrors.oficin_diremail
+                                            className={`w-full px-3 py-2 border rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                                                formErrors.oficin_diremail
                                                     ? "border-red-300 bg-red-50"
                                                     : formData.oficin_diremail?.trim() && !formErrors.oficin_diremail
                                                         ? "border-green-300 bg-green-50"
                                                         : "border-gray-300 hover:border-gray-400"
-                                                }`}
+                                            }`}
                                             placeholder="oficina@empresa.com"
                                             disabled={externalLoading || isSubmitting}
                                             maxLength={120}
                                             autoComplete="email"
                                         />
                                         {formData.oficin_diremail?.trim() && !formErrors.oficin_diremail && (
-                                            <div className="absolute right-3 top-3.5">
+                                            <div className="absolute right-2 top-2.5">
                                                 <Icon name="Check" size={16} className="text-green-500" />
                                             </div>
                                         )}
                                     </div>
                                     {formErrors.oficin_diremail && (
-                                        <p className="text-sm text-red-600 flex items-center">
-                                            <Icon name="AlertCircle" size={14} className="mr-1" />
+                                        <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
+                                            <Icon name="AlertCircle" size={12} />
                                             {formErrors.oficin_diremail}
                                         </p>
                                     )}
@@ -859,48 +870,47 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
                             </div>
                         </div>
                     </div>
-
                     {/* Estado y Configuración */}
-                    <div className="bg-gray-50 p-6 rounded-lg">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                            <Icon name="Settings" size={20} className="mr-2 text-gray-600" />
-                            Estado y Configuración
-                        </h3>
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
+                            <Icon name="Settings" size={16} className="text-slate-600" />
+                            <h3 className="text-base font-semibold text-slate-800">Estado y Configuración</h3>
+                        </div>
 
-                        <div className="space-y-6">
+                        <div className="space-y-4">
                             {/* Estado Actual */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-700">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Estado de la Oficina
                                 </label>
-                                <div className="flex items-center space-x-6">
-                                    <label className="flex items-center">
+                                <div className="flex items-center gap-5 mt-1">
+                                    <label className="flex items-center gap-1.5">
                                         <input
                                             type="radio"
                                             name="oficin_ctractual"
                                             value={1}
                                             checked={formData.oficin_ctractual === 1}
                                             onChange={(e) => handleInputChange("oficin_ctractual", parseInt(e.target.value))}
-                                            className="mr-2 text-green-600"
+                                            className="w-4 h-4 text-green-600"
                                             disabled={externalLoading || isSubmitting}
                                         />
-                                        <span className="text-sm text-green-600 flex items-center font-medium">
-                                            <Icon name="CheckCircle" size={16} className="mr-1" />
+                                        <span className="text-sm text-green-600 flex items-center gap-1 font-medium">
+                                            <Icon name="CheckCircle" size={14} />
                                             Activa
                                         </span>
                                     </label>
-                                    <label className="flex items-center">
+                                    <label className="flex items-center gap-1.5">
                                         <input
                                             type="radio"
                                             name="oficin_ctractual"
                                             value={0}
                                             checked={formData.oficin_ctractual === 0}
                                             onChange={(e) => handleInputChange("oficin_ctractual", parseInt(e.target.value))}
-                                            className="mr-2 text-red-600"
+                                            className="w-4 h-4 text-red-600"
                                             disabled={externalLoading || isSubmitting}
                                         />
-                                        <span className="text-sm text-red-600 flex items-center font-medium">
-                                            <Icon name="XCircle" size={16} className="mr-1" />
+                                        <span className="text-sm text-red-600 flex items-center gap-1 font-medium">
+                                            <Icon name="XCircle" size={14} />
                                             Inactiva
                                         </span>
                                     </label>
@@ -908,31 +918,31 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
                             </div>
 
                             {/* Campos opcionales */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Código de Control
                                     </label>
                                     <input
                                         type="text"
                                         value={formData.oficin_codocntrl}
                                         onChange={(e) => handleInputChange("oficin_codocntrl", e.target.value)}
-                                        className="w-full border border-gray-300 rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent hover:border-gray-400"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent hover:border-gray-400"
                                         placeholder="Código interno"
                                         disabled={externalLoading || isSubmitting}
                                         maxLength={20}
                                     />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Fecha de Apertura
                                     </label>
                                     <input
                                         type="date"
                                         value={formData.oficin_fechaapertura}
                                         onChange={(e) => handleInputChange("oficin_fechaapertura", e.target.value)}
-                                        className="w-full border border-gray-300 rounded-lg px-4 py-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent hover:border-gray-400"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent hover:border-gray-400"
                                         disabled={externalLoading || isSubmitting}
                                     />
                                 </div>
@@ -940,26 +950,27 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
                         </div>
                     </div>
 
-                    {/* Botones de acción */}
-                    <div className="flex gap-4 pt-6 border-t border-gray-200">
+                    {/* Botones de acción compactos */}
+                    <div className="flex gap-3 pt-4 border-t border-gray-200">
                         <button
                             type="submit"
                             disabled={externalLoading || isSubmitting || !isFormValid || loadingSelects.initial}
-                            className={`relative flex-1 px-6 py-4 rounded-lg font-medium transition-all duration-300 transform ${isFormValid && !isSubmitting && !loadingSelects.initial
-                                    ? "bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 min-h-[40px] ${
+                                isFormValid && !isSubmitting && !loadingSelects.initial
+                                    ? "bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5"
                                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                }`}
+                            }`}
                         >
                             {isSubmitting ? (
-                                <div className="flex items-center justify-center">
-                                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                                <>
+                                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
                                     Creando Oficina...
-                                </div>
+                                </>
                             ) : (
-                                <div className="flex items-center justify-center">
-                                    <Icon name="Plus" size={18} className="mr-2" />
+                                <>
+                                    <Icon name="Plus" size={16} />
                                     Crear Oficina
-                                </div>
+                                </>
                             )}
                         </button>
 
@@ -967,21 +978,19 @@ const CrearOficinaForm = ({ onSave, onCancel, showMessage, loading: externalLoad
                             type="button"
                             onClick={handleCancel}
                             disabled={externalLoading || isSubmitting}
-                            className="px-6 py-4 bg-gray-100 text-gray-700 rounded-lg font-medium transition-all duration-300 hover:bg-gray-200 hover:text-gray-800 transform hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-md text-sm font-medium transition-all duration-200 hover:bg-gray-200 hover:text-gray-800 hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px] flex items-center justify-center gap-2"
                         >
-                            <div className="flex items-center justify-center">
-                                <Icon name="X" size={18} className="mr-2" />
-                                Cancelar
-                            </div>
+                            <Icon name="X" size={16} />
+                            Cancelar
                         </button>
                     </div>
                 </form>
             </div>
 
-            {/* Overlay de loading */}
+            {/* Overlay de loading compacto */}
             {isSubmitting && (
                 <div className="absolute inset-0 bg-white bg-opacity-70 rounded-xl flex items-center justify-center z-10">
-                    <div className="bg-white p-6 rounded-lg shadow-xl flex items-center space-x-3">
+                    <div className="bg-white p-6 rounded-lg shadow-xl flex items-center gap-3">
                         <div className="animate-spin h-8 w-8 border-2 border-green-600 border-t-transparent rounded-full"></div>
                         <span className="text-gray-700 font-medium text-lg">
                             Creando oficina...
