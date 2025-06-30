@@ -1,28 +1,41 @@
-// src/hooks/useButtonPermissions.js - COMPLETAMENTE CORREGIDO
+// src/hooks/useButtonPermissions.js - VERSIÓN CORREGIDA CON LÓGICA DE HERENCIA
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { adminService } from '../services/apiService';
 
 /**
- * Hook personalizado para manejar permisos de botones CRUD
- * @param {number} menuId - ID del menú para verificar permisos (para ventanas directas)
- * @param {number} opcionId - ID de la opción para verificar permisos (para opciones regulares)
- * @param {boolean} autoLoad - Si debe cargar automáticamente los permisos (default: true)
- * @param {'menu'|'option'} type - Tipo de consulta: 'menu' para ventanas directas, 'option' para opciones
- * @returns {object} - Estados y funciones para manejar permisos de botones
+ * ✅ Hook corregido para manejar permisos efectivos (Perfil + Usuario)
+ * @param {number} targetId - ID del menú o opción 
+ * @param {number} opcId - ID de la opción (para compatibilidad)
+ * @param {boolean} autoLoad - Si debe cargar automáticamente
+ * @param {'menu'|'option'} type - Tipo de consulta
+ * @param {number} userId - ID del usuario específico (opcional)
  */
-export const useButtonPermissions = (menuId, opcionId = null, autoLoad = true, type = 'menu') => {
+export const useButtonPermissions = (
+  targetId, 
+  opcId = null, 
+  autoLoad = true, 
+  type = 'option', 
+  userId = null
+) => {
   // ===== ESTADOS =====
   const [buttonPermissions, setButtonPermissions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lastFetch, setLastFetch] = useState(null);
+  const [userInfo, setUserInfo] = useState(null);
 
-  // Determinar el ID a usar según el tipo
-  const targetId = type === 'menu' ? menuId : opcionId;
+  // ✅ CORRECCIÓN: Usar la lógica correcta para determinar el ID objetivo
+  const effectiveTargetId = useMemo(() => {
+    if (type === 'option') {
+      return opcId || targetId;
+    }
+    return targetId;
+  }, [targetId, opcId, type]);
 
-  // ===== CARGAR PERMISOS =====
+  // ===== CARGAR PERMISOS EFECTIVOS =====
   const loadButtonPermissions = useCallback(async () => {
-    if (!targetId) {
+    if (!effectiveTargetId) {
       console.log('❌ Hook: No hay targetId para cargar permisos');
       setButtonPermissions([]);
       return;
@@ -32,28 +45,63 @@ export const useButtonPermissions = (menuId, opcionId = null, autoLoad = true, t
     setError(null);
 
     try {
-      console.log(`🔍 Hook: Cargando permisos de botones para ${type}:`, targetId);
+      console.log(`🔍 Hook: Cargando permisos efectivos para ${type}:`, effectiveTargetId, userId ? `(usuario: ${userId})` : '(usuario actual)');
       
       let result;
-      if (type === 'menu') {
-        result = await adminService.buttonUtils.getMyMenuButtonPermissions(targetId);
+      
+      if (userId) {
+        // ✅ NUEVO: Cargar permisos para usuario específico
+        if (type === 'menu') {
+          // Para ventanas directas de menús
+          result = await adminService.buttonUtils.getUserMenuPermissions?.(userId, effectiveTargetId) ||
+                   await adminService.userButtonPermissions.getUserEffectivePermissions(userId, effectiveTargetId);
+        } else {
+          // Para opciones regulares
+          result = await adminService.userButtonPermissions.getUserEffectivePermissions(userId, effectiveTargetId);
+        }
+        setUserInfo({ userId, isSpecificUser: true });
       } else {
-        result = await adminService.buttonUtils.getMyButtonPermissions(targetId);
+        // ✅ CORREGIDO: Cargar permisos del usuario actual
+        if (type === 'menu') {
+          result = await adminService.buttonUtils.getMyMenuButtonPermissions(effectiveTargetId);
+        } else {
+          result = await adminService.buttonUtils.getMyButtonPermissions(effectiveTargetId);
+        }
+        setUserInfo({ userId: 'current', isSpecificUser: false });
       }
       
-      if (result.status === 'success') {
-        console.log('✅ Hook: Permisos cargados:', result.data);
-        setButtonPermissions(result.data || []);
+      if (result?.status === 'success') {
+        const permissions = result.data || [];
+        console.log('✅ Hook: Permisos efectivos cargados:', permissions);
+        setButtonPermissions(permissions);
         setLastFetch(new Date());
         
-        // ✅ DEBUG: Verificar permisos específicos después de cargar
-        console.log('✅ canCreate:', result.data?.find(btn => btn.bot_codigo === 'CREATE')?.has_permission || false);
-        console.log('✅ canRead:', result.data?.find(btn => btn.bot_codigo === 'READ')?.has_permission || false);
-        console.log('✅ canUpdate:', result.data?.find(btn => btn.bot_codigo === 'UPDATE')?.has_permission || false);
-        console.log('❌ canDelete:', result.data?.find(btn => btn.bot_codigo === 'DELETE')?.has_permission || false);
+        // Debug para permisos CRUD específicos
+        const debugPermissions = {
+          canCreate: permissions.find(btn => btn.bot_codigo === 'CREATE')?.has_permission || false,
+          canRead: permissions.find(btn => btn.bot_codigo === 'READ')?.has_permission || false,
+          canUpdate: permissions.find(btn => btn.bot_codigo === 'UPDATE')?.has_permission || false,
+          canDelete: permissions.find(btn => btn.bot_codigo === 'DELETE')?.has_permission || false,
+          canExport: permissions.find(btn => btn.bot_codigo === 'EXPORT')?.has_permission || false
+        };
+        
+        console.log('🔍 Hook: Permisos CRUD:', debugPermissions);
+        
+        // Log de personalizaciones si es usuario específico
+        if (userId) {
+          const customized = permissions.filter(btn => btn.is_customized);
+          if (customized.length > 0) {
+            console.log('🎨 Hook: Permisos personalizados:', customized.map(btn => ({
+              codigo: btn.bot_codigo,
+              tipo: btn.customization_type,
+              perfil: btn.profile_permission,
+              usuario: btn.has_permission
+            })));
+          }
+        }
       } else {
         console.log('❌ Hook: Error en respuesta:', result);
-        setError('Error al cargar permisos de botones');
+        setError(result?.message || 'Error al cargar permisos de botones');
         setButtonPermissions([]);
       }
     } catch (err) {
@@ -63,55 +111,118 @@ export const useButtonPermissions = (menuId, opcionId = null, autoLoad = true, t
     } finally {
       setLoading(false);
     }
-  }, [targetId, type]);
+  }, [effectiveTargetId, type, userId]);
 
   // ===== EFECTOS =====
   useEffect(() => {
-    if (autoLoad && targetId && !lastFetch) {
+    if (autoLoad && effectiveTargetId) {
       loadButtonPermissions();
     }
-  }, [autoLoad, targetId, loadButtonPermissions, lastFetch]);
+  }, [autoLoad, effectiveTargetId, loadButtonPermissions]);
 
-  // ===== FUNCIONES UTILITARIAS MEMOIZADAS =====
+  // Recargar cuando cambie el userId
+  useEffect(() => {
+    if (effectiveTargetId && userId !== userInfo?.userId) {
+      setLastFetch(null);
+      loadButtonPermissions();
+    }
+  }, [userId, effectiveTargetId, loadButtonPermissions, userInfo?.userId]);
+
+  // ===== FUNCIONES UTILITARIAS =====
   
-  // Verificar si tiene permiso para un botón específico
+  /**
+   * ✅ CORREGIDO: Verificar permiso con lógica de herencia
+   */
   const hasButtonPermission = useCallback((buttonCode) => {
-    if (!buttonCode || !Array.isArray(buttonPermissions)) return false;
+    if (!buttonCode || !Array.isArray(buttonPermissions)) {
+      return false;
+    }
     
     const permission = buttonPermissions.find(btn => btn.bot_codigo === buttonCode);
-    const hasPermission = permission?.has_permission === true;
     
-    // Solo logear si no es PRINT para evitar spam
-    if (buttonCode !== 'PRINT') {
-      console.log(`🔍 Hook: Verificando permiso ${buttonCode}:`, hasPermission, permission);
+    if (!permission) {
+      return false;
     }
+
+    // ✅ La lógica de herencia ya está aplicada en el backend
+    // has_permission ya incluye: Perfil + Personalización del Usuario
+    const hasPermission = permission.has_permission === true;
+    
+    // Solo logear para debug (excluir PRINT para evitar spam)
+    if (buttonCode !== 'PRINT' && buttonCode !== 'REFRESH') {
+      console.log(`🔍 Hook: Permiso ${buttonCode}:`, {
+        hasPermission,
+        isCustomized: permission.is_customized,
+        profilePermission: permission.profile_permission,
+        customizationType: permission.customization_type
+      });
+    }
+    
     return hasPermission;
   }, [buttonPermissions]);
 
-  // Obtener información de un botón específico
+  /**
+   * Obtener información completa de un botón
+   */
   const getButtonInfo = useCallback((buttonCode) => {
     if (!buttonCode || !Array.isArray(buttonPermissions)) return null;
     
     const permission = buttonPermissions.find(btn => btn.bot_codigo === buttonCode);
-    return permission?.has_permission ? permission : null;
+    return permission || null;
   }, [buttonPermissions]);
 
-  // Función para refrescar permisos
+  /**
+   * ✅ NUEVO: Obtener información de personalización
+   */
+  const getButtonCustomization = useCallback((buttonCode) => {
+    const buttonInfo = getButtonInfo(buttonCode);
+    if (!buttonInfo) return null;
+
+    return {
+      isCustomized: buttonInfo.is_customized || false,
+      customizationType: buttonInfo.customization_type || null,
+      profilePermission: buttonInfo.profile_permission,
+      userPermission: buttonInfo.has_permission,
+      notes: buttonInfo.customization_notes || null,
+      isOverride: buttonInfo.profile_permission !== buttonInfo.has_permission
+    };
+  }, [getButtonInfo]);
+
+  /**
+   * Refrescar permisos
+   */
   const refreshPermissions = useCallback(() => {
-    if (targetId) {
+    if (effectiveTargetId) {
       setLastFetch(null);
       loadButtonPermissions();
     }
-  }, [loadButtonPermissions, targetId]);
+  }, [loadButtonPermissions, effectiveTargetId]);
 
-  // Obtener todos los botones permitidos
+  /**
+   * Obtener solo botones permitidos
+   */
   const getAllowedButtons = useCallback(() => {
     if (!Array.isArray(buttonPermissions)) return [];
-    
     return buttonPermissions.filter(btn => btn.has_permission === true);
   }, [buttonPermissions]);
 
-  // ✅ CORRECCIÓN: Verificar permisos para operaciones CRUD comunes (códigos en mayúsculas)
+  /**
+   * ✅ NUEVO: Estadísticas de personalización
+   */
+  const getCustomizationStats = useCallback(() => {
+    if (!Array.isArray(buttonPermissions)) {
+      return { total: 0, customized: 0, granted: 0, denied: 0 };
+    }
+
+    const total = buttonPermissions.length;
+    const customized = buttonPermissions.filter(btn => btn.is_customized).length;
+    const granted = buttonPermissions.filter(btn => btn.is_customized && btn.customization_type === 'C').length;
+    const denied = buttonPermissions.filter(btn => btn.is_customized && btn.customization_type === 'D').length;
+
+    return { total, customized, granted, denied };
+  }, [buttonPermissions]);
+
+  // ===== PERMISOS CRUD ESPECÍFICOS =====
   const canCreate = useMemo(() => hasButtonPermission('CREATE'), [hasButtonPermission]);
   const canRead = useMemo(() => hasButtonPermission('READ') || hasButtonPermission('READ'), [hasButtonPermission]);
   const canUpdate = useMemo(() => hasButtonPermission('UPDATE'), [hasButtonPermission]);
@@ -120,7 +231,55 @@ export const useButtonPermissions = (menuId, opcionId = null, autoLoad = true, t
   const canSearch = useMemo(() => hasButtonPermission('SEARCH'), [hasButtonPermission]);
   const canRefresh = useMemo(() => hasButtonPermission('REFRESH'), [hasButtonPermission]);
 
-  // Obtener botones organizados por categoría
+  // ===== VERIFICACIÓN MÚLTIPLE =====
+  const hasAnyPermission = useCallback((buttonCodes = []) => {
+    if (!Array.isArray(buttonCodes) || buttonCodes.length === 0) return false;
+    return buttonCodes.some(code => hasButtonPermission(code));
+  }, [hasButtonPermission]);
+
+  const hasAllPermissions = useCallback((buttonCodes = []) => {
+    if (!Array.isArray(buttonCodes) || buttonCodes.length === 0) return false;
+    return buttonCodes.every(code => hasButtonPermission(code));
+  }, [hasButtonPermission]);
+
+  // ===== VERIFICACIÓN REMOTA =====
+  const checkButtonPermission = useCallback(async (buttonCode) => {
+    if (!effectiveTargetId) return false;
+
+    try {
+      if (userId) {
+        return await adminService.buttonUtils.checkUserButtonPermission(userId, effectiveTargetId, buttonCode);
+      } else {
+        if (type === 'menu') {
+          return await adminService.buttonUtils.checkMenuButtonPermission(effectiveTargetId, buttonCode);
+        } else {
+          return await adminService.buttonUtils.checkButtonPermission(effectiveTargetId, buttonCode);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking button permission:', error);
+      return false;
+    }
+  }, [effectiveTargetId, type, userId]);
+
+  // ===== ESTADÍSTICAS AVANZADAS =====
+  const permissionStats = useMemo(() => {
+    const total = buttonPermissions.length;
+    const allowed = getAllowedButtons().length;
+    const denied = total - allowed;
+    const customizationStats = getCustomizationStats();
+    
+    return {
+      total,
+      allowed,
+      denied,
+      hasAnyPermission: allowed > 0,
+      isEmpty: total === 0,
+      ...customizationStats
+    };
+  }, [buttonPermissions, getAllowedButtons, getCustomizationStats]);
+
+  // ===== BOTONES POR CATEGORÍA =====
   const buttonsByCategory = useMemo(() => {
     const categories = {
       crud: [],
@@ -151,53 +310,6 @@ export const useButtonPermissions = (menuId, opcionId = null, autoLoad = true, t
     return categories;
   }, [getAllowedButtons]);
 
-  // Verificar si el usuario puede realizar acciones masivas
-  const canPerformBulkActions = useMemo(() => {
-    return canDelete || canUpdate || hasButtonPermission('TOGGLE');
-  }, [canDelete, canUpdate, hasButtonPermission]);
-
-  // ===== FUNCIÓN PARA VERIFICAR PERMISO ESPECÍFICO =====
-  const checkButtonPermission = useCallback(async (buttonCode) => {
-    if (!targetId) return false;
-
-    try {
-      if (type === 'menu') {
-        return await adminService.buttonUtils.checkMenuButtonPermission(targetId, buttonCode);
-      } else {
-        return await adminService.buttonUtils.checkButtonPermission(targetId, buttonCode);
-      }
-    } catch (error) {
-      console.error('Error checking button permission:', error);
-      return false;
-    }
-  }, [targetId, type]);
-
-  // Funciones para verificar múltiples permisos
-  const hasAnyPermission = useCallback((buttonCodes = []) => {
-    if (!Array.isArray(buttonCodes) || buttonCodes.length === 0) return false;
-    return buttonCodes.some(code => hasButtonPermission(code));
-  }, [hasButtonPermission]);
-
-  const hasAllPermissions = useCallback((buttonCodes = []) => {
-    if (!Array.isArray(buttonCodes) || buttonCodes.length === 0) return false;
-    return buttonCodes.every(code => hasButtonPermission(code));
-  }, [hasButtonPermission]);
-
-  // Estadísticas mejoradas
-  const permissionStats = useMemo(() => {
-    const total = buttonPermissions.length;
-    const allowed = getAllowedButtons().length;
-    const denied = total - allowed;
-    
-    return {
-      total,
-      allowed,
-      denied,
-      hasAnyPermission: allowed > 0,
-      isEmpty: total === 0
-    };
-  }, [buttonPermissions, getAllowedButtons]);
-
   // ===== RETURN DEL HOOK =====
   return {
     // Estados principales
@@ -205,10 +317,11 @@ export const useButtonPermissions = (menuId, opcionId = null, autoLoad = true, t
     loading,
     error,
     lastFetch,
+    userInfo,
 
-    // Compatibilidad con DynamicActionButtons
-    permissions: buttonPermissions, // Alias para DynamicActionButtons
-    isReady: !loading && !error && lastFetch !== null,
+    // ✅ COMPATIBILIDAD: Alias para DynamicActionButtons
+    permissions: buttonPermissions,
+    isReady: !loading && !error && buttonPermissions.length >= 0,
 
     // Funciones principales
     loadButtonPermissions,
@@ -217,6 +330,10 @@ export const useButtonPermissions = (menuId, opcionId = null, autoLoad = true, t
     getButtonInfo,
     checkButtonPermission,
     getAllowedButtons,
+
+    // ✅ NUEVAS: Funciones para personalización
+    getButtonCustomization,
+    getCustomizationStats,
 
     // Funciones para verificación múltiple
     hasAnyPermission,
@@ -233,20 +350,23 @@ export const useButtonPermissions = (menuId, opcionId = null, autoLoad = true, t
 
     // Datos organizados
     buttonsByCategory,
-    canPerformBulkActions,
+    canPerformBulkActions: canDelete || canUpdate || hasButtonPermission('TOGGLE'),
 
-    // Estadísticas mejoradas
+    // Estadísticas completas
     stats: permissionStats,
     totalButtons: buttonPermissions.length,
     hasCrudPermissions: canCreate || canRead || canUpdate || canDelete,
     hasUtilityPermissions: canExport || hasButtonPermission('PRINT'),
     
-    // Helper para logs de debug
+    // ✅ Helper para logs de debug
     debugInfo: {
-      targetId,
+      effectiveTargetId,
       type,
+      userId,
+      isSpecificUser: userInfo?.isSpecificUser || false,
       totalPermissions: buttonPermissions.length,
       allowedPermissions: getAllowedButtons().length,
+      customizedPermissions: getCustomizationStats().customized,
       availableButtons: buttonPermissions.map(btn => btn.bot_codigo),
       allowedButtons: getAllowedButtons().map(btn => btn.bot_codigo),
       loading,

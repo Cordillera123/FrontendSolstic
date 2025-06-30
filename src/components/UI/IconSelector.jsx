@@ -1,4 +1,4 @@
-// src/components/UI/IconSelector.jsx - VERSIÓN DINÁMICA
+// src/components/UI/IconSelector.jsx - VERSIÓN LIMPIA FINAL
 import React, { useState, useMemo } from 'react';
 import { ChevronDown, Search, X, Check } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';

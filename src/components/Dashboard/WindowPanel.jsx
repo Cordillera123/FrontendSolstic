@@ -17,6 +17,8 @@ import ParameWindows from "../Windows/ParameWindows";
 import AsgiPerWindows from "../Windows/AsgiPerWindows";
 import UsuParamWindow from "../Windows/UsuParamWindow";
 import ConfigWindow from "../Windows/ConfigWindow";
+import TiOficinWindow from "../Windows/TiOficinWindow";
+import OficinasWindow from "../Windows/OficinasWindow";
 
 const WindowPanel = ({
   window,
@@ -273,7 +275,10 @@ const WindowPanel = ({
 
       case "ConfigWindow":
         return <ConfigWindow data={window.data} />;
-
+      case "OficinasWindow":
+        return <OficinasWindow data={window.data} />;
+      case "TiOficinWindow":
+        return <TiOficinWindow data={window.data}/>;
       default:
         // Contenido por defecto
         return (

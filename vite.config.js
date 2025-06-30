@@ -8,16 +8,16 @@ export default defineConfig({
     react(),
     tailwindcss()
   ],
-  base: '/FrontendSolstic/',
+  base: './',
 
   server: {
     port: 5173,
     host: true,
-    open: '/FrontendSolstic/',
+    open: '/',
     historyApiFallback: {
-      index: '/FrontendSolstic/index.html',
+      index: '/index.html',
       rewrites: [
-        { from: /^\/FrontendSolstic\/.*$/, to: '/FrontendSolstic/index.html' }
+        { from: /^\/.*$/, to: '/index.html' }
       ]
     }
   },
@@ -25,7 +25,7 @@ export default defineConfig({
   preview: {
     port: 4173,
     host: true,
-    open: '/FrontendSolstic/'
+    open: '/'
   },
 
   build: {

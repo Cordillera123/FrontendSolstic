@@ -11,6 +11,8 @@ import ParameWindows from '../components/Windows/ParameWindows';
 import AsgiPerWindows from '../components/Windows/AsgiPerWindows';
 import UsuParamWindow from '../components/Windows/UsuParamWindow';
 import ConfigWindow from '../components/Windows/ConfigWindow';
+import TiOficinWindow from '../components/Windows/TiOficinWindow';
+import OficinasWindow from '../components/Windows/OficinasWindow';
 
 // Componente por defecto para desarrollo
 const DefaultWindow = ({ title, data, componentName }) => {
@@ -48,6 +50,8 @@ export const componentMap = {
   'ClientsWindow': ClientsWindow,
   'UsuParamWindow': UsuParamWindow,
   'ConfigWindow': ConfigWindow,
+  'OficinasWindow': OficinasWindow,
+  'TiOficinWindow': TiOficinWindow,
 
   // Componentes con props de submódulo
   'ClientRegistry': (props) => <ClientsWindow {...props} subModule="registry" />,
@@ -149,6 +153,20 @@ export const componentConfig = {
     minHeight: 600,
     title: 'Configuración del Sistema',
   },
+  'OficinasWindow': {
+    width: 1000,
+    height: 700,
+    minWidth: 800,
+    minHeight: 600,
+    title: 'Configuración del Oficinas',
+    },
+  'TiOficinWindow':{
+    width: 1000,
+    height: 700,
+    minWidth: 800,
+    minHeight: 600,
+    title: 'Configuración del tipo de  Oficinas',
+    },
 };
 
 export const getWindowConfig = (componentName) => {

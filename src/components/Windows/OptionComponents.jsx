@@ -1,11 +1,12 @@
-// src/components/Windows/OptionComponents.jsx - MIGRADO A BOTONES PARAMETRIZADOS CON ICONSELECTOR
+// src/components/Windows/OptionComponents.jsx - MERGEADO: BOTONES PARAMETRIZADOS + PERMISOS HÍBRIDOS
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useButtonPermissions } from "../../hooks/useButtonPermissions";
 import { adminService } from "../../services/apiService";
+import { getCurrentUser } from "../../context/AuthContext"; // ✅ IMPORTAR getCurrentUser
 import Icon from "../UI/Icon";
 import IconSelector from "../UI/IconSelector"; // ✅ IMPORTAR ICONSELECTOR
 
-// ✅ Componente OptionForm con IconSelector mejorado
+// ✅ Componente OptionForm con IconSelector mejorado + permisos híbridos
 const OptionForm = React.memo(
   ({
     editingOption,
@@ -356,7 +357,7 @@ const OptionForm = React.memo(
               </div>
             </div>
 
-            {/* ✅ ICONO CON ICONSELECTOR MEJORADO */}
+            {/* ✅ ICONO CON ICONSELECTOR MEJORADO (de rama Jayson) */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 Icono
@@ -372,7 +373,7 @@ const OptionForm = React.memo(
                 Elige un icono para representar visualmente la opción
               </div>
 
-              {/* ✅ VISTA PREVIA DEL ICONO (igual que en MenuForm y SubmenuForm) */}
+              {/* ✅ VISTA PREVIA DEL ICONO (de rama Jayson) */}
               {formData.ico_id && (
                 <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="flex items-center space-x-3">
@@ -766,13 +767,23 @@ const OptionForm = React.memo(
 
 OptionForm.displayName = "OptionForm";
 
-// ✅ Componente de Lista de Opciones MIGRADO A BOTONES PARAMETRIZADOS
+// ✅ COMPONENTE OptionsList MERGEADO - BOTONES PARAMETRIZADOS + SISTEMA HÍBRIDO DE PERMISOS
 const OptionsList = React.memo(
   ({ options, loading, onNew, onEdit, onDelete, showMessage }) => {
     // ===== CONFIGURACIÓN =====
     const MENU_ID = 1; // ID del menú "Parametrización de Módulos"
 
-    // ===== HOOK DE PERMISOS =====
+    // ===== OBTENER USUARIO ACTUAL (de rama main) =====
+    const currentUser = getCurrentUser();
+    const currentUserId = currentUser?.usu_id;
+
+    console.log('🔍 OptionsList - Usuario actual:', {
+        usu_id: currentUserId,
+        usu_nom: currentUser?.usu_nom,
+        per_id: currentUser?.per_id
+    });
+
+    // ===== HOOK DE PERMISOS GENERALES =====
     const {
       canCreate,
       canRead,
@@ -780,23 +791,124 @@ const OptionsList = React.memo(
       canDelete,
       loading: permissionsLoading,
       error: permissionsError,
+      buttonPermissions,
     } = useButtonPermissions(MENU_ID, null, true, "menu");
 
-    // ===== VALIDACIONES DE PERMISOS =====
-    if (permissionsLoading) {
+    // ===== ESTADOS PARA PERMISOS ESPECÍFICOS DEL USUARIO (de rama main) =====
+    const [userSpecificPermissions, setUserSpecificPermissions] = useState(null);
+    const [loadingUserPermissions, setLoadingUserPermissions] = useState(false);
+    const [userPermissionsError, setUserPermissionsError] = useState(null);
+
+    // ===== FUNCIÓN PARA CARGAR PERMISOS ESPECÍFICOS DEL USUARIO (de rama main) =====
+    const loadUserSpecificPermissions = useCallback(async () => {
+        if (!currentUserId) return;
+
+        setLoadingUserPermissions(true);
+        setUserPermissionsError(null);
+
+        try {
+            console.log('🔍 OptionsList - Cargando permisos específicos para usuario:', currentUserId);
+
+            const result = await adminService.userButtonPermissions.getUserButtonPermissions(currentUserId);
+
+            console.log('📥 OptionsList - Respuesta permisos específicos:', result);
+
+            if (result.success && result.menuStructure) {
+                const menuData = result.menuStructure.find(menu => menu.men_id === MENU_ID);
+
+                if (menuData && menuData.botones) {
+                    console.log('✅ OptionsList - Permisos específicos encontrados:', menuData.botones);
+                    setUserSpecificPermissions(menuData.botones);
+                } else {
+                    console.log('❌ OptionsList - Menú no encontrado en estructura');
+                    setUserSpecificPermissions([]);
+                }
+            } else {
+                console.log('❌ OptionsList - Error en respuesta de permisos específicos');
+                setUserPermissionsError('Error al cargar permisos específicos');
+            }
+        } catch (error) {
+            console.error('❌ OptionsList - Error cargando permisos específicos:', error);
+            setUserPermissionsError(error.message);
+        } finally {
+            setLoadingUserPermissions(false);
+        }
+    }, [currentUserId]);
+
+    // ===== FUNCIÓN PARA OBTENER PERMISO ESPECÍFICO (de rama main) =====
+    const getUserSpecificButtonPermission = useCallback((buttonCode) => {
+        if (!userSpecificPermissions) {
+            // Fallback a permisos generales si no hay específicos
+            const generalPermission = buttonPermissions?.find(btn => btn.bot_codigo === buttonCode)?.has_permission;
+            console.log(`🔍 OptionsList - Usando permiso general para ${buttonCode}:`, generalPermission);
+            return generalPermission || false;
+        }
+
+        const button = userSpecificPermissions.find(btn => btn.bot_codigo === buttonCode);
+
+        if (button) {
+            const hasPermission = button.has_permission === true;
+            console.log(`🎯 OptionsList - Permiso específico ${buttonCode}:`, {
+                has_permission: hasPermission,
+                profile_permission: button.profile_permission,
+                is_customized: button.is_customized,
+                customization_type: button.customization_type
+            });
+            return hasPermission;
+        }
+
+        console.log(`❌ OptionsList - Botón ${buttonCode} no encontrado`);
+        return false;
+    }, [userSpecificPermissions, buttonPermissions]);
+
+    // ===== PERMISOS EFECTIVOS CALCULADOS (de rama main) =====
+    const effectivePermissions = useMemo(() => {
+        const permissions = {
+            canCreate: getUserSpecificButtonPermission('CREATE'),
+            canRead: getUserSpecificButtonPermission('read'),
+            canUpdate: getUserSpecificButtonPermission('UPDATE'),
+            canDelete: getUserSpecificButtonPermission('DELETE'),
+            canExport: getUserSpecificButtonPermission('EXPORT')
+        };
+
+        console.log('🎯 OptionsList - Permisos efectivos calculados:', permissions);
+        return permissions;
+    }, [getUserSpecificButtonPermission]);
+
+    // ===== EFFECT PARA CARGAR PERMISOS ESPECÍFICOS (de rama main) =====
+    useEffect(() => {
+        if (currentUserId && !permissionsError) {
+            loadUserSpecificPermissions();
+        }
+    }, [currentUserId, loadUserSpecificPermissions, permissionsError]);
+
+    // ===== EFFECT PARA DEBUG (de rama main) =====
+    useEffect(() => {
+        console.log('🔍 OptionsList - Permisos actualizados:', {
+            general: { canCreate, canRead, canUpdate, canDelete },
+            effective: effectivePermissions,
+            userSpecific: userSpecificPermissions ? 'Cargados' : 'No cargados',
+            permissionsLoading,
+            loadingUserPermissions,
+            currentUserId
+        });
+    }, [canCreate, canRead, canUpdate, canDelete, effectivePermissions, userSpecificPermissions, permissionsLoading, loadingUserPermissions, currentUserId]);
+
+    // ===== VALIDACIONES DE CARGA =====
+    if (permissionsLoading || loadingUserPermissions) {
       return (
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-600 mr-3"></div>
             <span className="text-gray-600">
-              Cargando permisos de opciones...
+              {permissionsLoading ? 'Cargando permisos generales...' : 'Cargando permisos específicos...'}
             </span>
           </div>
         </div>
       );
     }
 
-    if (permissionsError) {
+    if (permissionsError && !userSpecificPermissions) {
       return (
         <div className="bg-white rounded-lg border border-red-200 p-4">
           <div className="text-center py-8">
@@ -808,13 +920,33 @@ const OptionsList = React.memo(
             <p className="text-red-600 mb-2">
               Error al cargar permisos de opciones
             </p>
-            <p className="text-sm text-red-500">{permissionsError}</p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-left max-w-md mx-auto">
+                <p className="text-xs text-red-700 mb-2">
+                    <strong>Error General:</strong> {permissionsError}
+                </p>
+                {userPermissionsError && (
+                    <p className="text-xs text-red-700 mb-2">
+                        <strong>Error Específico:</strong> {userPermissionsError}
+                    </p>
+                )}
+                <ul className="text-xs text-red-700 space-y-1">
+                    <li>• Menu ID: <code className="bg-red-100 px-1 rounded">{MENU_ID}</code></li>
+                    <li>• Usuario ID: <code className="bg-red-100 px-1 rounded">{currentUserId}</code></li>
+                </ul>
+            </div>
+            <button
+                onClick={loadUserSpecificPermissions}
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                disabled={loadingUserPermissions}
+            >
+                {loadingUserPermissions ? 'Cargando...' : 'Reintentar'}
+            </button>
           </div>
         </div>
       );
     }
 
-    if (!canRead) {
+    if (!canRead && !effectivePermissions.canRead) {
       return (
         <div className="bg-white rounded-lg border border-yellow-200 p-4">
           <div className="text-center py-8">
@@ -828,8 +960,12 @@ const OptionsList = React.memo(
             </p>
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-left max-w-md mx-auto">
               <p className="text-xs text-yellow-700">
-                <strong>Menu ID:</strong> {MENU_ID} |<strong> READ:</strong>{" "}
-                {canRead ? "SÍ" : "NO"}
+                <strong>Menu ID:</strong> {MENU_ID} | 
+                <strong> Usuario ID:</strong> {currentUserId}
+              </p>
+              <p className="text-xs text-yellow-700 mt-1">
+                <strong>READ General:</strong> {canRead ? 'SÍ' : 'NO'} | 
+                <strong> READ Efectivo:</strong> {effectivePermissions.canRead ? 'SÍ' : 'NO'}
               </p>
             </div>
           </div>
@@ -844,11 +980,11 @@ const OptionsList = React.memo(
             <Icon name="Settings" size={20} className="mr-2 text-amber-600" />
             Lista de Opciones ({options.length})
             <span className="ml-3 text-sm bg-amber-100 text-amber-800 px-2 py-1 rounded">
-              Menu ID: {MENU_ID}
+              Menu ID: {MENU_ID} | Usuario: {currentUserId}
             </span>
           </h3>
-          {/* ✅ BOTÓN CREATE CON SOLO ICONO */}
-          {canCreate ? (
+          {/* ✅ BOTÓN CREATE CON PERMISOS EFECTIVOS (combinando ambas ramas) */}
+          {effectivePermissions.canCreate ? (
             <button
               onClick={onNew}
               className="w-10 h-10 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center justify-center transition-all duration-300 transform hover:scale-105 hover:shadow-lg group"
@@ -871,45 +1007,58 @@ const OptionsList = React.memo(
           )}
         </div>
 
-        {/* Debug de permisos */}
-        <div className="mb-4 p-2 bg-amber-50 border border-amber-200 rounded text-xs">
-          <strong>Permisos Opciones:</strong>
-          <span
-            className={`ml-2 px-2 py-0.5 rounded ${
-              canCreate
-                ? "bg-green-100 text-green-700"
-                : "bg-red-100 text-red-700"
-            }`}
-          >
-            CREATE: {canCreate ? "SÍ" : "NO"}
-          </span>
-          <span
-            className={`ml-2 px-2 py-0.5 rounded ${
-              canRead
-                ? "bg-green-100 text-green-700"
-                : "bg-red-100 text-red-700"
-            }`}
-          >
-            read: {canRead ? "SÍ" : "NO"}
-          </span>
-          <span
-            className={`ml-2 px-2 py-0.5 rounded ${
-              canUpdate
-                ? "bg-green-100 text-green-700"
-                : "bg-red-100 text-red-700"
-            }`}
-          >
-            UPDATE: {canUpdate ? "SÍ" : "NO"}
-          </span>
-          <span
-            className={`ml-2 px-2 py-0.5 rounded ${
-              canDelete
-                ? "bg-green-100 text-green-700"
-                : "bg-red-100 text-red-700"
-            }`}
-          >
-            DELETE: {canDelete ? "SÍ" : "NO"}
-          </span>
+        {/* ✅ PANEL DEBUG MEJORADO - Sistema híbrido (de rama main) */}
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded text-xs">
+            {/* Información básica */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2">
+                <div><strong>Usuario:</strong> {currentUser?.usu_nom} (ID: {currentUserId})</div>
+                <div><strong>Perfil:</strong> {currentUser?.per_id}</div>
+                <div><strong>Opciones:</strong> {options.length}</div>
+            </div>
+
+            {/* Estado de carga */}
+            <div className="mb-2 pb-2 border-b border-amber-200">
+                <strong>Estado:</strong>
+                <span className={`ml-2 px-2 py-0.5 rounded ${permissionsLoading ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                    General: {permissionsLoading ? 'Cargando...' : 'Listo'}
+                </span>
+                <span className={`ml-2 px-2 py-0.5 rounded ${loadingUserPermissions ? 'bg-yellow-100 text-yellow-700' : userSpecificPermissions ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    Específicos: {loadingUserPermissions ? 'Cargando...' : userSpecificPermissions ? 'Cargados' : 'Error'}
+                </span>
+            </div>
+
+            {/* Permisos generales vs efectivos */}
+            <div className="mb-2 pb-2 border-b border-amber-200">
+                <strong>Permisos Generales:</strong>
+                <span className={`ml-2 px-2 py-0.5 rounded ${canCreate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    CREATE: {canCreate ? 'SÍ' : 'NO'}
+                </span>
+                <span className={`ml-2 px-2 py-0.5 rounded ${canRead ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    read: {canRead ? 'SÍ' : 'NO'}
+                </span>
+                <span className={`ml-2 px-2 py-0.5 rounded ${canUpdate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    UPDATE: {canUpdate ? 'SÍ' : 'NO'}
+                </span>
+                <span className={`ml-2 px-2 py-0.5 rounded ${canDelete ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    DELETE: {canDelete ? 'SÍ' : 'NO'}
+                </span>
+            </div>
+
+            <div>
+                <strong>Permisos Efectivos (Usados en UI):</strong>
+                <span className={`ml-2 px-2 py-0.5 rounded ${effectivePermissions.canCreate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    CREATE: {effectivePermissions.canCreate ? 'SÍ' : 'NO'}
+                </span>
+                <span className={`ml-2 px-2 py-0.5 rounded ${effectivePermissions.canRead ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    read: {effectivePermissions.canRead ? 'SÍ' : 'NO'}
+                </span>
+                <span className={`ml-2 px-2 py-0.5 rounded ${effectivePermissions.canUpdate ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    UPDATE: {effectivePermissions.canUpdate ? 'SÍ' : 'NO'}
+                </span>
+                <span className={`ml-2 px-2 py-0.5 rounded ${effectivePermissions.canDelete ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    DELETE: {effectivePermissions.canDelete ? 'SÍ' : 'NO'}
+                </span>
+            </div>
         </div>
 
         {options.length === 0 ? (
@@ -920,7 +1069,7 @@ const OptionsList = React.memo(
               className="mx-auto mb-4 text-gray-300"
             />
             <p>No hay opciones registradas</p>
-            {canCreate && (
+            {effectivePermissions.canCreate && (
               <p className="text-sm text-gray-400 mt-2">
                 Haz clic en el botón + para crear una nueva opción
               </p>
@@ -1000,8 +1149,8 @@ const OptionsList = React.memo(
                     </td>
                     <td className="py-2">
                       <div className="flex gap-2">
-                        {/* ✅ BOTÓN UPDATE MEJORADO */}
-                        {canUpdate ? (
+                        {/* ✅ BOTÓN UPDATE CON PERMISOS EFECTIVOS */}
+                        {effectivePermissions.canUpdate ? (
                           <button
                             onClick={() => onEdit(option)}
                             className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-all duration-300 transform hover:scale-110"
@@ -1019,8 +1168,8 @@ const OptionsList = React.memo(
                             <Icon name="Edit" size={16} />
                           </button>
                         )}
-                        {/* ✅ BOTÓN DELETE MEJORADO */}
-                        {canDelete ? (
+                        {/* ✅ BOTÓN DELETE CON PERMISOS EFECTIVOS */}
+                        {effectivePermissions.canDelete ? (
                           <button
                             onClick={() => onDelete(option)}
                             className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-all duration-300 transform hover:scale-110"
@@ -1053,36 +1202,90 @@ const OptionsList = React.memo(
 
 OptionsList.displayName = "OptionsList";
 
-// ✅ Hook personalizado para gestión de opciones MIGRADO CON VALIDACIONES DE PERMISOS
+// ✅ HOOK useOptionManagement MERGEADO - PERMISOS EFECTIVOS HÍBRIDOS
 const useOptionManagement = (showMessage, loadOptions) => {
   // ===== CONFIGURACIÓN =====
   const MENU_ID = 1; // ID del menú "Parametrización de Módulos"
 
-  // ===== HOOK DE PERMISOS =====
-  const { canCreate, canUpdate, canDelete } = useButtonPermissions(
+  // ===== OBTENER USUARIO ACTUAL (de rama main) =====
+  const currentUser = getCurrentUser();
+  const currentUserId = currentUser?.usu_id;
+
+  // ===== HOOK DE PERMISOS GENERALES =====
+  const { canCreate, canUpdate, canDelete, buttonPermissions } = useButtonPermissions(
     MENU_ID,
     null,
     true,
     "menu"
   );
 
-  // ===== ESTADOS =====
+  // ===== ESTADOS PARA PERMISOS ESPECÍFICOS (de rama main) =====
+  const [userSpecificPermissions, setUserSpecificPermissions] = useState(null);
+
+  // ===== FUNCIÓN PARA CARGAR PERMISOS ESPECÍFICOS (de rama main) =====
+  const loadUserSpecificPermissions = useCallback(async () => {
+      if (!currentUserId) return;
+
+      try {
+          console.log('🔍 useOptionManagement - Cargando permisos específicos para usuario:', currentUserId);
+
+          const result = await adminService.userButtonPermissions.getUserButtonPermissions(currentUserId);
+
+          if (result.success && result.menuStructure) {
+              const menuData = result.menuStructure.find(menu => menu.men_id === MENU_ID);
+              if (menuData && menuData.botones) {
+                  setUserSpecificPermissions(menuData.botones);
+              }
+          }
+      } catch (error) {
+          console.error('❌ useOptionManagement - Error cargando permisos específicos:', error);
+      }
+  }, [currentUserId]);
+
+  // ===== FUNCIÓN PARA OBTENER PERMISO ESPECÍFICO (de rama main) =====
+  const getUserSpecificButtonPermission = useCallback((buttonCode) => {
+      if (!userSpecificPermissions) {
+          const generalPermission = buttonPermissions?.find(btn => btn.bot_codigo === buttonCode)?.has_permission;
+          return generalPermission || false;
+      }
+
+      const button = userSpecificPermissions.find(btn => btn.bot_codigo === buttonCode);
+      return button ? button.has_permission === true : false;
+  }, [userSpecificPermissions, buttonPermissions]);
+
+  // ===== PERMISOS EFECTIVOS (de rama main) =====
+  const effectivePermissions = useMemo(() => ({
+      canCreate: getUserSpecificButtonPermission('CREATE'),
+      canUpdate: getUserSpecificButtonPermission('UPDATE'),
+      canDelete: getUserSpecificButtonPermission('DELETE')
+  }), [getUserSpecificButtonPermission]);
+
+  // ===== ESTADOS DEL HOOK =====
   const [showOptionForm, setShowOptionForm] = useState(false);
   const [editingOption, setEditingOption] = useState(null);
   const [optionFormKey, setOptionFormKey] = useState(0);
 
-  // ===== HANDLERS CON VALIDACIÓN DE PERMISOS =====
+  // ===== CARGAR PERMISOS AL INICIALIZAR (de rama main) =====
+  useEffect(() => {
+      if (currentUserId) {
+          loadUserSpecificPermissions();
+      }
+  }, [currentUserId, loadUserSpecificPermissions]);
+
+  // ===== HANDLERS CON VALIDACIÓN DE PERMISOS EFECTIVOS =====
   const handleOptionSave = useCallback(
     async (formData, editingOption) => {
       console.log("💾 Guardando opción:", formData);
 
-      // ✅ VALIDACIÓN DE PERMISOS
-      if (editingOption && !canUpdate) {
+      // ✅ VALIDACIÓN CON PERMISOS EFECTIVOS
+      if (editingOption && !effectivePermissions.canUpdate) {
+        console.log('❌ useOptionManagement - UPDATE denegado (efectivo)');
         showMessage("error", "No tienes permisos para actualizar opciones");
         return;
       }
 
-      if (!editingOption && !canCreate) {
+      if (!editingOption && !effectivePermissions.canCreate) {
+        console.log('❌ useOptionManagement - CREATE denegado (efectivo)');
         showMessage("error", "No tienes permisos para crear opciones");
         return;
       }
@@ -1132,7 +1335,7 @@ const useOptionManagement = (showMessage, loadOptions) => {
         showMessage("error", errorMsg);
       }
     },
-    [showMessage, loadOptions, canCreate, canUpdate]
+    [showMessage, loadOptions, effectivePermissions]
   );
 
   const handleOptionCancel = useCallback(() => {
@@ -1143,38 +1346,41 @@ const useOptionManagement = (showMessage, loadOptions) => {
   }, []);
 
   const handleNewOption = useCallback(() => {
-    // ✅ VALIDACIÓN DE PERMISOS
-    if (!canCreate) {
+    // ✅ VALIDACIÓN CON PERMISOS EFECTIVOS
+    if (!effectivePermissions.canCreate) {
+      console.log('❌ useOptionManagement - CREATE denegado para nueva opción (efectivo)');
       showMessage("error", "No tienes permisos para crear opciones");
       return;
     }
 
-    console.log("➕ Nueva opción");
+    console.log("➕ Nueva opción - Permiso concedido (efectivo)");
     setEditingOption(null);
     setShowOptionForm(true);
     setOptionFormKey((prev) => prev + 1);
-  }, [canCreate, showMessage]);
+  }, [effectivePermissions.canCreate, showMessage]);
 
   const handleEditOption = useCallback(
     (option) => {
-      // ✅ VALIDACIÓN DE PERMISOS
-      if (!canUpdate) {
+      // ✅ VALIDACIÓN CON PERMISOS EFECTIVOS
+      if (!effectivePermissions.canUpdate) {
+        console.log('❌ useOptionManagement - UPDATE denegado para editar opción (efectivo)');
         showMessage("error", "No tienes permisos para editar opciones");
         return;
       }
 
-      console.log("✏️ Editar opción:", option.opc_id);
+      console.log('✏️ Editar opción - Permiso concedido (efectivo):', option.opc_id);
       setEditingOption(option);
       setShowOptionForm(true);
       setOptionFormKey((prev) => prev + 1);
     },
-    [canUpdate, showMessage]
+    [effectivePermissions.canUpdate, showMessage]
   );
 
   const handleDeleteOption = useCallback(
     async (option) => {
-      // ✅ VALIDACIÓN DE PERMISOS
-      if (!canDelete) {
+      // ✅ VALIDACIÓN CON PERMISOS EFECTIVOS
+      if (!effectivePermissions.canDelete) {
+        console.log('❌ useOptionManagement - DELETE denegado (efectivo)');
         showMessage("error", "No tienes permisos para eliminar opciones");
         return;
       }
@@ -1184,6 +1390,7 @@ const useOptionManagement = (showMessage, loadOptions) => {
       }
 
       try {
+        console.log('🗑️ Eliminando opción - Permiso concedido (efectivo):', option.opc_id);
         await adminService.options.delete(option.opc_id);
         showMessage("success", "Opción eliminada correctamente");
         await loadOptions();
@@ -1194,7 +1401,7 @@ const useOptionManagement = (showMessage, loadOptions) => {
         showMessage("error", errorMsg);
       }
     },
-    [canDelete, showMessage, loadOptions]
+    [effectivePermissions.canDelete, showMessage, loadOptions]
   );
 
   return {
@@ -1206,8 +1413,12 @@ const useOptionManagement = (showMessage, loadOptions) => {
     handleNewOption,
     handleEditOption,
     handleDeleteOption,
+    // ✅ EXPORTAR PERMISOS EFECTIVOS PARA DEBUG
+    effectivePermissions,
+    userSpecificPermissions,
+    currentUserId,
   };
 };
 
-// ✅ Exportar componentes y hook
+// ✅ Exportar componentes y hook actualizados con merge completo
 export { OptionForm, OptionsList, useOptionManagement };

@@ -1,10 +1,12 @@
-// src/components/Windows/AsgiPerWindows.jsx - CON NUEVA PESTAÑA DE MÓDULOS DIRECTOS
+// src/components/Windows/AsgiPerWindows.jsx - CON NUEVA PESTAÑA DE BOTONES POR USUARIO
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { adminService } from '../../services/apiService';
 import Icon from '../UI/Icon';
 import AsgiPerUsWindows from './AsgiPerUsWindows';
 import AsigPerBotWindow from './AsigPerBotWindow';
 import AsigModulosDirectosTab from './AsigModulosDirectosTab';
+import AsigPerBotUserWindow from './AsigPerBotUserWindow';
+
 // ===== COMPONENTES MEMOIZADOS =====
 const TabButton = memo(({ label, icon, isActive, onClick, badge = null }) => (
     <button
@@ -252,6 +254,7 @@ const SubmenuTreeItem = memo(({ submenu, menuId, togglePermission, savingPermiss
         </div>
     );
 });
+
 const AsgiPerWindows = () => {
     // ===== ESTADOS PARA PESTAÑAS =====
     const [activeTab, setActiveTab] = useState('profiles');
@@ -461,12 +464,13 @@ const AsgiPerWindows = () => {
         };
     }, [menuStructure]);
 
-    // ===== CONFIGURACIÓN DE PESTAÑAS =====
+    // ===== CONFIGURACIÓN DE PESTAÑAS ACTUALIZADA =====
     const tabs = [
         { id: 'profiles', label: 'Permisos por Perfil', icon: 'Shield' },
         { id: 'users', label: 'Permisos por Usuario', icon: 'User' },
         { id: 'modules', label: 'Módulos Directos', icon: 'Monitor', badge: 'Nuevo' },
-        { id: 'buttons', label: 'Permisos de Botones', icon: 'Settings' }
+        { id: 'buttons', label: 'Permisos de Botones', icon: 'Settings' },
+        { id: 'userButtons', label: 'Botones por Usuario', icon: 'UserCog', badge: 'Nuevo' }
     ];
 
     // ===== RENDER PRINCIPAL =====
@@ -658,6 +662,10 @@ const AsgiPerWindows = () => {
                 />
             ) : activeTab === 'buttons' ? (
                 <AsigPerBotWindow
+                    showMessage={showMessage}
+                />
+            ) : activeTab === 'userButtons' ? (
+                <AsigPerBotUserWindow
                     showMessage={showMessage}
                 />
             ) : null}
