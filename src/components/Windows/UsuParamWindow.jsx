@@ -48,134 +48,148 @@ const UsuParamWindow = ({
   } = useButtonPermissions(menuId, null, true, "menu");
 
   // ✅ FUNCIÓN loadUsuarios CON PAGINACIÓN CORREGIDA
-  const loadUsuarios = useCallback(async (page = 1, perPage = itemsPerPage) => {
-    console.log("🔍 loadUsuarios iniciado con paginación");
-    console.log("🔍 Parámetros:", { page, perPage, canRead, selectedPerfil, showDisabled });
+  const loadUsuarios = useCallback(
+    async (page = 1, perPage = itemsPerPage) => {
+      console.log("🔍 loadUsuarios iniciado con paginación");
+      console.log("🔍 Parámetros:", {
+        page,
+        perPage,
+        canRead,
+        selectedPerfil,
+        showDisabled,
+      });
 
-    if (!canRead) {
-      console.log("❌ Sin permisos de lectura");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Parámetros de consulta con paginación
-      const params = {
-        page: page,
-        per_page: perPage,
-        incluir_deshabilitados: showDisabled,
-      };
-
-      // Agregar filtro de perfil si está seleccionado
-      if (selectedPerfil) {
-        params.per_id = selectedPerfil;
-      }
-
-      console.log("🔍 Cargando usuarios con params:", params);
-
-      if (!adminService?.usuarios?.getAll) {
-        console.error("❌ adminService.usuarios.getAll no existe");
-        showMessage("error", "Error: Función de carga no disponible");
+      if (!canRead) {
+        console.log("❌ Sin permisos de lectura");
         return;
       }
 
-      const result = await adminService.usuarios.getAll(params);
-      console.log("📥 Respuesta completa usuarios:", result);
+      setLoading(true);
+      try {
+        // Parámetros de consulta con paginación
+        const params = {
+          page: page,
+          per_page: perPage,
+          incluir_deshabilitados: showDisabled,
+        };
 
-      if (result?.status === "success" && result?.data) {
-        let usuariosData = [];
-        let pagination = {};
-
-        // ✅ PROCESAMIENTO MEJORADO PARA DIFERENTES FORMATOS DE RESPUESTA
-        if (Array.isArray(result.data)) {
-          // Caso 1: Array directo (sin paginación del backend)
-          const allUsers = result.data;
-          const startIndex = (page - 1) * perPage;
-          const endIndex = startIndex + perPage;
-          usuariosData = allUsers.slice(startIndex, endIndex);
-          
-          setUsuarios(usuariosData);
-          setTotalItems(allUsers.length);
-          setTotalPages(Math.ceil(allUsers.length / perPage));
-          setCurrentPage(page);
-          setPaginationInfo({
-            current_page: page,
-            per_page: perPage,
-            total: allUsers.length,
-            last_page: Math.ceil(allUsers.length / perPage),
-            from: allUsers.length > 0 ? startIndex + 1 : 0,
-            to: Math.min(endIndex, allUsers.length)
-          });
-          
-          console.log("📊 Caso 1: Array directo, paginación local aplicada");
-        } else if (result.data.data && Array.isArray(result.data.data)) {
-          // Caso 2: Paginación Laravel estándar
-          usuariosData = result.data.data;
-          pagination = {
-            current_page: result.data.current_page || page,
-            per_page: result.data.per_page || perPage,
-            total: result.data.total || usuariosData.length,
-            last_page: result.data.last_page || 1,
-            from: result.data.from || 1,
-            to: result.data.to || usuariosData.length
-          };
-          
-          setUsuarios(usuariosData);
-          setTotalItems(pagination.total);
-          setTotalPages(pagination.last_page);
-          setCurrentPage(pagination.current_page);
-          setPaginationInfo(pagination);
-          
-          console.log("📊 Caso 2: Paginación Laravel estándar");
-        } else if (result.data.data?.data && Array.isArray(result.data.data.data)) {
-          // Caso 3: Paginación Laravel anidada
-          usuariosData = result.data.data.data;
-          const nestedData = result.data.data;
-          pagination = {
-            current_page: nestedData.current_page || page,
-            per_page: nestedData.per_page || perPage,
-            total: nestedData.total || usuariosData.length,
-            last_page: nestedData.last_page || 1,
-            from: nestedData.from || 1,
-            to: nestedData.to || usuariosData.length
-          };
-          
-          setUsuarios(usuariosData);
-          setTotalItems(pagination.total);
-          setTotalPages(pagination.last_page);
-          setCurrentPage(pagination.current_page);
-          setPaginationInfo(pagination);
-          
-          console.log("📊 Caso 3: Paginación anidada");
+        // Agregar filtro de perfil si está seleccionado
+        if (selectedPerfil) {
+          params.per_id = selectedPerfil;
         }
 
-        console.log("✅ Usuarios procesados:", usuariosData.length);
-        console.log("✅ Información de paginación:", pagination || paginationInfo);
+        console.log("🔍 Cargando usuarios con params:", params);
 
-      } else {
-        console.error("❌ Error en respuesta usuarios:", result);
+        if (!adminService?.usuarios?.getAll) {
+          console.error("❌ adminService.usuarios.getAll no existe");
+          showMessage("error", "Error: Función de carga no disponible");
+          return;
+        }
+
+        const result = await adminService.usuarios.getAll(params);
+        console.log("📥 Respuesta completa usuarios:", result);
+
+        if (result?.status === "success" && result?.data) {
+          let usuariosData = [];
+          let pagination = {};
+
+          // ✅ PROCESAMIENTO MEJORADO PARA DIFERENTES FORMATOS DE RESPUESTA
+          if (Array.isArray(result.data)) {
+            // Caso 1: Array directo (sin paginación del backend)
+            const allUsers = result.data;
+            const startIndex = (page - 1) * perPage;
+            const endIndex = startIndex + perPage;
+            usuariosData = allUsers.slice(startIndex, endIndex);
+
+            setUsuarios(usuariosData);
+            setTotalItems(allUsers.length);
+            setTotalPages(Math.ceil(allUsers.length / perPage));
+            setCurrentPage(page);
+            setPaginationInfo({
+              current_page: page,
+              per_page: perPage,
+              total: allUsers.length,
+              last_page: Math.ceil(allUsers.length / perPage),
+              from: allUsers.length > 0 ? startIndex + 1 : 0,
+              to: Math.min(endIndex, allUsers.length),
+            });
+
+            console.log("📊 Caso 1: Array directo, paginación local aplicada");
+          } else if (result.data.data && Array.isArray(result.data.data)) {
+            // Caso 2: Paginación Laravel estándar
+            usuariosData = result.data.data;
+            pagination = {
+              current_page: result.data.current_page || page,
+              per_page: result.data.per_page || perPage,
+              total: result.data.total || usuariosData.length,
+              last_page: result.data.last_page || 1,
+              from: result.data.from || 1,
+              to: result.data.to || usuariosData.length,
+            };
+
+            setUsuarios(usuariosData);
+            setTotalItems(pagination.total);
+            setTotalPages(pagination.last_page);
+            setCurrentPage(pagination.current_page);
+            setPaginationInfo(pagination);
+
+            console.log("📊 Caso 2: Paginación Laravel estándar");
+          } else if (
+            result.data.data?.data &&
+            Array.isArray(result.data.data.data)
+          ) {
+            // Caso 3: Paginación Laravel anidada
+            usuariosData = result.data.data.data;
+            const nestedData = result.data.data;
+            pagination = {
+              current_page: nestedData.current_page || page,
+              per_page: nestedData.per_page || perPage,
+              total: nestedData.total || usuariosData.length,
+              last_page: nestedData.last_page || 1,
+              from: nestedData.from || 1,
+              to: nestedData.to || usuariosData.length,
+            };
+
+            setUsuarios(usuariosData);
+            setTotalItems(pagination.total);
+            setTotalPages(pagination.last_page);
+            setCurrentPage(pagination.current_page);
+            setPaginationInfo(pagination);
+
+            console.log("📊 Caso 3: Paginación anidada");
+          }
+
+          console.log("✅ Usuarios procesados:", usuariosData.length);
+          console.log(
+            "✅ Información de paginación:",
+            pagination || paginationInfo
+          );
+        } else {
+          console.error("❌ Error en respuesta usuarios:", result);
+          setUsuarios([]);
+          setTotalItems(0);
+          setTotalPages(0);
+          setCurrentPage(1);
+          setPaginationInfo({});
+          showMessage("error", result?.message || "Error al cargar usuarios");
+        }
+      } catch (error) {
+        console.error("❌ Error loading usuarios:", error);
         setUsuarios([]);
         setTotalItems(0);
         setTotalPages(0);
         setCurrentPage(1);
         setPaginationInfo({});
-        showMessage("error", result?.message || "Error al cargar usuarios");
+        showMessage(
+          "error",
+          "Error al cargar usuarios: " + (error.message || "Error desconocido")
+        );
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("❌ Error loading usuarios:", error);
-      setUsuarios([]);
-      setTotalItems(0);
-      setTotalPages(0);
-      setCurrentPage(1);
-      setPaginationInfo({});
-      showMessage(
-        "error",
-        "Error al cargar usuarios: " + (error.message || "Error desconocido")
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [canRead, selectedPerfil, showDisabled, itemsPerPage]);
+    },
+    [canRead, selectedPerfil, showDisabled, itemsPerPage]
+  );
 
   // ✅ FUNCIONES DE PAGINACIÓN
   const handlePageChange = (newPage) => {
@@ -186,12 +200,15 @@ const UsuParamWindow = ({
     }
   };
 
-  const handleItemsPerPageChange = useCallback((newItemsPerPage) => {
-    console.log("📊 Cambiando elementos por página:", newItemsPerPage);
-    setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1);
-    loadUsuarios(1, newItemsPerPage);
-  }, [loadUsuarios]);
+  const handleItemsPerPageChange = useCallback(
+    (newItemsPerPage) => {
+      console.log("📊 Cambiando elementos por página:", newItemsPerPage);
+      setItemsPerPage(newItemsPerPage);
+      setCurrentPage(1);
+      loadUsuarios(1, newItemsPerPage);
+    },
+    [loadUsuarios]
+  );
 
   // ✅ COMPONENTE DE PAGINACIÓN MEJORADO
   const PaginationControls = useCallback(() => {
@@ -213,13 +230,13 @@ const UsuParamWindow = ({
 
       // Agregar primera página
       if (currentPage - delta > 2) {
-        rangeWithDots.push(1, '...');
+        rangeWithDots.push(1, "...");
       } else {
         rangeWithDots.push(1);
       }
 
       // Agregar rango medio (evitar duplicados)
-      range.forEach(page => {
+      range.forEach((page) => {
         if (page !== 1 && page !== totalPages) {
           rangeWithDots.push(page);
         }
@@ -227,7 +244,7 @@ const UsuParamWindow = ({
 
       // Agregar última página
       if (currentPage + delta < totalPages - 1) {
-        rangeWithDots.push('...', totalPages);
+        rangeWithDots.push("...", totalPages);
       } else if (totalPages > 1 && !rangeWithDots.includes(totalPages)) {
         rangeWithDots.push(totalPages);
       }
@@ -263,20 +280,24 @@ const UsuParamWindow = ({
             <div className="flex items-center gap-4">
               {/* Información de registros */}
               <p className="text-sm text-gray-700">
-                Mostrando{' '}
-                <span className="font-medium">{paginationInfo.from || ((currentPage - 1) * itemsPerPage + 1)}</span>
-                {' '}a{' '}
+                Mostrando{" "}
                 <span className="font-medium">
-                  {paginationInfo.to || Math.min(currentPage * itemsPerPage, totalItems)}
-                </span>
-                {' '}de{' '}
-                <span className="font-medium">{totalItems}</span>
-                {' '}resultados
+                  {paginationInfo.from || (currentPage - 1) * itemsPerPage + 1}
+                </span>{" "}
+                a{" "}
+                <span className="font-medium">
+                  {paginationInfo.to ||
+                    Math.min(currentPage * itemsPerPage, totalItems)}
+                </span>{" "}
+                de <span className="font-medium">{totalItems}</span> resultados
               </p>
 
               {/* Selector de elementos por página */}
               <div className="flex items-center gap-2">
-                <label htmlFor="itemsPerPage" className="text-sm text-gray-700 whitespace-nowrap">
+                <label
+                  htmlFor="itemsPerPage"
+                  className="text-sm text-gray-700 whitespace-nowrap"
+                >
                   Mostrar:
                 </label>
                 <select
@@ -302,12 +323,17 @@ const UsuParamWindow = ({
                   <option value={15}>15</option>
                   <option value={20}>20</option>
                 </select>
-                <span className="text-sm text-gray-700 whitespace-nowrap">por página</span>
+                <span className="text-sm text-gray-700 whitespace-nowrap">
+                  por página
+                </span>
               </div>
             </div>
 
             {/* Controles de paginación */}
-            <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+            <nav
+              className="isolate inline-flex -space-x-px rounded-md shadow-sm"
+              aria-label="Pagination"
+            >
               {/* ✅ SOLO MOSTRAR CONTROLES DE NAVEGACIÓN SI HAY MÁS DE 1 PÁGINA */}
               {totalPages > 1 && (
                 <>
@@ -334,7 +360,7 @@ const UsuParamWindow = ({
                   {/* Números de página */}
                   {pageNumbers.map((pageNumber, index) => (
                     <React.Fragment key={index}>
-                      {pageNumber === '...' ? (
+                      {pageNumber === "..." ? (
                         <span className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 focus:outline-offset-0">
                           ...
                         </span>
@@ -343,8 +369,8 @@ const UsuParamWindow = ({
                           onClick={() => handlePageChange(pageNumber)}
                           className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
                             pageNumber === currentPage
-                              ? 'z-10 bg-blue-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
-                              : 'text-gray-900'
+                              ? "z-10 bg-blue-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                              : "text-gray-900"
                           }`}
                         >
                           {pageNumber}
@@ -374,7 +400,7 @@ const UsuParamWindow = ({
                   </button>
                 </>
               )}
-              
+
               {/* ✅ MENSAJE CUANDO SOLO HAY UNA PÁGINA */}
               {totalPages === 1 && (
                 <span className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-gray-50 rounded-md">
@@ -386,7 +412,15 @@ const UsuParamWindow = ({
         </div>
       </div>
     );
-  }, [totalPages, currentPage, itemsPerPage, totalItems, paginationInfo, handlePageChange, handleItemsPerPageChange]);
+  }, [
+    totalPages,
+    currentPage,
+    itemsPerPage,
+    totalItems,
+    paginationInfo,
+    handlePageChange,
+    handleItemsPerPageChange,
+  ]);
 
   // ✅ FUNCIÓN renderUsuarioStatus
   const renderUsuarioStatus = (usuario) => {
@@ -452,7 +486,14 @@ const UsuParamWindow = ({
       setCurrentPage(1);
       loadUsuarios(1, itemsPerPage);
     }
-  }, [selectedPerfil, showDisabled, canRead, activeTab, loadUsuarios, itemsPerPage]);
+  }, [
+    selectedPerfil,
+    showDisabled,
+    canRead,
+    activeTab,
+    loadUsuarios,
+    itemsPerPage,
+  ]);
 
   // HANDLERS DEL FORMULARIO
   const handleInputChange = (e) => {
@@ -535,22 +576,23 @@ const UsuParamWindow = ({
       }
     } catch (error) {
       console.error("Error saving usuario:", error);
-      
+
       if (error.response?.data?.errors) {
         const errors = error.response.data.errors;
         const errorMessages = [];
 
         Object.keys(errors).forEach((field) => {
           const fieldErrors = errors[field];
-          const fieldName = {
-            usu_nom: "Nombre",
-            usu_ape: "Apellido",
-            usu_cor: "Email",
-            usu_ced: "Cédula",
-            usu_con: "Contraseña",
-            per_id: "Perfil",
-            est_id: "Estado",
-          }[field] || field;
+          const fieldName =
+            {
+              usu_nom: "Nombre",
+              usu_ape: "Apellido",
+              usu_cor: "Email",
+              usu_ced: "Cédula",
+              usu_con: "Contraseña",
+              per_id: "Perfil",
+              est_id: "Estado",
+            }[field] || field;
 
           fieldErrors.forEach((errorMsg) => {
             if (errorMsg.includes("has already been taken")) {
@@ -863,14 +905,26 @@ const UsuParamWindow = ({
                   </button>
                 </div>
 
-                {canCreate && (
+                {canCreate ? (
                   <button
                     onClick={handleCreate}
-                    className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center gap-2"
+                    className="w-10 h-10 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center justify-center transition-all duration-300 transform hover:scale-105 hover:shadow-lg group"
+                    disabled={loading}
+                    title="Crear nuevo tipo de oficina"
                   >
-                    <Icon name="Plus" size={16} />
-                    Crear Usuario
+                    <Icon
+                      name="Plus"
+                      size={20}
+                      className="transition-transform duration-300 group-hover:rotate-90"
+                    />
                   </button>
+                ) : (
+                  <div
+                    className="w-10 h-10 bg-gray-300 text-gray-500 rounded-lg flex items-center justify-center cursor-not-allowed"
+                    title="Sin permisos para crear tipos de oficina"
+                  >
+                    <Icon name="Lock" size={16} />
+                  </div>
                 )}
               </div>
 
@@ -1017,7 +1071,10 @@ const UsuParamWindow = ({
                         type="submit"
                         className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 flex items-center gap-2"
                       >
-                        <Icon name={editingUsuario ? "Save" : "Plus"} size={16} />
+                        <Icon
+                          name={editingUsuario ? "Save" : "Plus"}
+                          size={16}
+                        />
                         {editingUsuario ? "Actualizar" : "Crear"}
                       </button>
                       <button
@@ -1163,7 +1220,9 @@ const UsuParamWindow = ({
                                     {isUsuarioDeshabilitado(usuario) ? (
                                       // Usuario deshabilitado - Mostrar botón de reactivar
                                       <button
-                                        onClick={() => handleReactivate(usuario)}
+                                        onClick={() =>
+                                          handleReactivate(usuario)
+                                        }
                                         className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
                                         title="Reactivar usuario"
                                       >
