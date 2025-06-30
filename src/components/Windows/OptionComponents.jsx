@@ -1,12 +1,12 @@
-// src/components/Windows/OptionComponents.jsx - ACTUALIZADO CON PERMISOS HÍBRIDOS (PERFIL + USUARIO)
+// src/components/Windows/OptionComponents.jsx - MERGEADO: BOTONES PARAMETRIZADOS + PERMISOS HÍBRIDOS
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useButtonPermissions } from "../../hooks/useButtonPermissions";
 import { adminService } from "../../services/apiService";
 import { getCurrentUser } from "../../context/AuthContext"; // ✅ IMPORTAR getCurrentUser
 import Icon from "../UI/Icon";
-import IconSelector from "../UI/IconSelector";
+import IconSelector from "../UI/IconSelector"; // ✅ IMPORTAR ICONSELECTOR
 
-// ✅ Componente OptionForm con IconSelector mejorado (sin cambios en lógica de permisos)
+// ✅ Componente OptionForm con IconSelector mejorado + permisos híbridos
 const OptionForm = React.memo(
   ({
     editingOption,
@@ -357,7 +357,7 @@ const OptionForm = React.memo(
               </div>
             </div>
 
-            {/* ✅ ICONO CON ICONSELECTOR MEJORADO */}
+            {/* ✅ ICONO CON ICONSELECTOR MEJORADO (de rama Jayson) */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 Icono
@@ -373,7 +373,7 @@ const OptionForm = React.memo(
                 Elige un icono para representar visualmente la opción
               </div>
 
-              {/* ✅ VISTA PREVIA DEL ICONO (igual que en MenuForm y SubmenuForm) */}
+              {/* ✅ VISTA PREVIA DEL ICONO (de rama Jayson) */}
               {formData.ico_id && (
                 <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="flex items-center space-x-3">
@@ -767,13 +767,13 @@ const OptionForm = React.memo(
 
 OptionForm.displayName = "OptionForm";
 
-// ✅ COMPONENTE OptionsList ACTUALIZADO CON SISTEMA HÍBRIDO DE PERMISOS
+// ✅ COMPONENTE OptionsList MERGEADO - BOTONES PARAMETRIZADOS + SISTEMA HÍBRIDO DE PERMISOS
 const OptionsList = React.memo(
   ({ options, loading, onNew, onEdit, onDelete, showMessage }) => {
     // ===== CONFIGURACIÓN =====
     const MENU_ID = 1; // ID del menú "Parametrización de Módulos"
 
-    // ===== OBTENER USUARIO ACTUAL =====
+    // ===== OBTENER USUARIO ACTUAL (de rama main) =====
     const currentUser = getCurrentUser();
     const currentUserId = currentUser?.usu_id;
 
@@ -794,12 +794,12 @@ const OptionsList = React.memo(
       buttonPermissions,
     } = useButtonPermissions(MENU_ID, null, true, "menu");
 
-    // ===== ESTADOS PARA PERMISOS ESPECÍFICOS DEL USUARIO =====
+    // ===== ESTADOS PARA PERMISOS ESPECÍFICOS DEL USUARIO (de rama main) =====
     const [userSpecificPermissions, setUserSpecificPermissions] = useState(null);
     const [loadingUserPermissions, setLoadingUserPermissions] = useState(false);
     const [userPermissionsError, setUserPermissionsError] = useState(null);
 
-    // ===== FUNCIÓN PARA CARGAR PERMISOS ESPECÍFICOS DEL USUARIO =====
+    // ===== FUNCIÓN PARA CARGAR PERMISOS ESPECÍFICOS DEL USUARIO (de rama main) =====
     const loadUserSpecificPermissions = useCallback(async () => {
         if (!currentUserId) return;
 
@@ -835,7 +835,7 @@ const OptionsList = React.memo(
         }
     }, [currentUserId]);
 
-    // ===== FUNCIÓN PARA OBTENER PERMISO ESPECÍFICO =====
+    // ===== FUNCIÓN PARA OBTENER PERMISO ESPECÍFICO (de rama main) =====
     const getUserSpecificButtonPermission = useCallback((buttonCode) => {
         if (!userSpecificPermissions) {
             // Fallback a permisos generales si no hay específicos
@@ -861,7 +861,7 @@ const OptionsList = React.memo(
         return false;
     }, [userSpecificPermissions, buttonPermissions]);
 
-    // ===== PERMISOS EFECTIVOS CALCULADOS =====
+    // ===== PERMISOS EFECTIVOS CALCULADOS (de rama main) =====
     const effectivePermissions = useMemo(() => {
         const permissions = {
             canCreate: getUserSpecificButtonPermission('CREATE'),
@@ -875,14 +875,14 @@ const OptionsList = React.memo(
         return permissions;
     }, [getUserSpecificButtonPermission]);
 
-    // ===== EFFECT PARA CARGAR PERMISOS ESPECÍFICOS =====
+    // ===== EFFECT PARA CARGAR PERMISOS ESPECÍFICOS (de rama main) =====
     useEffect(() => {
         if (currentUserId && !permissionsError) {
             loadUserSpecificPermissions();
         }
     }, [currentUserId, loadUserSpecificPermissions, permissionsError]);
 
-    // ===== EFFECT PARA DEBUG =====
+    // ===== EFFECT PARA DEBUG (de rama main) =====
     useEffect(() => {
         console.log('🔍 OptionsList - Permisos actualizados:', {
             general: { canCreate, canRead, canUpdate, canDelete },
@@ -983,7 +983,7 @@ const OptionsList = React.memo(
               Menu ID: {MENU_ID} | Usuario: {currentUserId}
             </span>
           </h3>
-          {/* ✅ BOTÓN CREATE CON PERMISOS EFECTIVOS */}
+          {/* ✅ BOTÓN CREATE CON PERMISOS EFECTIVOS (combinando ambas ramas) */}
           {effectivePermissions.canCreate ? (
             <button
               onClick={onNew}
@@ -1007,7 +1007,7 @@ const OptionsList = React.memo(
           )}
         </div>
 
-        {/* ✅ PANEL DEBUG MEJORADO - Sistema híbrido */}
+        {/* ✅ PANEL DEBUG MEJORADO - Sistema híbrido (de rama main) */}
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded text-xs">
             {/* Información básica */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2">
@@ -1202,12 +1202,12 @@ const OptionsList = React.memo(
 
 OptionsList.displayName = "OptionsList";
 
-// ✅ HOOK useOptionManagement ACTUALIZADO CON PERMISOS EFECTIVOS
+// ✅ HOOK useOptionManagement MERGEADO - PERMISOS EFECTIVOS HÍBRIDOS
 const useOptionManagement = (showMessage, loadOptions) => {
   // ===== CONFIGURACIÓN =====
   const MENU_ID = 1; // ID del menú "Parametrización de Módulos"
 
-  // ===== OBTENER USUARIO ACTUAL =====
+  // ===== OBTENER USUARIO ACTUAL (de rama main) =====
   const currentUser = getCurrentUser();
   const currentUserId = currentUser?.usu_id;
 
@@ -1219,10 +1219,10 @@ const useOptionManagement = (showMessage, loadOptions) => {
     "menu"
   );
 
-  // ===== ESTADOS PARA PERMISOS ESPECÍFICOS =====
+  // ===== ESTADOS PARA PERMISOS ESPECÍFICOS (de rama main) =====
   const [userSpecificPermissions, setUserSpecificPermissions] = useState(null);
 
-  // ===== FUNCIÓN PARA CARGAR PERMISOS ESPECÍFICOS =====
+  // ===== FUNCIÓN PARA CARGAR PERMISOS ESPECÍFICOS (de rama main) =====
   const loadUserSpecificPermissions = useCallback(async () => {
       if (!currentUserId) return;
 
@@ -1242,7 +1242,7 @@ const useOptionManagement = (showMessage, loadOptions) => {
       }
   }, [currentUserId]);
 
-  // ===== FUNCIÓN PARA OBTENER PERMISO ESPECÍFICO =====
+  // ===== FUNCIÓN PARA OBTENER PERMISO ESPECÍFICO (de rama main) =====
   const getUserSpecificButtonPermission = useCallback((buttonCode) => {
       if (!userSpecificPermissions) {
           const generalPermission = buttonPermissions?.find(btn => btn.bot_codigo === buttonCode)?.has_permission;
@@ -1253,7 +1253,7 @@ const useOptionManagement = (showMessage, loadOptions) => {
       return button ? button.has_permission === true : false;
   }, [userSpecificPermissions, buttonPermissions]);
 
-  // ===== PERMISOS EFECTIVOS =====
+  // ===== PERMISOS EFECTIVOS (de rama main) =====
   const effectivePermissions = useMemo(() => ({
       canCreate: getUserSpecificButtonPermission('CREATE'),
       canUpdate: getUserSpecificButtonPermission('UPDATE'),
@@ -1265,7 +1265,7 @@ const useOptionManagement = (showMessage, loadOptions) => {
   const [editingOption, setEditingOption] = useState(null);
   const [optionFormKey, setOptionFormKey] = useState(0);
 
-  // ===== CARGAR PERMISOS AL INICIALIZAR =====
+  // ===== CARGAR PERMISOS AL INICIALIZAR (de rama main) =====
   useEffect(() => {
       if (currentUserId) {
           loadUserSpecificPermissions();
@@ -1420,5 +1420,5 @@ const useOptionManagement = (showMessage, loadOptions) => {
   };
 };
 
-// ✅ Exportar componentes y hook actualizados
+// ✅ Exportar componentes y hook actualizados con merge completo
 export { OptionForm, OptionsList, useOptionManagement };

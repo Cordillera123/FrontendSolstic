@@ -872,8 +872,7 @@ const ParameWindows = ({ data }) => {
   ]);
 
   // ===== COMPONENTES MEMOIZADOS =====
- // FRAGMENTO ACTUALIZADO: Lista de Menús con botón de icono únicamente
-
+  // Lista de Menús con botón de icono únicamente
   const MenusList = useMemo(
     () => (
       <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -1467,4 +1466,4 @@ const ParameWindows = ({ data }) => {
   );
 };
 
-export default ParameWindows
+export default ParameWindows;

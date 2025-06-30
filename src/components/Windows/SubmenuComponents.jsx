@@ -1,10 +1,10 @@
-// src/components/Windows/SubmenuComponents.jsx - ACTUALIZADO CON PERMISOS HÍBRIDOS (PERFIL + USUARIO)
+// src/components/Windows/SubmenuComponents.jsx - ACTUALIZADO CON PERMISOS HÍBRIDOS (PERFIL + USUARIO) Y BOTONES MIGRADOS
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useButtonPermissions } from '../../hooks/useButtonPermissions';
 import { adminService } from '../../services/apiService';
 import { getCurrentUser } from '../../context/AuthContext'; // ✅ IMPORTAR getCurrentUser
 import Icon from '../UI/Icon';
-import IconSelector from '../UI/IconSelector';
+import IconSelector from '../UI/IconSelector'; // ✅ IMPORTAR ICONSELECTOR
 
 // ✅ Componente SubmenuForm con IconSelector mejorado (sin cambios en lógica de permisos)
 const SubmenuForm = React.memo(({
@@ -580,7 +580,7 @@ const SubmenuForm = React.memo(({
 
 SubmenuForm.displayName = 'SubmenuForm';
 
-// ✅ COMPONENTE SubmenusList ACTUALIZADO CON SISTEMA HÍBRIDO DE PERMISOS
+// ✅ COMPONENTE SubmenusList ACTUALIZADO CON SISTEMA HÍBRIDO DE PERMISOS Y BOTONES MIGRADOS
 const SubmenusList = React.memo(({
     submenus,
     loading,
@@ -684,7 +684,7 @@ const SubmenusList = React.memo(({
     const effectivePermissions = useMemo(() => {
         const permissions = {
             canCreate: getUserSpecificButtonPermission('CREATE'),
-            canRead: getUserSpecificButtonPermission('READ'),
+            canRead: getUserSpecificButtonPermission('read'),
             canUpdate: getUserSpecificButtonPermission('UPDATE'),
             canDelete: getUserSpecificButtonPermission('DELETE'),
             canExport: getUserSpecificButtonPermission('EXPORT')
@@ -790,7 +790,7 @@ const SubmenusList = React.memo(({
                         Menu ID: {MENU_ID} | Usuario: {currentUserId}
                     </span>
                 </h3>
-                {/* ✅ BOTÓN CREATE CON PERMISOS EFECTIVOS */}
+                {/* ✅ BOTÓN CREATE CON SOLO ICONO - MIGRADO */}
                 {effectivePermissions.canCreate ? (
                     <button
                         onClick={onNew}
@@ -935,7 +935,7 @@ const SubmenusList = React.memo(({
                                     </td>
                                     <td className="py-2">
                                         <div className="flex gap-2">
-                                            {/* ✅ BOTÓN UPDATE CON PERMISOS EFECTIVOS */}
+                                            {/* ✅ BOTÓN UPDATE CON SOLO ICONO - MIGRADO */}
                                             {effectivePermissions.canUpdate ? (
                                                 <button
                                                     onClick={() => onEdit(submenu)}
@@ -954,7 +954,7 @@ const SubmenusList = React.memo(({
                                                     <Icon name="Edit" size={16} />
                                                 </button>
                                             )}
-                                            {/* ✅ BOTÓN DELETE CON PERMISOS EFECTIVOS */}
+                                            {/* ✅ BOTÓN DELETE CON SOLO ICONO - MIGRADO */}
                                             {effectivePermissions.canDelete ? (
                                                 <button
                                                     onClick={() => onDelete(submenu)}
