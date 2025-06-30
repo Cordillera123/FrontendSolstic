@@ -441,6 +441,7 @@ const ParameWindows = ({ data }) => {
   ]);
 
   // ===== COMPONENTES MEMOIZADOS =====
+
   const MenusList = useMemo(
     () => (
       <div className="bg-white rounded-lg border border-gray-200 p-4">

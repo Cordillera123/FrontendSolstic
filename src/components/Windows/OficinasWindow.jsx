@@ -9,10 +9,10 @@ import Icon from "../UI/Icon";
 import CrearOficinaForm from "./CrearOficinaForm";
 import EditarOficinaForm from "./EditarOficinaForm";
 
-const OficinasWindow = ({ 
+const OficinasWindow = ({
   showMessage: externalShowMessage,
   menuId = 25,
-  title = "Gestión de Oficinas" 
+  title = "Gestión de Oficinas",
 }) => {
   console.log("🏢 OficinasWindow - Iniciando componente");
 
@@ -34,21 +34,21 @@ const OficinasWindow = ({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [oficinas, setOficinas] = useState([]);
-  
+
   // Estados para control de vista
   const [currentView, setCurrentView] = useState("lista"); // "lista", "crear", "editar"
   const [editingOficina, setEditingOficina] = useState(null);
-  
+
   // Estados para filtros y búsqueda
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [filters, setFilters] = useState({
     instit_codigo: "",
     tofici_codigo: "",
     parroq_codigo: "",
-    solo_activas: false
+    solo_activas: false,
   });
-  
+
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(15);
@@ -56,167 +56,196 @@ const OficinasWindow = ({
   const [totalRecords, setTotalRecords] = useState(0);
 
   // ✅ FUNCIÓN MEJORADA PARA MOSTRAR MENSAJES
-  const showMessage = useCallback((type, text) => {
-    console.log("📢 OficinasWindow - Mensaje:", type, text);
-    if (externalShowMessage) {
-      externalShowMessage(type, text);
-    } else {
-      setMessage({ type, text });
-      setTimeout(() => setMessage({ type: "", text: "" }), 5000);
-    }
-  }, [externalShowMessage]);
+  const showMessage = useCallback(
+    (type, text) => {
+      console.log("📢 OficinasWindow - Mensaje:", type, text);
+      if (externalShowMessage) {
+        externalShowMessage(type, text);
+      } else {
+        setMessage({ type, text });
+        setTimeout(() => setMessage({ type: "", text: "" }), 5000);
+      }
+    },
+    [externalShowMessage]
+  );
 
   // ✅ FUNCIÓN MEJORADA PARA CARGAR OFICINAS
-  const loadOficinas = useCallback(async (page = 1, customFilters = {}) => {
-    console.log("🔍 Cargando oficinas - página:", page);
+  const loadOficinas = useCallback(
+    async (page = 1, customFilters = {}) => {
+      console.log("🔍 Cargando oficinas - página:", page);
 
-    if (!canRead) {
-      console.log("❌ Sin permisos de lectura");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const params = {
-        page,
-        per_page: perPage,
-        search: searchTerm,
-        ...filters,
-        ...customFilters
-      };
-
-      console.log("📤 Parámetros de búsqueda:", params);
-
-      const result = await adminService.oficinas.getAll(params);
-      console.log("📥 Respuesta de oficinas:", result);
-
-      if (result?.status === "success" && result?.data) {
-        let oficinasData = [];
-        let paginationInfo = {};
-
-        // Manejar diferentes formatos de respuesta paginada
-        if (result.data.data && Array.isArray(result.data.data)) {
-          // Formato Laravel paginado
-          oficinasData = result.data.data;
-          paginationInfo = {
-            current_page: result.data.current_page || 1,
-            last_page: result.data.last_page || 1,
-            total: result.data.total || 0,
-            per_page: result.data.per_page || perPage
-          };
-        } else if (Array.isArray(result.data)) {
-          // Array directo
-          oficinasData = result.data;
-          paginationInfo = {
-            current_page: 1,
-            last_page: 1,
-            total: result.data.length,
-            per_page: result.data.length
-          };
-        } else {
-          console.warn("⚠️ Formato inesperado de datos:", result.data);
-          oficinasData = [];
-          paginationInfo = { current_page: 1, last_page: 1, total: 0, per_page: perPage };
-        }
-
-        setOficinas(oficinasData);
-        setCurrentPage(paginationInfo.current_page);
-        setTotalPages(paginationInfo.last_page);
-        setTotalRecords(paginationInfo.total);
-
-        console.log("✅ Oficinas cargadas:", {
-          total: paginationInfo.total,
-          current_page: paginationInfo.current_page,
-          oficinas: oficinasData.length
-        });
-      } else {
-        console.error("❌ Error en respuesta oficinas:", result);
-        setOficinas([]);
-        showMessage("error", result?.message || "Error al cargar oficinas");
+      if (!canRead) {
+        console.log("❌ Sin permisos de lectura");
+        return;
       }
-    } catch (error) {
-      console.error("❌ Error loading oficinas:", error);
-      setOficinas([]);
-      showMessage("error", "Error al cargar oficinas: " + (error.message || "Error desconocido"));
-    } finally {
-      setLoading(false);
-    }
-  }, [canRead, showMessage, perPage, searchTerm, filters]);
+
+      setLoading(true);
+      try {
+        const params = {
+          page,
+          per_page: perPage,
+          search: searchTerm,
+          ...filters,
+          ...customFilters,
+        };
+
+        console.log("📤 Parámetros de búsqueda:", params);
+
+        const result = await adminService.oficinas.getAll(params);
+        console.log("📥 Respuesta de oficinas:", result);
+
+        if (result?.status === "success" && result?.data) {
+          let oficinasData = [];
+          let paginationInfo = {};
+
+          // Manejar diferentes formatos de respuesta paginada
+          if (result.data.data && Array.isArray(result.data.data)) {
+            // Formato Laravel paginado
+            oficinasData = result.data.data;
+            paginationInfo = {
+              current_page: result.data.current_page || 1,
+              last_page: result.data.last_page || 1,
+              total: result.data.total || 0,
+              per_page: result.data.per_page || perPage,
+            };
+          } else if (Array.isArray(result.data)) {
+            // Array directo
+            oficinasData = result.data;
+            paginationInfo = {
+              current_page: 1,
+              last_page: 1,
+              total: result.data.length,
+              per_page: result.data.length,
+            };
+          } else {
+            console.warn("⚠️ Formato inesperado de datos:", result.data);
+            oficinasData = [];
+            paginationInfo = {
+              current_page: 1,
+              last_page: 1,
+              total: 0,
+              per_page: perPage,
+            };
+          }
+
+          setOficinas(oficinasData);
+          setCurrentPage(paginationInfo.current_page);
+          setTotalPages(paginationInfo.last_page);
+          setTotalRecords(paginationInfo.total);
+
+          console.log("✅ Oficinas cargadas:", {
+            total: paginationInfo.total,
+            current_page: paginationInfo.current_page,
+            oficinas: oficinasData.length,
+          });
+        } else {
+          console.error("❌ Error en respuesta oficinas:", result);
+          setOficinas([]);
+          showMessage("error", result?.message || "Error al cargar oficinas");
+        }
+      } catch (error) {
+        console.error("❌ Error loading oficinas:", error);
+        setOficinas([]);
+        showMessage(
+          "error",
+          "Error al cargar oficinas: " + (error.message || "Error desconocido")
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [canRead, showMessage, perPage, searchTerm, filters]
+  );
 
   // ✅ FUNCIÓN PARA MANEJAR GUARDADO (CREAR/EDITAR)
-  const handleOficinaSave = useCallback(async (formData, editingOficina = null) => {
-    console.log("💾 Guardando oficina:", { formData, editingOficina: editingOficina?.oficin_codigo });
+  const handleOficinaSave = useCallback(
+    async (formData, editingOficina = null) => {
+      console.log("💾 Guardando oficina:", {
+        formData,
+        editingOficina: editingOficina?.oficin_codigo,
+      });
 
-    if (editingOficina && !canUpdate) {
-      throw new Error("No tienes permisos para actualizar oficinas");
-    }
-
-    if (!editingOficina && !canCreate) {
-      throw new Error("No tienes permisos para crear oficinas");
-    }
-
-    try {
-      let result;
-      
-      if (editingOficina) {
-        console.log("🔄 Actualizando oficina ID:", editingOficina.oficin_codigo);
-        result = await adminService.oficinas.update(editingOficina.oficin_codigo, formData);
-        showMessage("success", "Oficina actualizada correctamente");
-      } else {
-        console.log("➕ Creando nueva oficina");
-        result = await adminService.oficinas.create(formData);
-        showMessage("success", "Oficina creada correctamente");
+      if (editingOficina && !canUpdate) {
+        throw new Error("No tienes permisos para actualizar oficinas");
       }
 
-      // Recargar datos y volver a la lista
-      await loadOficinas(currentPage);
-      setCurrentView("lista");
-      setEditingOficina(null);
-      
-      return result;
-      
-    } catch (error) {
-      console.error("❌ Error guardando oficina:", error);
-      
-      // Procesar diferentes tipos de errores
-      let errorMessage = "Error al guardar la oficina";
-      
-      if (error.response?.data?.errors) {
-        const errors = error.response.data.errors;
-        const errorMessages = [];
+      if (!editingOficina && !canCreate) {
+        throw new Error("No tienes permisos para crear oficinas");
+      }
 
-        Object.keys(errors).forEach((field) => {
-          const fieldErrors = errors[field];
-          const fieldName = {
-            oficin_nombre: "Nombre",
-            oficin_rucoficina: "RUC",
-            oficin_diremail: "Email",
-            oficin_instit_codigo: "Institución",
-            oficin_tofici_codigo: "Tipo de Oficina",
-            oficin_parroq_codigo: "Parroquia"
-          }[field] || field;
+      try {
+        let result;
 
-          fieldErrors.forEach((errorMsg) => {
-            if (errorMsg.includes("unique") || errorMsg.includes("already been taken")) {
-              errorMessages.push(`${fieldName}: Ya existe en el sistema`);
-            } else if (errorMsg.includes("required")) {
-              errorMessages.push(`${fieldName}: Es requerido`);
-            } else {
-              errorMessages.push(`${fieldName}: ${errorMsg}`);
-            }
+        if (editingOficina) {
+          console.log(
+            "🔄 Actualizando oficina ID:",
+            editingOficina.oficin_codigo
+          );
+          result = await adminService.oficinas.update(
+            editingOficina.oficin_codigo,
+            formData
+          );
+          showMessage("success", "Oficina actualizada correctamente");
+        } else {
+          console.log("➕ Creando nueva oficina");
+          result = await adminService.oficinas.create(formData);
+          showMessage("success", "Oficina creada correctamente");
+        }
+
+        // Recargar datos y volver a la lista
+        await loadOficinas(currentPage);
+        setCurrentView("lista");
+        setEditingOficina(null);
+
+        return result;
+      } catch (error) {
+        console.error("❌ Error guardando oficina:", error);
+
+        // Procesar diferentes tipos de errores
+        let errorMessage = "Error al guardar la oficina";
+
+        if (error.response?.data?.errors) {
+          const errors = error.response.data.errors;
+          const errorMessages = [];
+
+          Object.keys(errors).forEach((field) => {
+            const fieldErrors = errors[field];
+            const fieldName =
+              {
+                oficin_nombre: "Nombre",
+                oficin_rucoficina: "RUC",
+                oficin_diremail: "Email",
+                oficin_instit_codigo: "Institución",
+                oficin_tofici_codigo: "Tipo de Oficina",
+                oficin_parroq_codigo: "Parroquia",
+              }[field] || field;
+
+            fieldErrors.forEach((errorMsg) => {
+              if (
+                errorMsg.includes("unique") ||
+                errorMsg.includes("already been taken")
+              ) {
+                errorMessages.push(`${fieldName}: Ya existe en el sistema`);
+              } else if (errorMsg.includes("required")) {
+                errorMessages.push(`${fieldName}: Es requerido`);
+              } else {
+                errorMessages.push(`${fieldName}: ${errorMsg}`);
+              }
+            });
           });
-        });
 
-        errorMessage = errorMessages.join("; ");
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
+          errorMessage = errorMessages.join("; ");
+        } else if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+
+        throw new Error(errorMessage);
       }
-      
-      throw new Error(errorMessage);
-    }
-  }, [showMessage, loadOficinas, currentPage, canUpdate, canCreate]);
+    },
+    [showMessage, loadOficinas, currentPage, canUpdate, canCreate]
+  );
 
   // ✅ FUNCIÓN PARA INICIAR CREACIÓN
   const handleNewOficina = useCallback(() => {
@@ -231,60 +260,71 @@ const OficinasWindow = ({
   }, [canCreate, showMessage]);
 
   // ✅ FUNCIÓN PARA INICIAR EDICIÓN
-  const handleEditOficina = useCallback((oficina) => {
-    if (!canUpdate) {
-      showMessage("error", "No tienes permisos para editar oficinas");
-      return;
-    }
+  const handleEditOficina = useCallback(
+    (oficina) => {
+      if (!canUpdate) {
+        showMessage("error", "No tienes permisos para editar oficinas");
+        return;
+      }
 
-    console.log("✏️ Iniciando edición de oficina:", oficina.oficin_codigo);
-    setEditingOficina(oficina);
-    setCurrentView("editar");
-  }, [canUpdate, showMessage]);
+      console.log("✏️ Iniciando edición de oficina:", oficina.oficin_codigo);
+      setEditingOficina(oficina);
+      setCurrentView("editar");
+    },
+    [canUpdate, showMessage]
+  );
 
   // ✅ FUNCIÓN PARA ELIMINAR OFICINA
-  const handleDeleteOficina = useCallback(async (oficina) => {
-    if (!canDelete) {
-      showMessage("error", "No tienes permisos para eliminar oficinas");
-      return;
-    }
-
-    const confirmMessage = `¿Estás seguro de eliminar la oficina "${oficina.oficin_nombre}"?\n\nEsta acción no se puede deshacer y se verificará que no tenga usuarios asignados.`;
-
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      console.log("🗑️ Eliminando oficina:", oficina.oficin_codigo);
-      
-      const result = await adminService.oficinas.delete(oficina.oficin_codigo);
-      
-      if (result?.status === "success") {
-        showMessage("success", result.message || "Oficina eliminada correctamente");
-      } else {
-        showMessage("error", result?.message || "Error al eliminar oficina");
-      }
-      
-      await loadOficinas(currentPage);
-    } catch (error) {
-      console.error("❌ Error eliminando oficina:", error);
-      let errorMessage = "Error al eliminar oficina";
-
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message?.includes("usuarios asignados")) {
-        errorMessage = error.message;
-      } else if (error.message) {
-        errorMessage = error.message;
+  const handleDeleteOficina = useCallback(
+    async (oficina) => {
+      if (!canDelete) {
+        showMessage("error", "No tienes permisos para eliminar oficinas");
+        return;
       }
 
-      showMessage("error", errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, [canDelete, showMessage, loadOficinas, currentPage]);
+      const confirmMessage = `¿Estás seguro de eliminar la oficina "${oficina.oficin_nombre}"?\n\nEsta acción no se puede deshacer y se verificará que no tenga usuarios asignados.`;
+
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+
+      try {
+        setLoading(true);
+        console.log("🗑️ Eliminando oficina:", oficina.oficin_codigo);
+
+        const result = await adminService.oficinas.delete(
+          oficina.oficin_codigo
+        );
+
+        if (result?.status === "success") {
+          showMessage(
+            "success",
+            result.message || "Oficina eliminada correctamente"
+          );
+        } else {
+          showMessage("error", result?.message || "Error al eliminar oficina");
+        }
+
+        await loadOficinas(currentPage);
+      } catch (error) {
+        console.error("❌ Error eliminando oficina:", error);
+        let errorMessage = "Error al eliminar oficina";
+
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.message?.includes("usuarios asignados")) {
+          errorMessage = error.message;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+
+        showMessage("error", errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [canDelete, showMessage, loadOficinas, currentPage]
+  );
 
   // ✅ FUNCIÓN PARA CANCELAR FORMULARIOS
   const handleFormCancel = useCallback(() => {
@@ -295,9 +335,9 @@ const OficinasWindow = ({
 
   // ✅ FUNCIONES DE FILTRADO Y PAGINACIÓN
   const handleFilterChange = useCallback((filterKey, value) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
-      [filterKey]: value
+      [filterKey]: value,
     }));
     setCurrentPage(1);
   }, []);
@@ -307,53 +347,66 @@ const OficinasWindow = ({
       instit_codigo: "",
       tofici_codigo: "",
       parroq_codigo: "",
-      solo_activas: false
+      solo_activas: false,
     });
     setSearchTerm("");
     setCurrentPage(1);
   }, []);
 
-  const handlePageChange = useCallback((page) => {
-    setCurrentPage(page);
-    loadOficinas(page);
-  }, [loadOficinas]);
+  const handlePageChange = useCallback(
+    (page) => {
+      setCurrentPage(page);
+      loadOficinas(page);
+    },
+    [loadOficinas]
+  );
 
   const handleSort = useCallback((key) => {
-    setSortConfig(prev => ({
+    setSortConfig((prev) => ({
       key,
-      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
     }));
   }, []);
 
   // Aplicar ordenamiento local a los datos ya cargados
   const sortedOficinas = useMemo(() => {
     if (!Array.isArray(oficinas) || !sortConfig.key) return oficinas;
-    
+
     return [...oficinas].sort((a, b) => {
       const aVal = a[sortConfig.key];
       const bVal = b[sortConfig.key];
-      
-      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+
+      if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
       return 0;
     });
   }, [oficinas, sortConfig]);
 
   // Función para ver usuarios de una oficina
-  const handleVerUsuarios = useCallback(async (oficina) => {
-    try {
-      console.log("👥 Viendo usuarios de oficina:", oficina.oficin_codigo);
-      const result = await adminService.oficinas.getUsuarios(oficina.oficin_codigo);
-      
-      if (result?.status === "success") {
-        console.log("📊 Usuarios de oficina:", result.data);
-        showMessage("info", `La oficina "${oficina.oficin_nombre}" tiene ${result.data.resumen?.total_usuarios || 0} usuarios`);
+  const handleVerUsuarios = useCallback(
+    async (oficina) => {
+      try {
+        console.log("👥 Viendo usuarios de oficina:", oficina.oficin_codigo);
+        const result = await adminService.oficinas.getUsuarios(
+          oficina.oficin_codigo
+        );
+
+        if (result?.status === "success") {
+          console.log("📊 Usuarios de oficina:", result.data);
+          showMessage(
+            "info",
+            `La oficina "${oficina.oficin_nombre}" tiene ${
+              result.data.resumen?.total_usuarios || 0
+            } usuarios`
+          );
+        }
+      } catch (error) {
+        console.error("❌ Error obteniendo usuarios:", error);
+        showMessage("error", "Error al obtener usuarios de la oficina");
       }
-    } catch (error) {
-      console.error("❌ Error obteniendo usuarios:", error);
-      showMessage("error", "Error al obtener usuarios de la oficina");
-    }
-  }, [showMessage]);
+    },
+    [showMessage]
+  );
 
   // Cargar datos al montar el componente
   useEffect(() => {
@@ -370,7 +423,7 @@ const OficinasWindow = ({
         loadOficinas(1);
       }
     }, 500);
-    
+
     return () => clearTimeout(timer);
   }, [searchTerm, filters, loadOficinas, currentView, canRead]);
 
@@ -387,7 +440,8 @@ const OficinasWindow = ({
               Error de Permisos
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              {permissionsError.message || "No tienes permisos para acceder a esta sección"}
+              {permissionsError.message ||
+                "No tienes permisos para acceder a esta sección"}
             </p>
             <button
               onClick={() => window.location.reload()}
@@ -468,10 +522,16 @@ const OficinasWindow = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <div className="p-3 bg-blue-100 rounded-xl mr-4">
-                    <Icon name="Building2" size={24} className="text-blue-600" />
+                    <Icon
+                      name="Building2"
+                      size={24}
+                      className="text-blue-600"
+                    />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
+                    <h1 className="text-3xl font-bold text-gray-900">
+                      {title}
+                    </h1>
                     <p className="text-gray-600 mt-1">
                       Administra las oficinas del sistema financiero
                     </p>
@@ -506,24 +566,41 @@ const OficinasWindow = ({
                 <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
                   <div className="flex items-center">
                     <div className="p-2 bg-blue-50 rounded-lg">
-                      <Icon name="Building2" size={20} className="text-blue-600" />
+                      <Icon
+                        name="Building2"
+                        size={20}
+                        className="text-blue-600"
+                      />
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-500">Total Oficinas</p>
-                      <p className="text-xl font-semibold text-gray-900">{totalRecords}</p>
+                      <p className="text-sm font-medium text-gray-500">
+                        Total Oficinas
+                      </p>
+                      <p className="text-xl font-semibold text-gray-900">
+                        {totalRecords}
+                      </p>
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
                   <div className="flex items-center">
                     <div className="p-2 bg-green-50 rounded-lg">
-                      <Icon name="CheckCircle" size={20} className="text-green-600" />
+                      <Icon
+                        name="CheckCircle"
+                        size={20}
+                        className="text-green-600"
+                      />
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-500">Activas</p>
+                      <p className="text-sm font-medium text-gray-500">
+                        Activas
+                      </p>
                       <p className="text-xl font-semibold text-gray-900">
-                        {oficinas.filter(o => o.oficin_ctractual === 1).length}
+                        {
+                          oficinas.filter((o) => o.oficin_ctractual === 1)
+                            .length
+                        }
                       </p>
                     </div>
                   </div>
@@ -535,9 +612,14 @@ const OficinasWindow = ({
                       <Icon name="XCircle" size={20} className="text-red-600" />
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-500">Inactivas</p>
+                      <p className="text-sm font-medium text-gray-500">
+                        Inactivas
+                      </p>
                       <p className="text-xl font-semibold text-gray-900">
-                        {oficinas.filter(o => o.oficin_ctractual === 0).length}
+                        {
+                          oficinas.filter((o) => o.oficin_ctractual === 0)
+                            .length
+                        }
                       </p>
                     </div>
                   </div>
@@ -546,12 +628,21 @@ const OficinasWindow = ({
                 <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
                   <div className="flex items-center">
                     <div className="p-2 bg-purple-50 rounded-lg">
-                      <Icon name="Users" size={20} className="text-purple-600" />
+                      <Icon
+                        name="Users"
+                        size={20}
+                        className="text-purple-600"
+                      />
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-500">Con Usuarios</p>
+                      <p className="text-sm font-medium text-gray-500">
+                        Con Usuarios
+                      </p>
                       <p className="text-xl font-semibold text-gray-900">
-                        {oficinas.filter(o => o.cantidad_usuarios_total > 0).length}
+                        {
+                          oficinas.filter((o) => o.cantidad_usuarios_total > 0)
+                            .length
+                        }
                       </p>
                     </div>
                   </div>
@@ -561,15 +652,17 @@ const OficinasWindow = ({
 
             {/* Mensaje de notificación */}
             {message.text && (
-              <div className={`mb-6 p-4 rounded-lg border-l-4 transition-all duration-300 ${
-                message.type === "success"
-                  ? "bg-green-50 border-green-400 text-green-700"
-                  : message.type === "error"
-                  ? "bg-red-50 border-red-400 text-red-700"
-                  : message.type === "warning"
-                  ? "bg-yellow-50 border-yellow-400 text-yellow-700"
-                  : "bg-blue-50 border-blue-400 text-blue-700"
-              }`}>
+              <div
+                className={`mb-6 p-4 rounded-lg border-l-4 transition-all duration-300 ${
+                  message.type === "success"
+                    ? "bg-green-50 border-green-400 text-green-700"
+                    : message.type === "error"
+                    ? "bg-red-50 border-red-400 text-red-700"
+                    : message.type === "warning"
+                    ? "bg-yellow-50 border-yellow-400 text-yellow-700"
+                    : "bg-blue-50 border-blue-400 text-blue-700"
+                }`}
+              >
                 <div className="flex items-center">
                   <Icon
                     name={
@@ -597,7 +690,7 @@ const OficinasWindow = ({
                   Filtros y Búsqueda
                 </h3>
               </div>
-              
+
               <div className="p-4">
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   {/* Búsqueda general */}
@@ -606,7 +699,11 @@ const OficinasWindow = ({
                       Búsqueda General
                     </label>
                     <div className="relative">
-                      <Icon name="Search" size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <Icon
+                        name="Search"
+                        size={16}
+                        className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                      />
                       <input
                         type="text"
                         placeholder="Buscar por nombre, dirección, RUC..."
@@ -632,7 +729,12 @@ const OficinasWindow = ({
                     </label>
                     <select
                       value={filters.solo_activas ? "activas" : "todas"}
-                      onChange={(e) => handleFilterChange("solo_activas", e.target.value === "activas")}
+                      onChange={(e) =>
+                        handleFilterChange(
+                          "solo_activas",
+                          e.target.value === "activas"
+                        )
+                      }
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="todas">Todas las oficinas</option>
@@ -647,7 +749,9 @@ const OficinasWindow = ({
                     </label>
                     <select
                       value={filters.instit_codigo}
-                      onChange={(e) => handleFilterChange("instit_codigo", e.target.value)}
+                      onChange={(e) =>
+                        handleFilterChange("instit_codigo", e.target.value)
+                      }
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Todas las instituciones</option>
@@ -662,7 +766,9 @@ const OficinasWindow = ({
                     </label>
                     <select
                       value={filters.tofici_codigo}
-                      onChange={(e) => handleFilterChange("tofici_codigo", e.target.value)}
+                      onChange={(e) =>
+                        handleFilterChange("tofici_codigo", e.target.value)
+                      }
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Todos los tipos</option>
@@ -680,7 +786,11 @@ const OficinasWindow = ({
                         onClick={clearFilters}
                         className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
                       >
-                        <Icon name="RotateCcw" size={14} className="inline mr-1" />
+                        <Icon
+                          name="RotateCcw"
+                          size={14}
+                          className="inline mr-1"
+                        />
                         Limpiar
                       </button>
                       <button
@@ -703,7 +813,7 @@ const OficinasWindow = ({
                   <h3 className="text-lg font-semibold">
                     Lista de Oficinas ({totalRecords})
                   </h3>
-                  
+
                   {/* Selector de registros por página */}
                   <div className="flex items-center gap-2">
                     <label className="text-sm text-gray-600">Mostrar:</label>
@@ -729,24 +839,22 @@ const OficinasWindow = ({
                 {canCreate ? (
                   <button
                     onClick={handleNewOficina}
-                    className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg group"
+                    className="w-10 h-10 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center justify-center transition-all duration-300 transform hover:scale-105 hover:shadow-lg group"
                     disabled={loading}
                     title="Crear nueva oficina"
                   >
-                    <Icon 
-                      name="Plus" 
-                      size={16} 
-                      className="mr-2 transition-transform duration-300 group-hover:rotate-90" 
+                    <Icon
+                      name="Plus"
+                      size={20}
+                      className="transition-transform duration-300 group-hover:rotate-90"
                     />
-                    Nueva Oficina
                   </button>
                 ) : (
                   <div
-                    className="flex items-center px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed"
+                    className="w-10 h-10 bg-gray-300 text-gray-500 rounded-lg flex items-center justify-center cursor-not-allowed"
                     title="Sin permisos para crear oficinas"
                   >
-                    <Icon name="Lock" size={16} className="mr-2" />
-                    Sin Permisos
+                    <Icon name="Lock" size={16} />
                   </div>
                 )}
               </div>
@@ -766,9 +874,13 @@ const OficinasWindow = ({
                       size={48}
                       className="mx-auto mb-4 text-gray-300"
                     />
-                    <p className="text-gray-500 mb-2">No hay oficinas registradas</p>
+                    <p className="text-gray-500 mb-2">
+                      No hay oficinas registradas
+                    </p>
                     {canCreate && (
-                      <p className="text-sm text-gray-400 mt-2">Haz clic en "Nueva Oficina" para crear una</p>
+                      <p className="text-sm text-gray-400 mt-2">
+                        Haz clic en "Nueva Oficina" para crear una
+                      </p>
                     )}
                     {!Array.isArray(oficinas) && (
                       <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg max-w-sm mx-auto">
@@ -786,32 +898,40 @@ const OficinasWindow = ({
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th 
+                          <th
                             className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                            onClick={() => handleSort('oficin_codigo')}
+                            onClick={() => handleSort("oficin_codigo")}
                           >
                             <div className="flex items-center">
                               Código
-                              {sortConfig.key === 'oficin_codigo' && (
-                                <Icon 
-                                  name={sortConfig.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'} 
-                                  size={14} 
-                                  className="ml-1" 
+                              {sortConfig.key === "oficin_codigo" && (
+                                <Icon
+                                  name={
+                                    sortConfig.direction === "asc"
+                                      ? "ChevronUp"
+                                      : "ChevronDown"
+                                  }
+                                  size={14}
+                                  className="ml-1"
                                 />
                               )}
                             </div>
                           </th>
-                          <th 
+                          <th
                             className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                            onClick={() => handleSort('oficin_nombre')}
+                            onClick={() => handleSort("oficin_nombre")}
                           >
                             <div className="flex items-center">
                               Oficina
-                              {sortConfig.key === 'oficin_nombre' && (
-                                <Icon 
-                                  name={sortConfig.direction === 'asc' ? 'ChevronUp' : 'ChevronDown'} 
-                                  size={14} 
-                                  className="ml-1" 
+                              {sortConfig.key === "oficin_nombre" && (
+                                <Icon
+                                  name={
+                                    sortConfig.direction === "asc"
+                                      ? "ChevronUp"
+                                      : "ChevronDown"
+                                  }
+                                  size={14}
+                                  className="ml-1"
                                 />
                               )}
                             </div>
@@ -835,16 +955,27 @@ const OficinasWindow = ({
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {sortedOficinas.map((oficina) => (
-                          <tr key={oficina.oficin_codigo} className="hover:bg-gray-50 transition-colors">
+                          <tr
+                            key={oficina.oficin_codigo}
+                            className="hover:bg-gray-50 transition-colors"
+                          >
                             {/* COLUMNA CÓDIGO */}
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
-                                <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                  oficina.oficin_ctractual === 1 ? 'bg-green-100' : 'bg-red-100'
-                                }`}>
-                                  <span className={`font-medium text-sm ${
-                                    oficina.oficin_ctractual === 1 ? 'text-green-600' : 'text-red-600'
-                                  }`}>
+                                <div
+                                  className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                    oficina.oficin_ctractual === 1
+                                      ? "bg-green-100"
+                                      : "bg-red-100"
+                                  }`}
+                                >
+                                  <span
+                                    className={`font-medium text-sm ${
+                                      oficina.oficin_ctractual === 1
+                                        ? "text-green-600"
+                                        : "text-red-600"
+                                    }`}
+                                  >
                                     {oficina.oficin_codigo}
                                   </span>
                                 </div>
@@ -853,7 +984,8 @@ const OficinasWindow = ({
                                     ID: {oficina.oficin_codigo}
                                   </div>
                                   <div className="text-sm text-gray-500">
-                                    {oficina.tofici_descripcion || 'Tipo no definido'}
+                                    {oficina.tofici_descripcion ||
+                                      "Tipo no definido"}
                                   </div>
                                 </div>
                               </div>
@@ -867,7 +999,8 @@ const OficinasWindow = ({
                                     {oficina.oficin_nombre}
                                   </div>
                                   <div className="text-sm text-gray-500">
-                                    {oficina.instit_nombre || 'Institución no definida'}
+                                    {oficina.instit_nombre ||
+                                      "Institución no definida"}
                                   </div>
                                   <div className="text-xs text-gray-400 mt-1">
                                     RUC: {oficina.oficin_rucoficina}
@@ -885,19 +1018,29 @@ const OficinasWindow = ({
                                 {[
                                   oficina.parroq_nombre,
                                   oficina.canton_nombre,
-                                  oficina.provin_nombre
-                                ].filter(Boolean).join(', ')}
+                                  oficina.provin_nombre,
+                                ]
+                                  .filter(Boolean)
+                                  .join(", ")}
                               </div>
                             </td>
 
                             {/* COLUMNA CONTACTO */}
                             <td className="px-6 py-4">
                               <div className="text-sm text-gray-900 flex items-center">
-                                <Icon name="Phone" size={14} className="mr-1 text-gray-400" />
+                                <Icon
+                                  name="Phone"
+                                  size={14}
+                                  className="mr-1 text-gray-400"
+                                />
                                 {oficina.oficin_telefono}
                               </div>
                               <div className="text-sm text-gray-500 flex items-center mt-1">
-                                <Icon name="Mail" size={14} className="mr-1 text-gray-400" />
+                                <Icon
+                                  name="Mail"
+                                  size={14}
+                                  className="mr-1 text-gray-400"
+                                />
                                 {oficina.oficin_diremail}
                               </div>
                             </td>
@@ -925,17 +1068,25 @@ const OficinasWindow = ({
 
                             {/* COLUMNA ESTADO */}
                             <td className="px-6 py-4 whitespace-nowrap text-center">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                oficina.oficin_ctractual === 1
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
-                                <Icon 
-                                  name={oficina.oficin_ctractual === 1 ? "CheckCircle" : "XCircle"} 
-                                  size={12} 
-                                  className="mr-1" 
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  oficina.oficin_ctractual === 1
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
+                              >
+                                <Icon
+                                  name={
+                                    oficina.oficin_ctractual === 1
+                                      ? "CheckCircle"
+                                      : "XCircle"
+                                  }
+                                  size={12}
+                                  className="mr-1"
                                 />
-                                {oficina.oficin_ctractual === 1 ? 'Activa' : 'Inactiva'}
+                                {oficina.oficin_ctractual === 1
+                                  ? "Activa"
+                                  : "Inactiva"}
                               </span>
                             </td>
 
@@ -944,7 +1095,9 @@ const OficinasWindow = ({
                               <div className="flex items-center justify-end space-x-2">
                                 {/* Botón VER */}
                                 <button
-                                  onClick={() => console.log('Ver detalles:', oficina)}
+                                  onClick={() =>
+                                    console.log("Ver detalles:", oficina)
+                                  }
                                   className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-all duration-200 transform hover:scale-105"
                                   title={`Ver detalles de ${oficina.oficin_nombre}`}
                                 >
@@ -975,7 +1128,10 @@ const OficinasWindow = ({
                                   <button
                                     onClick={() => handleDeleteOficina(oficina)}
                                     className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200 transform hover:scale-105"
-                                    disabled={loading || (oficina.cantidad_usuarios_total || 0) > 0}
+                                    disabled={
+                                      loading ||
+                                      (oficina.cantidad_usuarios_total || 0) > 0
+                                    }
                                     title={
                                       (oficina.cantidad_usuarios_total || 0) > 0
                                         ? `No se puede eliminar: tiene ${oficina.cantidad_usuarios_total} usuarios`
@@ -1006,10 +1162,12 @@ const OficinasWindow = ({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center text-sm text-gray-500">
                           <span>
-                            Mostrando {((currentPage - 1) * perPage) + 1} a {Math.min(currentPage * perPage, totalRecords)} de {totalRecords} registros
+                            Mostrando {(currentPage - 1) * perPage + 1} a{" "}
+                            {Math.min(currentPage * perPage, totalRecords)} de{" "}
+                            {totalRecords} registros
                           </span>
                         </div>
-                        
+
                         <div className="flex items-center space-x-2">
                           {/* Botón Anterior */}
                           <button
@@ -1021,33 +1179,36 @@ const OficinasWindow = ({
                           </button>
 
                           {/* Números de página */}
-                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                            let pageNum;
-                            if (totalPages <= 5) {
-                              pageNum = i + 1;
-                            } else if (currentPage <= 3) {
-                              pageNum = i + 1;
-                            } else if (currentPage >= totalPages - 2) {
-                              pageNum = totalPages - 4 + i;
-                            } else {
-                              pageNum = currentPage - 2 + i;
-                            }
+                          {Array.from(
+                            { length: Math.min(5, totalPages) },
+                            (_, i) => {
+                              let pageNum;
+                              if (totalPages <= 5) {
+                                pageNum = i + 1;
+                              } else if (currentPage <= 3) {
+                                pageNum = i + 1;
+                              } else if (currentPage >= totalPages - 2) {
+                                pageNum = totalPages - 4 + i;
+                              } else {
+                                pageNum = currentPage - 2 + i;
+                              }
 
-                            return (
-                              <button
-                                key={pageNum}
-                                onClick={() => handlePageChange(pageNum)}
-                                disabled={loading}
-                                className={`px-3 py-1 border rounded-md text-sm font-medium transition-colors ${
-                                  currentPage === pageNum
-                                    ? 'border-blue-500 bg-blue-50 text-blue-600'
-                                    : 'border-gray-300 text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                                } disabled:opacity-50 disabled:cursor-not-allowed`}
-                              >
-                                {pageNum}
-                              </button>
-                            );
-                          })}
+                              return (
+                                <button
+                                  key={pageNum}
+                                  onClick={() => handlePageChange(pageNum)}
+                                  disabled={loading}
+                                  className={`px-3 py-1 border rounded-md text-sm font-medium transition-colors ${
+                                    currentPage === pageNum
+                                      ? "border-blue-500 bg-blue-50 text-blue-600"
+                                      : "border-gray-300 text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                >
+                                  {pageNum}
+                                </button>
+                              );
+                            }
+                          )}
 
                           {/* Botón Siguiente */}
                           <button
@@ -1066,21 +1227,35 @@ const OficinasWindow = ({
             </div>
 
             {/* Footer con información de depuración */}
-            {process.env.NODE_ENV === 'development' && (
+            {process.env.NODE_ENV === "development" && (
               <div className="mt-8 p-4 bg-gray-100 rounded-lg">
                 <h4 className="font-medium text-gray-700 mb-2">Debug Info:</h4>
                 <div className="text-xs text-gray-600 space-y-1">
-                  <div>Usuario: {currentUser?.usu_nom} (ID: {currentUserId})</div>
+                  <div>
+                    Usuario: {currentUser?.usu_nom} (ID: {currentUserId})
+                  </div>
                   <div>Vista actual: {currentView}</div>
-                  <div>Permisos: C:{canCreate ? '✓' : '✗'} R:{canRead ? '✓' : '✗'} U:{canUpdate ? '✓' : '✗'} D:{canDelete ? '✓' : '✗'}</div>
+                  <div>
+                    Permisos: C:{canCreate ? "✓" : "✗"} R:{canRead ? "✓" : "✗"}{" "}
+                    U:{canUpdate ? "✓" : "✗"} D:{canDelete ? "✓" : "✗"}
+                  </div>
                   <div>Oficinas cargadas: {oficinas.length}</div>
                   <div>Total registros: {totalRecords}</div>
-                  <div>Página actual: {currentPage}/{totalPages}</div>
+                  <div>
+                    Página actual: {currentPage}/{totalPages}
+                  </div>
                   <div>Registros por página: {perPage}</div>
                   <div>Búsqueda: "{searchTerm}"</div>
                   <div>Filtros activos: {JSON.stringify(filters)}</div>
-                  <div>Ordenamiento: {sortConfig.key} ({sortConfig.direction})</div>
-                  {editingOficina && <div>Editando oficina: {editingOficina.oficin_codigo} - {editingOficina.oficin_nombre}</div>}
+                  <div>
+                    Ordenamiento: {sortConfig.key} ({sortConfig.direction})
+                  </div>
+                  {editingOficina && (
+                    <div>
+                      Editando oficina: {editingOficina.oficin_codigo} -{" "}
+                      {editingOficina.oficin_nombre}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
