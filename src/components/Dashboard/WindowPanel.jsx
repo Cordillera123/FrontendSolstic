@@ -19,6 +19,7 @@ import UsuParamWindow from "../Windows/UsuParamWindow";
 import ConfigWindow from "../Windows/ConfigWindow";
 import TiOficinWindow from "../Windows/TiOficinWindow";
 import OficinasWindow from "../Windows/OficinasWindow";
+import { useTheme } from '../../context/ThemeContext'; // ← AGREGAR ESTA LÍNEA
 
 const WindowPanel = ({
   window,
@@ -44,6 +45,7 @@ const WindowPanel = ({
     width: window.size.width,
     height: window.size.height,
   });
+  const { getThemeClasses } = useTheme(); // ← AGREGAR ESTA LÍNEA
 
   const windowRef = useRef(null);
 
@@ -335,9 +337,9 @@ const WindowPanel = ({
   };
 
   const headerStyle = {
-    background: "linear-gradient(to right, #0ea5e9, #0369a1)",
-    color: "white",
-    padding: "0.5rem",
+  // background eliminado - se usa clase CSS dinámica
+  color: "white", 
+  padding: "0.5rem",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
@@ -515,10 +517,11 @@ const WindowPanel = ({
 
       {/* Window header */}
       <div
-        style={headerStyle}
-        onDoubleClick={handleMaximize} // 🔧 DOBLE CLICK PARA MAXIMIZAR
-        onMouseDown={isMoveMode ? undefined : window.isMaximized ? undefined : handleMouseDown} // 🔧 PREVENIR ARRASTRE SI ESTÁ MAXIMIZADA
-      >
+  style={headerStyle}
+  className={`${getThemeClasses('windowHeader')} window-header-themed theme-transition`}
+  onDoubleClick={handleMaximize}
+  onMouseDown={isMoveMode ? undefined : window.isMaximized ? undefined : handleMouseDown}
+>
         <div style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0 }}>
           <span style={iconContainerStyle}>
             <Icon
