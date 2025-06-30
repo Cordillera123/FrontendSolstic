@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useUserInfo } from '../../hooks/useUserInfo';
 import LogoutButton from '../Auth/LogoutButton';
 import Icon from "../UI/Icon";
+import { useTheme } from '../../context/ThemeContext'; // ← AGREGAR ESTA LÍNEA
 
 const Sidebar = memo(({
   onOpenWindow,
@@ -30,7 +31,9 @@ const Sidebar = memo(({
     autoLoad: true,
     basicOnly: true,
     refreshInterval: 5 * 60 * 1000 // 5 minutos
+    
   });
+  const { getThemeClasses } = useTheme(); // ← AGREGAR ESTA LÍNEA
   
   // Estados para el menú dinámico
   const [menuData, setMenuData] = useState([]);
@@ -155,25 +158,25 @@ const Sidebar = memo(({
 
   // Estilos
   const sidebarStyle = {
-    width: "16rem",
-    backgroundColor: "#0c4a6e",
-    color: "white",
-    display: "flex",
-    flexDirection: "column",
-    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-  };
+  width: "16rem",
+  // backgroundColor eliminado - se usa clase CSS
+  color: "white",
+  display: "flex",
+  flexDirection: "column",
+  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+};
 
   const headerStyle = {
-    padding: "1rem",
-    background: "linear-gradient(to right, #0ea5e9, #0369a1)",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: "1.5rem",
-    paddingBottom: "1.5rem",
-    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-  };
+  padding: "1rem",
+  // background eliminado - se usa clase CSS
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  paddingTop: "1.5rem",
+  paddingBottom: "1.5rem",
+  borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+};
 
   const logoStyle = {
     fontSize: "1.25rem",
@@ -204,10 +207,10 @@ const Sidebar = memo(({
   };
 
   const profileContainerStyle = {
-    padding: "0.75rem",
-    borderTop: "1px solid rgba(255, 255, 255, 0.1)",
-    backgroundColor: "rgba(12, 74, 110, 0.9)",
-  };
+  padding: "0.75rem",
+  borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+  // backgroundColor eliminado - se usa clase CSS
+};
 
   const profileAvatarStyle = {
     width: "2.5rem",
@@ -224,12 +227,13 @@ const Sidebar = memo(({
   };
 
   const userInfoStyle = {
-    padding: "0.75rem",
-    borderTop: "1px solid rgba(255, 255, 255, 0.1)",
-    backgroundColor: "rgba(12, 74, 110, 0.7)",
-    fontSize: "0.75rem",
-    color: "rgba(255, 255, 255, 0.9)",
-  };
+  padding: "0.75rem",
+  borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+  // backgroundColor eliminado - se usa clase CSS
+  fontSize: "0.75rem",
+  color: "rgba(255, 255, 255, 0.9)",
+};
+
 
   // Renderizar contenido de carga
   if (loading) {
@@ -252,16 +256,15 @@ const Sidebar = memo(({
   }
 
   return (
-    <div style={sidebarStyle}>
-      {/* Logo y encabezado */}
-      <div style={headerStyle}>
+    <div style={sidebarStyle} className={`${getThemeClasses('sidebar')} sidebar-themed theme-transition`}>
+  <div style={headerStyle} className="header-themed theme-transition">
         <div style={logoStyle}>COAC PRINCIPAL</div>
         <div style={dateStyle}>{currentDate}</div>
       </div>
 
       {/* ✅ OPTIMIZADO: Información de ubicación del usuario */}
       {isReady && userInfo && (
-        <div style={userInfoStyle}>
+  <div style={userInfoStyle} className="sidebar-themed theme-transition">
           <div className="space-y-2">
             {/* Institución */}
             <div className="flex items-center">
@@ -302,8 +305,8 @@ const Sidebar = memo(({
       )}
 
       {/* ✅ OPTIMIZADO: Mostrar indicador de carga solo cuando sea necesario */}
-      {userInfoLoading && !isReady && (
-        <div style={userInfoStyle}>
+     {userInfoLoading && !isReady && (
+  <div style={userInfoStyle} className="sidebar-themed theme-transition">
           <div className="flex items-center justify-center py-2">
             <div className="animate-spin rounded-full h-4 w-4 border border-white border-t-transparent mr-2"></div>
             <span className="text-xs text-white text-opacity-80">Cargando ubicación...</span>
@@ -439,7 +442,8 @@ const Sidebar = memo(({
       </div>
 
       {/* ✅ ACTUALIZADO: Perfil de usuario con información completa */}
-      <div style={profileContainerStyle}>
+    
+<div style={profileContainerStyle} className="sidebar-themed theme-transition">
         <div className="flex items-center p-2">
           <div style={profileAvatarStyle}>
             {userInitials || (user?.fullName 
