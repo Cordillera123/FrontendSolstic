@@ -6,6 +6,7 @@ import { getCurrentUser } from "../../context/AuthContext";
 import Icon from "../UI/Icon";
 
 // ===== COMPONENTE TipoOficinaForm =====
+// TipoOficinaForm - Componente optimizado con campos del mismo tamaño
 const TipoOficinaForm = React.memo(
   ({ editingTipo, loading, onSave, onCancel, showMessage }) => {
     console.log("🔵 TipoOficinaForm render - editingTipo:", editingTipo?.tofici_codigo || "null");
@@ -62,9 +63,9 @@ const TipoOficinaForm = React.memo(
           if (!value?.trim()) {
             errors.tofici_descripcion = "La descripción es requerida";
           } else if (value.length < 3) {
-            errors.tofici_descripcion = "La descripción debe tener al menos 3 caracteres";
+            errors.tofici_descripcion = "Mínimo 3 caracteres";
           } else if (value.length > 40) {
-            errors.tofici_descripcion = "La descripción no puede exceder 40 caracteres";
+            errors.tofici_descripcion = "Máximo 40 caracteres";
           } else {
             delete errors.tofici_descripcion;
           }
@@ -73,9 +74,9 @@ const TipoOficinaForm = React.memo(
           if (!value?.trim()) {
             errors.tofici_abreviatura = "La abreviatura es requerida";
           } else if (value.length < 2) {
-            errors.tofici_abreviatura = "La abreviatura debe tener al menos 2 caracteres";
+            errors.tofici_abreviatura = "Mínimo 2 caracteres";
           } else if (value.length > 10) {
-            errors.tofici_abreviatura = "La abreviatura no puede exceder 10 caracteres";
+            errors.tofici_abreviatura = "Máximo 10 caracteres";
           } else {
             delete errors.tofici_abreviatura;
           }
@@ -164,183 +165,187 @@ const TipoOficinaForm = React.memo(
     }, [formData.tofici_descripcion, formData.tofici_abreviatura, formErrors]);
 
     return (
-      <div className="bg-white p-6 rounded-xl border border-gray-200 mb-6 shadow-sm transition-all duration-300 hover:shadow-md relative">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center">
-            <div className={`p-2 rounded-lg mr-3 transition-all duration-300 ${
-                editingTipo ? "bg-blue-100 text-blue-600" : "bg-green-100 text-green-600"
+      <div className="w-full h-full flex flex-col bg-white">
+        {/* Header compacto */}
+        <div className="flex-shrink-0 bg-gradient-to-r from-slate-100 to-slate-200 border-b border-slate-300 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-sm ${
+                editingTipo 
+                  ? "bg-gradient-to-br from-orange-400 to-orange-500" 
+                  : "bg-gradient-to-br from-green-400 to-green-500"
               }`}>
-              <Icon name={editingTipo ? "Edit" : "Plus"} size={20} className="transition-transform duration-300 hover:scale-110" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-800">
-                {editingTipo ? `Editar Tipo de Oficina` : "Crear Nuevo Tipo de Oficina"}
-              </h3>
-              <p className="text-sm text-gray-500 mt-1">
-                {editingTipo ? "Modifica los datos del tipo de oficina" : "Complete los campos para crear un nuevo tipo"}
-              </p>
+                <Icon name={editingTipo ? "Edit" : "Plus"} size={18} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">
+                  {editingTipo ? "Editar Tipo de Oficina" : "Crear Tipo de Oficina"}
+                </h2>
+                <p className="text-slate-600 text-sm">
+                  {editingTipo 
+                    ? `Modificar: ${editingTipo.tofici_descripcion}` 
+                    : "Complete los campos requeridos"
+                  }
+                </p>
+              </div>
             </div>
           </div>
-
-          {/* Indicadores de estado */}
-          {isSubmitting && (
-            <div className="flex items-center space-x-2 text-blue-600">
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
-              <span className="text-sm font-medium">Procesando...</span>
-            </div>
-          )}
-
-          {showSuccess && (
-            <div className="flex items-center space-x-2 text-green-600 animate-bounce">
-              <Icon name="CheckCircle" size={16} />
-              <span className="text-sm font-medium">¡Éxito!</span>
-            </div>
-          )}
         </div>
 
-        {/* Mostrar errores de submit */}
-        {formErrors.submit && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600 flex items-center">
-              <Icon name="AlertCircle" size={14} className="mr-2" />
-              {formErrors.submit}
-            </p>
+        {/* Mensajes de estado compactos */}
+        {(formErrors.submit || showSuccess) && (
+          <div className="flex-shrink-0 px-4 pt-2 pb-1">
+            {formErrors.submit && (
+              <div className="p-1.5 bg-red-50 border border-red-200 rounded text-xs text-red-600 flex items-center gap-1">
+                <Icon name="AlertCircle" size={12} />
+                {formErrors.submit}
+              </div>
+            )}
+
+            {showSuccess && (
+              <div className="p-1.5 bg-green-50 border border-green-200 rounded text-xs text-green-600 flex items-center gap-1 animate-bounce">
+                <Icon name="CheckCircle" size={12} />
+                ¡Tipo de oficina {editingTipo ? 'actualizado' : 'creado'} exitosamente!
+              </div>
+            )}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Descripción */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Descripción *
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={formData.tofici_descripcion || ""}
-                  onChange={(e) => handleInputChange("tofici_descripcion", e.target.value)}
-                  className={`w-full border rounded-lg px-4 py-3 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    formErrors.tofici_descripcion
-                      ? "border-red-300 bg-red-50"
-                      : formData.tofici_descripcion?.trim()
-                      ? "border-green-300 bg-green-50"
-                      : "border-gray-300 hover:border-gray-400"
-                  }`}
-                  placeholder="Ej: Matriz, Sucursal, Agencia..."
-                  disabled={loading || isSubmitting}
-                  maxLength={40}
-                  autoComplete="off"
-                />
-                {formData.tofici_descripcion?.trim() && !formErrors.tofici_descripcion && (
-                  <div className="absolute right-3 top-3.5">
-                    <Icon name="Check" size={16} className="text-green-500" />
+        {/* Contenido del formulario - Optimizado para llenar el espacio */}
+        <div className="flex-1 flex flex-col p-4">
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col justify-between space-y-4">
+            <div className="space-y-4">
+              {/* Fila 1: Descripción y Abreviatura */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Descripción <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.tofici_descripcion}
+                      onChange={(e) => handleInputChange("tofici_descripcion", e.target.value)}
+                      className={`w-full px-3 py-2.5 border rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        formErrors.tofici_descripcion
+                          ? "border-red-300 bg-red-50"
+                          : formData.tofici_descripcion?.trim()
+                            ? "border-green-300 bg-green-50"
+                            : "border-gray-300 hover:border-gray-400"
+                      }`}
+                      placeholder="Ej: Matriz, Sucursal, Agencia..."
+                      disabled={loading || isSubmitting}
+                      maxLength={40}
+                      autoComplete="off"
+                    />
+                    {formData.tofici_descripcion?.trim() && !formErrors.tofici_descripcion && (
+                      <Icon name="Check" size={14} className="absolute right-2 top-3 text-green-500" />
+                    )}
                   </div>
-                )}
+                  {formErrors.tofici_descripcion && (
+                    <p className="text-xs text-red-600 mt-1">{formErrors.tofici_descripcion}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Abreviatura <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.tofici_abreviatura}
+                      onChange={(e) => handleInputChange("tofici_abreviatura", e.target.value)}
+                      className={`w-full px-3 py-2.5 border rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        formErrors.tofici_abreviatura
+                          ? "border-red-300 bg-red-50"
+                          : formData.tofici_abreviatura?.trim()
+                            ? "border-green-300 bg-green-50"
+                            : "border-gray-300 hover:border-gray-400"
+                      }`}
+                      placeholder="Ej: MTZ, SUC, AGE..."
+                      disabled={loading || isSubmitting}
+                      maxLength={10}
+                      autoComplete="off"
+                      style={{ textTransform: 'uppercase' }}
+                    />
+                    {formData.tofici_abreviatura?.trim() && !formErrors.tofici_abreviatura && (
+                      <Icon name="Check" size={14} className="absolute right-2 top-3 text-green-500" />
+                    )}
+                  </div>
+                  {formErrors.tofici_abreviatura && (
+                    <p className="text-xs text-red-600 mt-1">{formErrors.tofici_abreviatura}</p>
+                  )}
+                </div>
               </div>
-              {formErrors.tofici_descripcion && (
-                <p className="text-sm text-red-600 flex items-center animate-shake">
-                  <Icon name="AlertCircle" size={14} className="mr-1" />
-                  {formErrors.tofici_descripcion}
-                </p>
-              )}
-              <p className="text-xs text-gray-500">
-                {formData.tofici_descripcion?.length || 0}/40 caracteres
-              </p>
+
+              {/* Información adicional */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <Icon name="Info" size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-blue-700">
+                    <p className="font-medium mb-1">Información sobre tipos de oficina:</p>
+                    <ul className="text-xs space-y-1">
+                      <li>• La descripción debe ser clara y descriptiva (3-40 caracteres)</li>
+                      <li>• La abreviatura se usa en reportes y listados (2-10 caracteres)</li>
+                      <li>• La abreviatura se convertirá automáticamente a mayúsculas</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Abreviatura */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Abreviatura *
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={formData.tofici_abreviatura || ""}
-                  onChange={(e) => handleInputChange("tofici_abreviatura", e.target.value)}
-                  className={`w-full border rounded-lg px-4 py-3 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    formErrors.tofici_abreviatura
-                      ? "border-red-300 bg-red-50"
-                      : formData.tofici_abreviatura?.trim()
-                      ? "border-green-300 bg-green-50"
-                      : "border-gray-300 hover:border-gray-400"
+            {/* Botones de acción - Siempre en la parte inferior */}
+            <div className="pt-6 border-t border-gray-200">
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={loading || isSubmitting || !isFormValid}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 min-h-[44px] ${
+                    isFormValid && !isSubmitting
+                      ? editingTipo
+                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-105 transform"
+                        : "bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl hover:scale-105 transform"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
                   }`}
-                  placeholder="Ej: MTZ, SUC, AGE..."
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                      {editingTipo ? "Actualizando..." : "Creando..."}
+                    </>
+                  ) : (
+                    <>
+                      <Icon name={editingTipo ? "Save" : "Plus"} size={16} />
+                      {editingTipo ? "Actualizar Tipo" : "Crear Tipo"}
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCancel}
                   disabled={loading || isSubmitting}
-                  maxLength={10}
-                  autoComplete="off"
-                  style={{ textTransform: 'uppercase' }}
-                />
-                {formData.tofici_abreviatura?.trim() && !formErrors.tofici_abreviatura && (
-                  <div className="absolute right-3 top-3.5">
-                    <Icon name="Check" size={16} className="text-green-500" />
-                  </div>
-                )}
+                  className="px-4 py-3 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-gray-200 hover:text-gray-800 hover:scale-105 transform hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] flex items-center justify-center gap-2"
+                >
+                  <Icon name="X" size={16} />
+                  Cancelar
+                </button>
               </div>
-              {formErrors.tofici_abreviatura && (
-                <p className="text-sm text-red-600 flex items-center animate-shake">
-                  <Icon name="AlertCircle" size={14} className="mr-1" />
-                  {formErrors.tofici_abreviatura}
-                </p>
-              )}
-              <p className="text-xs text-gray-500">
-                {formData.tofici_abreviatura?.length || 0}/10 caracteres (mayúsculas)
-              </p>
             </div>
-          </div>
+          </form>
+        </div>
 
-          {/* Botones */}
-          <div className="flex gap-4 pt-4 border-t border-gray-200">
-            <button
-              type="submit"
-              disabled={loading || isSubmitting || !isFormValid}
-              className={`relative flex-1 px-6 py-3 rounded-lg font-medium transition-all duration-300 transform ${
-                isFormValid && !isSubmitting
-                  ? editingTipo
-                    ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5"
-                    : "bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5"
-                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
-              }`}
-            >
-              {isSubmitting ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                  {editingTipo ? "Actualizando..." : "Creando..."}
-                </div>
-              ) : (
-                <div className="flex items-center justify-center">
-                  <Icon name={editingTipo ? "Save" : "Plus"} size={16} className="mr-2 transition-transform duration-300 group-hover:scale-110" />
-                  {editingTipo ? "Actualizar Tipo" : "Crear Tipo"}
-                </div>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleCancel}
-              disabled={loading || isSubmitting}
-              className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium transition-all duration-300 hover:bg-gray-200 hover:text-gray-800 transform hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div className="flex items-center justify-center">
-                <Icon name="X" size={16} className="mr-2" />
-                Cancelar
-              </div>
-            </button>
-          </div>
-        </form>
-
-        {/* Overlay de carga */}
+        {/* Overlay de loading */}
         {isSubmitting && (
-          <div className="absolute inset-0 bg-white bg-opacity-50 rounded-xl flex items-center justify-center">
-            <div className="bg-white p-4 rounded-lg shadow-lg flex items-center space-x-3">
-              <div className="animate-spin h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-              <span className="text-gray-700 font-medium">
+          <div className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center z-10">
+            <div className="bg-white p-6 rounded-xl shadow-2xl flex items-center gap-3 border">
+              <div className="animate-spin h-8 w-8 border-3 border-blue-600 border-t-transparent rounded-full"></div>
+              <span className="text-gray-700 font-medium text-lg">
                 {editingTipo ? "Actualizando tipo..." : "Creando tipo..."}
               </span>
             </div>
-          </div>
+          </div>  
         )}
       </div>
     );
@@ -1049,7 +1054,7 @@ const TiOficinWindow = ({
             </div>
 
             {/* Indicadores de permisos */}
-            <div className="flex items-center space-x-2">
+            {/* <div className="flex items-center space-x-2">
               {canCreate && (
                 <div className="flex items-center px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm">
                   <Icon name="Plus" size={14} className="mr-1" />
@@ -1068,7 +1073,7 @@ const TiOficinWindow = ({
                   Eliminar
                 </div>
               )}
-            </div>
+            </div> */}
           </div>
         </div>
 

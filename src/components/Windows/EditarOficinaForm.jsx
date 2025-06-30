@@ -225,9 +225,9 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
                 if (!value?.trim()) {
                     errors.oficin_nombre = "El nombre es requerido";
                 } else if (value.length < 3) {
-                    errors.oficin_nombre = "El nombre debe tener al menos 3 caracteres";
+                    errors.oficin_nombre = "Mínimo 3 caracteres";
                 } else if (value.length > 60) {
-                    errors.oficin_nombre = "El nombre no puede exceder 60 caracteres";
+                    errors.oficin_nombre = "Máximo 60 caracteres";
                 } else {
                     delete errors.oficin_nombre;
                 }
@@ -236,7 +236,7 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
                 if (!value?.trim()) {
                     errors.oficin_direccion = "La dirección es requerida";
                 } else if (value.length > 80) {
-                    errors.oficin_direccion = "La dirección no puede exceder 80 caracteres";
+                    errors.oficin_direccion = "Máximo 80 caracteres";
                 } else {
                     delete errors.oficin_direccion;
                 }
@@ -245,7 +245,7 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
                 if (!value?.trim()) {
                     errors.oficin_telefono = "El teléfono es requerido";
                 } else if (value.length > 30) {
-                    errors.oficin_telefono = "El teléfono no puede exceder 30 caracteres";
+                    errors.oficin_telefono = "Máximo 30 caracteres";
                 } else {
                     delete errors.oficin_telefono;
                 }
@@ -254,9 +254,9 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
                 if (!value?.trim()) {
                     errors.oficin_diremail = "El email es requerido";
                 } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-                    errors.oficin_diremail = "Formato de email inválido";
+                    errors.oficin_diremail = "Formato inválido";
                 } else if (value.length > 120) {
-                    errors.oficin_diremail = "El email no puede exceder 120 caracteres";
+                    errors.oficin_diremail = "Máximo 120 caracteres";
                 } else {
                     delete errors.oficin_diremail;
                 }
@@ -265,30 +265,30 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
                 if (!value?.trim()) {
                     errors.oficin_rucoficina = "El RUC es requerido";
                 } else if (value.length !== 13) {
-                    errors.oficin_rucoficina = "El RUC debe tener exactamente 13 dígitos";
+                    errors.oficin_rucoficina = "Debe tener 13 dígitos";
                 } else if (!/^\d+$/.test(value)) {
-                    errors.oficin_rucoficina = "El RUC solo debe contener números";
+                    errors.oficin_rucoficina = "Solo números";
                 } else {
                     delete errors.oficin_rucoficina;
                 }
                 break;
             case "oficin_instit_codigo":
                 if (!value) {
-                    errors.oficin_instit_codigo = "La institución es requerida";
+                    errors.oficin_instit_codigo = "Requerido";
                 } else {
                     delete errors.oficin_instit_codigo;
                 }
                 break;
             case "oficin_tofici_codigo":
                 if (!value) {
-                    errors.oficin_tofici_codigo = "El tipo de oficina es requerido";
+                    errors.oficin_tofici_codigo = "Requerido";
                 } else {
                     delete errors.oficin_tofici_codigo;
                 }
                 break;
             case "oficin_parroq_codigo":
                 if (!value) {
-                    errors.oficin_parroq_codigo = "La parroquia es requerida";
+                    errors.oficin_parroq_codigo = "Requerido";
                 } else {
                     delete errors.oficin_parroq_codigo;
                 }
@@ -393,601 +393,574 @@ const EditarOficinaForm = ({ oficina, onSave, onCancel, showMessage, loading: ex
         }, 300);
     }, [onCancel]);
 
+    const resetForm = useCallback(() => {
+        if (oficina) {
+            setFormData({
+                oficin_nombre: oficina.oficin_nombre || "",
+                oficin_instit_codigo: oficina.oficin_instit_codigo || "",
+                oficin_tofici_codigo: oficina.oficin_tofici_codigo || "",
+                oficin_parroq_codigo: oficina.oficin_parroq_codigo || "",
+                oficin_direccion: oficina.oficin_direccion || "",
+                oficin_telefono: oficina.oficin_telefono || "",
+                oficin_diremail: oficina.oficin_diremail || "",
+                oficin_codocntrl: oficina.oficin_codocntrl || "",
+                oficin_ctractual: oficina.oficin_ctractual || 1,
+                oficin_eregis_codigo: oficina.oficin_eregis_codigo || "",
+                oficin_rucoficina: oficina.oficin_rucoficina || "",
+                oficin_codresapertura: oficina.oficin_codresapertura || "",
+                oficin_fechaapertura: oficina.oficin_fechaapertura || "",
+                oficin_fechacierre: oficina.oficin_fechacierre || "",
+                oficin_codrescierre: oficina.oficin_codrescierre || "",
+                oficin_fecharescierre: oficina.oficin_fecharescierre || "",
+            });
+            setFormErrors({});
+            showMessage("info", "Cambios revertidos");
+        }
+    }, [oficina, showMessage]);
+
     // RENDERIZADO
     if (!oficina) {
         return (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-lg p-8 text-center">
-                <Icon name="AlertCircle" size={48} className="mx-auto mb-4 text-gray-400" />
-                <h2 className="text-xl font-semibold text-gray-700 mb-2">No hay oficina para editar</h2>
-                <p className="text-gray-500 mb-6">Seleccione una oficina de la lista para editarla</p>
-                <button onClick={onCancel} className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                    Volver a la Lista
-                </button>
+            <div className="w-full h-full flex items-center justify-center bg-white">
+                <div className="text-center">
+                    <Icon name="AlertCircle" size={48} className="mx-auto mb-4 text-gray-400" />
+                    <h2 className="text-xl font-semibold text-gray-700 mb-2">No hay oficina para editar</h2>
+                    <p className="text-gray-500 mb-6">Seleccione una oficina de la lista para editarla</p>
+                    <button 
+                        onClick={onCancel} 
+                        className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                        Volver a la Lista
+                    </button>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-lg relative overflow-hidden">
-            {/* Header Compacto */}
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-5">
+        <div className="w-full h-full flex flex-col bg-white">
+            {/* Header compacto con información de la oficina */}
+            <div className="flex-shrink-0 bg-gradient-to-r from-slate-100 to-slate-200 border-b border-slate-300 px-4 py-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <Icon name="Edit" size={20} className="text-white" />
+                        <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-500 rounded-lg flex items-center justify-center shadow-sm">
+                            <Icon name="Edit" size={18} className="text-white" />
                         </div>
-                        <div className="min-w-0">
-                            <h2 className="text-xl font-bold text-white">Editar Oficina</h2>
-                            <p className="text-blue-100 text-sm">ID: {oficina.oficin_codigo} - {oficina.oficin_nombre}</p>
-                            {hasChanges && (
-                                <div className="flex items-center gap-1 text-yellow-200 text-xs mt-1">
-                                    <Icon name="AlertCircle" size={12} />
-                                    Hay cambios sin guardar
-                                </div>
-                            )}
+                        <div>
+                            <h2 className="text-lg font-bold text-slate-800">Editar Oficina</h2>
+                            <p className="text-slate-600 text-sm flex items-center gap-2">
+                                <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-xs font-medium">
+                                    ID: {oficina.oficin_codigo}
+                                </span>
+                                <span className="text-slate-600">{oficina.oficin_nombre}</span>
+                                {hasChanges && (
+                                    <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1">
+                                        <Icon name="AlertTriangle" size={12} />
+                                        Sin guardar
+                                    </span>
+                                )}
+                            </p>
                         </div>
-                    </div>
-                    <div className="flex-shrink-0">
-                        <button
-                            onClick={handleCancel}
-                            disabled={isSubmitting}
-                            className="flex items-center gap-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-lg transition-all duration-200 disabled:opacity-50 text-sm font-medium"
-                        >
-                            <Icon name="ArrowLeft" size={16} />
-                            Volver
-                        </button>
                     </div>
                 </div>
-
-                {/* Indicadores de estado */}
-                {(isSubmitting || showSuccess) && (
-                    <div className="mt-4 flex items-center gap-4">
-                        {isSubmitting && (
-                            <div className="flex items-center gap-2 text-white">
-                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                                <span className="text-sm font-medium">Actualizando oficina...</span>
-                            </div>
-                        )}
-                        {showSuccess && (
-                            <div className="flex items-center gap-2 text-white animate-bounce">
-                                <Icon name="CheckCircle" size={16} />
-                                <span className="text-sm font-medium">¡Oficina actualizada exitosamente!</span>
-                            </div>
-                        )}
-                    </div>
-                )}
             </div>
 
-            {/* Contenido del formulario */}
-            <div className="p-5">
-                {/* Mensajes de error */}
-                {formErrors.submit && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-600">
-                        <Icon name="AlertCircle" size={16} />
-                        {formErrors.submit}
-                    </div>
-                )}
-
-                {/* Loading inicial */}
-                {loadingSelects.initial && (
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2 text-sm text-blue-600">
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
-                        Cargando datos del formulario...
-                    </div>
-                )}
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Información Básica */}
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
-                            <Icon name="Building" size={16} className="text-slate-600" />
-                            <h3 className="text-base font-semibold text-slate-800">Información Básica</h3>
+            {/* Mensajes de estado compactos */}
+            {(formErrors.submit || loadingSelects.initial || showSuccess) && (
+                <div className="flex-shrink-0 px-4 pt-2 pb-1">
+                    {formErrors.submit && (
+                        <div className="p-1.5 bg-red-50 border border-red-200 rounded text-xs text-red-600 flex items-center gap-1">
+                            <Icon name="AlertCircle" size={12} />
+                            {formErrors.submit}
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    )}
+
+                    {loadingSelects.initial && (
+                        <div className="p-1.5 bg-blue-50 border border-blue-200 rounded text-xs text-blue-600 flex items-center gap-1">
+                            <div className="animate-spin rounded-full h-3 w-3 border border-blue-600 border-t-transparent"></div>
+                            Cargando datos...
+                        </div>
+                    )}
+
+                    {showSuccess && (
+                        <div className="p-1.5 bg-green-50 border border-green-200 rounded text-xs text-green-600 flex items-center gap-1 animate-bounce">
+                            <Icon name="CheckCircle" size={12} />
+                            ¡Oficina actualizada exitosamente!
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Contenido del formulario - Optimizado para llenar el espacio */}
+            <div className="flex-1 flex flex-col p-4">
+                <form onSubmit={handleSubmit} className="flex-1 flex flex-col justify-between space-y-4">
+                    <div className="space-y-4">
+                        {/* Fila 1: Nombre y RUC */}
+                        <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Nombre de la Oficina <span className="text-red-500">*</span>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Nombre <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
                                     <input
                                         type="text"
-                                        value={formData.oficin_nombre || ""}
+                                        value={formData.oficin_nombre}
                                         onChange={(e) => handleInputChange("oficin_nombre", e.target.value)}
-                                        className={`w-full px-3 py-2 border rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                            formErrors.oficin_nombre ? "border-red-300 bg-red-50" :
-                                            formData.oficin_nombre?.trim() ? "border-green-300 bg-green-50" :
-                                            "border-gray-300 hover:border-gray-400"
+                                        className={`w-full px-3 py-2.5 border rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                            formErrors.oficin_nombre
+                                                ? "border-red-300 bg-red-50"
+                                                : formData.oficin_nombre?.trim()
+                                                    ? "border-green-300 bg-green-50"
+                                                    : "border-gray-300 hover:border-gray-400"
                                         }`}
-                                        placeholder="Ej: Oficina Principal Quito"
+                                        placeholder="Nombre de la oficina"
                                         disabled={externalLoading || isSubmitting}
                                         maxLength={60}
                                     />
                                     {formData.oficin_nombre?.trim() && !formErrors.oficin_nombre && (
-                                        <div className="absolute right-2 top-2.5">
-                                            <Icon name="Check" size={16} className="text-green-500" />
-                                        </div>
+                                        <Icon name="Check" size={14} className="absolute right-2 top-3 text-green-500" />
                                     )}
                                 </div>
                                 {formErrors.oficin_nombre && (
-                                    <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
-                                        <Icon name="AlertCircle" size={12} />
-                                        {formErrors.oficin_nombre}
-                                    </p>
+                                    <p className="text-xs text-red-600 mt-1">{formErrors.oficin_nombre}</p>
                                 )}
-                                <p className="text-xs text-gray-500 mt-1">{formData.oficin_nombre?.length || 0}/60 caracteres</p>
                             </div>
+
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    RUC de la Oficina <span className="text-red-500">*</span>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    RUC <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
                                     <input
                                         type="text"
-                                        value={formData.oficin_rucoficina || ""}
+                                        value={formData.oficin_rucoficina}
                                         onChange={(e) => handleInputChange("oficin_rucoficina", e.target.value.replace(/\D/g, ''))}
-                                        className={`w-full px-3 py-2 border rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                            formErrors.oficin_rucoficina ? "border-red-300 bg-red-50" :
-                                            formData.oficin_rucoficina?.length === 13 ? "border-green-300 bg-green-50" :
-                                            "border-gray-300 hover:border-gray-400"
+                                        className={`w-full px-3 py-2.5 border rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                            formErrors.oficin_rucoficina
+                                                ? "border-red-300 bg-red-50"
+                                                : formData.oficin_rucoficina?.length === 13
+                                                    ? "border-green-300 bg-green-50"
+                                                    : "border-gray-300 hover:border-gray-400"
                                         }`}
                                         placeholder="1234567890001"
                                         disabled={externalLoading || isSubmitting}
                                         maxLength={13}
                                     />
                                     {formData.oficin_rucoficina?.length === 13 && !formErrors.oficin_rucoficina && (
-                                        <div className="absolute right-2 top-2.5">
-                                            <Icon name="Check" size={16} className="text-green-500" />
-                                        </div>
+                                        <Icon name="Check" size={14} className="absolute right-2 top-3 text-green-500" />
                                     )}
                                 </div>
                                 {formErrors.oficin_rucoficina && (
-                                    <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
-                                        <Icon name="AlertCircle" size={12} />
-                                        {formErrors.oficin_rucoficina}
-                                    </p>
+                                    <p className="text-xs text-red-600 mt-1">{formErrors.oficin_rucoficina}</p>
                                 )}
-                                <p className="text-xs text-gray-500 mt-1">{formData.oficin_rucoficina?.length || 0}/13 dígitos</p>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Clasificación */}
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
-                            <Icon name="Tags" size={16} className="text-slate-600" />
-                            <h3 className="text-base font-semibold text-slate-800">Clasificación</h3>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Fila 2: Institución y Tipo */}
+                        <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Institución <span className="text-red-500">*</span>
                                 </label>
                                 <select
-                                    value={formData.oficin_instit_codigo || ""}
+                                    value={formData.oficin_instit_codigo}
                                     onChange={(e) => handleInputChange("oficin_instit_codigo", e.target.value)}
-                                    className={`w-full px-3 py-2 border rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                        formErrors.oficin_instit_codigo ? "border-red-300 bg-red-50" :
-                                        formData.oficin_instit_codigo ? "border-green-300 bg-green-50" :
-                                        "border-gray-300 hover:border-gray-400"
+                                    className={`w-full px-3 py-2.5 border rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                        formErrors.oficin_instit_codigo
+                                            ? "border-red-300 bg-red-50"
+                                            : formData.oficin_instit_codigo
+                                                ? "border-green-300 bg-green-50"
+                                                : "border-gray-300 hover:border-gray-400"
                                     }`}
                                     disabled={externalLoading || isSubmitting || loadingSelects.initial}
                                 >
-                                    <option value="">Seleccione una institución</option>
+                                    <option value="">Seleccionar</option>
                                     {selectsData.instituciones.map((inst) => (
-                                        <option key={inst.value} value={inst.value}>{inst.label}</option>
+                                        <option key={inst.value} value={inst.value}>
+                                            {inst.label}
+                                        </option>
                                     ))}
                                 </select>
                                 {formErrors.oficin_instit_codigo && (
-                                    <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
-                                        <Icon name="AlertCircle" size={12} />
-                                        {formErrors.oficin_instit_codigo}
-                                    </p>
+                                    <p className="text-xs text-red-600 mt-1">{formErrors.oficin_instit_codigo}</p>
                                 )}
                             </div>
+
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Tipo de Oficina <span className="text-red-500">*</span>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Tipo <span className="text-red-500">*</span>
                                 </label>
                                 <select
-                                    value={formData.oficin_tofici_codigo || ""}
+                                    value={formData.oficin_tofici_codigo}
                                     onChange={(e) => handleInputChange("oficin_tofici_codigo", e.target.value)}
-                                    className={`w-full px-3 py-2 border rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                        formErrors.oficin_tofici_codigo ? "border-red-300 bg-red-50" :
-                                        formData.oficin_tofici_codigo ? "border-green-300 bg-green-50" :
-                                        "border-gray-300 hover:border-gray-400"
+                                    className={`w-full px-3 py-2.5 border rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                        formErrors.oficin_tofici_codigo
+                                            ? "border-red-300 bg-red-50"
+                                            : formData.oficin_tofici_codigo
+                                                ? "border-green-300 bg-green-50"
+                                                : "border-gray-300 hover:border-gray-400"
                                     }`}
                                     disabled={externalLoading || isSubmitting || loadingSelects.initial}
                                 >
-                                    <option value="">Seleccione un tipo</option>
+                                    <option value="">Seleccionar</option>
                                     {selectsData.tiposOficina.map((tipo) => (
-                                        <option key={tipo.value} value={tipo.value}>{tipo.label}</option>
+                                        <option key={tipo.value} value={tipo.value}>
+                                            {tipo.label}
+                                        </option>
                                     ))}
                                 </select>
                                 {formErrors.oficin_tofici_codigo && (
-                                    <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
-                                        <Icon name="AlertCircle" size={12} />
-                                        {formErrors.oficin_tofici_codigo}
-                                    </p>
+                                    <p className="text-xs text-red-600 mt-1">{formErrors.oficin_tofici_codigo}</p>
                                 )}
                             </div>
                         </div>
-                    </div>
 
-                    {/* Ubicación Geográfica */}
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
-                            <Icon name="MapPin" size={16} className="text-slate-600" />
-                            <h3 className="text-base font-semibold text-slate-800">Ubicación Geográfica</h3>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Fila 3: Ubicación Geográfica */}
+                        <div className="grid grid-cols-3 gap-3">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Provincia <span className="text-red-500">*</span>
                                 </label>
                                 <select
                                     value={selectedProvincia}
                                     onChange={(e) => handleProvinciaChange(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400"
+                                    className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400"
                                     disabled={externalLoading || isSubmitting || loadingSelects.initial}
                                 >
-                                    <option value="">Seleccione provincia</option>
+                                    <option value="">Provincia</option>
                                     {selectsData.provincias.map((prov) => (
-                                        <option key={prov.value} value={prov.value}>{prov.label}</option>
+                                        <option key={prov.value} value={prov.value}>
+                                            {prov.label}
+                                        </option>
                                     ))}
                                 </select>
                             </div>
+
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Cantón <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
                                     <select
                                         value={selectedCanton}
                                         onChange={(e) => handleCantonChange(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400"
+                                        className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400"
                                         disabled={externalLoading || isSubmitting || loadingSelects.cantones || selectsData.cantones.length === 0}
                                     >
-                                        <option value="">Seleccione cantón</option>
+                                        <option value="">Cantón</option>
                                         {selectsData.cantones.map((canton) => (
-                                            <option key={canton.value} value={canton.value}>{canton.label}</option>
+                                            <option key={canton.value} value={canton.value}>
+                                                {canton.label}
+                                            </option>
                                         ))}
                                     </select>
                                     {loadingSelects.cantones && (
-                                        <div className="absolute right-2 top-2.5">
-                                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+                                        <div className="absolute right-2 top-3">
+                                            <div className="animate-spin rounded-full h-4 w-4 border border-blue-600 border-t-transparent"></div>
                                         </div>
                                     )}
                                 </div>
                             </div>
+
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Parroquia <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
                                     <select
-                                        value={formData.oficin_parroq_codigo || ""}
+                                        value={formData.oficin_parroq_codigo}
                                         onChange={(e) => handleInputChange("oficin_parroq_codigo", e.target.value)}
-                                        className={`w-full px-3 py-2 border rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                            formErrors.oficin_parroq_codigo ? "border-red-300 bg-red-50" :
-                                            formData.oficin_parroq_codigo ? "border-green-300 bg-green-50" :
-                                            "border-gray-300 hover:border-gray-400"
+                                        className={`w-full px-3 py-2.5 border rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                            formErrors.oficin_parroq_codigo
+                                                ? "border-red-300 bg-red-50"
+                                                : formData.oficin_parroq_codigo
+                                                    ? "border-green-300 bg-green-50"
+                                                    : "border-gray-300 hover:border-gray-400"
                                         }`}
                                         disabled={externalLoading || isSubmitting || loadingSelects.parroquias || selectsData.parroquias.length === 0}
                                     >
-                                        <option value="">Seleccione parroquia</option>
+                                        <option value="">Parroquia</option>
                                         {selectsData.parroquias.map((parr) => (
-                                            <option key={parr.value} value={parr.value}>{parr.label}</option>
+                                            <option key={parr.value} value={parr.value}>
+                                                {parr.label}
+                                            </option>
                                         ))}
                                     </select>
                                     {loadingSelects.parroquias && (
-                                        <div className="absolute right-2 top-2.5">
-                                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+                                        <div className="absolute right-2 top-3">
+                                            <div className="animate-spin rounded-full h-4 w-4 border border-blue-600 border-t-transparent"></div>
                                         </div>
                                     )}
                                 </div>
                                 {formErrors.oficin_parroq_codigo && (
-                                    <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
-                                        <Icon name="AlertCircle" size={12} />
-                                        {formErrors.oficin_parroq_codigo}
-                                    </p>
+                                    <p className="text-xs text-red-600 mt-1">{formErrors.oficin_parroq_codigo}</p>
                                 )}
                             </div>
                         </div>
-                    </div>
 
-                    {/* Información de Contacto */}
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
-                            <Icon name="Phone" size={16} className="text-slate-600" />
-                            <h3 className="text-base font-semibold text-slate-800">Información de Contacto</h3>
+                        {/* Fila 4: Dirección */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Dirección <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={formData.oficin_direccion}
+                                    onChange={(e) => handleInputChange("oficin_direccion", e.target.value)}
+                                    className={`w-full px-3 py-2.5 border rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                        formErrors.oficin_direccion
+                                            ? "border-red-300 bg-red-50"
+                                            : formData.oficin_direccion?.trim()
+                                                ? "border-green-300 bg-green-50"
+                                                : "border-gray-300 hover:border-gray-400"
+                                    }`}
+                                    placeholder="Av. Amazonas N24-03 y Colón"
+                                    disabled={externalLoading || isSubmitting}
+                                    maxLength={80}
+                                />
+                                {formData.oficin_direccion?.trim() && !formErrors.oficin_direccion && (
+                                    <Icon name="Check" size={14} className="absolute right-2 top-3 text-green-500" />
+                                )}
+                            </div>
+                            {formErrors.oficin_direccion && (
+                                <p className="text-xs text-red-600 mt-1">{formErrors.oficin_direccion}</p>
+                            )}
                         </div>
-                        <div className="space-y-4">
+
+                        {/* Fila 5: Teléfono y Email */}
+                        <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Dirección <span className="text-red-500">*</span>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Teléfono <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
-                                    <textarea
-                                        value={formData.oficin_direccion || ""}
-                                        onChange={(e) => handleInputChange("oficin_direccion", e.target.value)}
-                                        className={`w-full px-3 py-2 border rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical ${
-                                            formErrors.oficin_direccion ? "border-red-300 bg-red-50" :
-                                            formData.oficin_direccion?.trim() ? "border-green-300 bg-green-50" :
-                                            "border-gray-300 hover:border-gray-400"
+                                    <input
+                                        type="text"
+                                        value={formData.oficin_telefono}
+                                        onChange={(e) => handleInputChange("oficin_telefono", e.target.value)}
+                                        className={`w-full px-3 py-2.5 border rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                            formErrors.oficin_telefono
+                                                ? "border-red-300 bg-red-50"
+                                                : formData.oficin_telefono?.trim()
+                                                    ? "border-green-300 bg-green-50"
+                                                    : "border-gray-300 hover:border-gray-400"
                                         }`}
-                                        placeholder="Ej: Av. Amazonas N24-03 y Colón"
+                                        placeholder="02-2234567"
                                         disabled={externalLoading || isSubmitting}
-                                        maxLength={80}
-                                        rows={3}
+                                        maxLength={30}
                                     />
-                                    {formData.oficin_direccion?.trim() && !formErrors.oficin_direccion && (
-                                        <div className="absolute right-2 top-2">
-                                            <Icon name="Check" size={16} className="text-green-500" />
-                                        </div>
+                                    {formData.oficin_telefono?.trim() && !formErrors.oficin_telefono && (
+                                        <Icon name="Check" size={14} className="absolute right-2 top-3 text-green-500" />
                                     )}
                                 </div>
-                                {formErrors.oficin_direccion && (
-                                    <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
-                                        <Icon name="AlertCircle" size={12} />
-                                        {formErrors.oficin_direccion}
-                                    </p>
+                                {formErrors.oficin_telefono && (
+                                    <p className="text-xs text-red-600 mt-1">{formErrors.oficin_telefono}</p>
                                 )}
-                                <p className="text-xs text-gray-500 mt-1">{formData.oficin_direccion?.length || 0}/80 caracteres</p>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Teléfono <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            value={formData.oficin_telefono || ""}
-                                            onChange={(e) => handleInputChange("oficin_telefono", e.target.value)}
-                                            className={`w-full px-3 py-2 border rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                                formErrors.oficin_telefono ? "border-red-300 bg-red-50" :
-                                                formData.oficin_telefono?.trim() ? "border-green-300 bg-green-50" :
-                                                "border-gray-300 hover:border-gray-400"
-                                            }`}
-                                            placeholder="Ej: 02-2234567"
-                                            disabled={externalLoading || isSubmitting}
-                                            maxLength={30}
-                                        />
-                                        {formData.oficin_telefono?.trim() && !formErrors.oficin_telefono && (
-                                            <div className="absolute right-2 top-2.5">
-                                                <Icon name="Check" size={16} className="text-green-500" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    {formErrors.oficin_telefono && (
-                                        <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
-                                            <Icon name="AlertCircle" size={12} />
-                                            {formErrors.oficin_telefono}
-                                        </p>
-                                    )}
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Email <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <input
-                                            type="email"
-                                            value={formData.oficin_diremail || ""}
-                                            onChange={(e) => handleInputChange("oficin_diremail", e.target.value)}
-                                            className={`w-full px-3 py-2 border rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                                formErrors.oficin_diremail ? "border-red-300 bg-red-50" :
-                                                formData.oficin_diremail?.trim() && !formErrors.oficin_diremail ? "border-green-300 bg-green-50" :
-                                                "border-gray-300 hover:border-gray-400"
-                                            }`}
-                                            placeholder="oficina@empresa.com"
-                                            disabled={externalLoading || isSubmitting}
-                                            maxLength={120}
-                                        />
-                                        {formData.oficin_diremail?.trim() && !formErrors.oficin_diremail && (
-                                            <div className="absolute right-2 top-2.5">
-                                                <Icon name="Check" size={16} className="text-green-500" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    {formErrors.oficin_diremail && (
-                                        <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
-                                            <Icon name="AlertCircle" size={12} />
-                                            {formErrors.oficin_diremail}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
-                    {/* Estado y Configuración */}
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
-                            <Icon name="Settings" size={16} className="text-slate-600" />
-                            <h3 className="text-base font-semibold text-slate-800">Estado y Configuración</h3>
-                        </div>
-                        <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Estado de la Oficina</label>
-                                <div className="flex items-center gap-5 mt-1">
-                                    <label className="flex items-center gap-1.5">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Email <span className="text-red-500">*</span>
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="email"
+                                        value={formData.oficin_diremail}
+                                        onChange={(e) => handleInputChange("oficin_diremail", e.target.value)}
+                                        className={`w-full px-3 py-2.5 border rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                            formErrors.oficin_diremail
+                                                ? "border-red-300 bg-red-50"
+                                                : formData.oficin_diremail?.trim() && !formErrors.oficin_diremail
+                                                    ? "border-green-300 bg-green-50"
+                                                    : "border-gray-300 hover:border-gray-400"
+                                        }`}
+                                        placeholder="oficina@empresa.com"
+                                        disabled={externalLoading || isSubmitting}
+                                        maxLength={120}
+                                    />
+                                    {formData.oficin_diremail?.trim() && !formErrors.oficin_diremail && (
+                                        <Icon name="Check" size={14} className="absolute right-2 top-3 text-green-500" />
+                                    )}
+                                </div>
+                                {formErrors.oficin_diremail && (
+                                    <p className="text-xs text-red-600 mt-1">{formErrors.oficin_diremail}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Fila 6: Estado y campos opcionales */}
+                        <div className="grid grid-cols-3 gap-3">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Estado
+                                </label>
+                                <div className="flex gap-4 pt-2">
+                                    <label className="flex items-center gap-2">
                                         <input
                                             type="radio"
-                                            name="oficin_ctractual_edit"
+                                            name="oficin_ctractual"
                                             value={1}
                                             checked={formData.oficin_ctractual === 1}
                                             onChange={(e) => handleInputChange("oficin_ctractual", parseInt(e.target.value))}
-                                            className="w-4 h-4 text-blue-600"
+                                            className="w-4 h-4 text-green-600"
                                             disabled={externalLoading || isSubmitting}
                                         />
-                                        <span className="text-sm text-green-600 flex items-center gap-1 font-medium">
+                                        <span className="text-sm text-green-600 font-medium flex items-center gap-1">
                                             <Icon name="CheckCircle" size={14} />
                                             Activa
                                         </span>
                                     </label>
-                                    <label className="flex items-center gap-1.5">
+                                    <label className="flex items-center gap-2">
                                         <input
                                             type="radio"
-                                            name="oficin_ctractual_edit"
+                                            name="oficin_ctractual"
                                             value={0}
                                             checked={formData.oficin_ctractual === 0}
                                             onChange={(e) => handleInputChange("oficin_ctractual", parseInt(e.target.value))}
                                             className="w-4 h-4 text-red-600"
                                             disabled={externalLoading || isSubmitting}
                                         />
-                                        <span className="text-sm text-red-600 flex items-center gap-1 font-medium">
+                                        <span className="text-sm text-red-600 font-medium flex items-center gap-1">
                                             <Icon name="XCircle" size={14} />
                                             Inactiva
                                         </span>
                                     </label>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Código Control
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.oficin_codocntrl}
+                                    onChange={(e) => handleInputChange("oficin_codocntrl", e.target.value)}
+                                    className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400"
+                                    placeholder="Código"
+                                    disabled={externalLoading || isSubmitting}
+                                    maxLength={20}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Fecha Apertura
+                                </label>
+                                <input
+                                    type="date"
+                                    value={formData.oficin_fechaapertura}
+                                    onChange={(e) => handleInputChange("oficin_fechaapertura", e.target.value)}
+                                    className="w-full px-3 py-2.5 border border-gray-300 rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400"
+                                    disabled={externalLoading || isSubmitting}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Campos adicionales para oficinas inactivas */}
+                        {formData.oficin_ctractual === 0 && (
+                            <div className="grid grid-cols-2 gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Código de Control</label>
+                                    <label className="block text-sm font-medium text-red-700 mb-2">
+                                        Fecha de Cierre
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={formData.oficin_fechacierre}
+                                        onChange={(e) => handleInputChange("oficin_fechacierre", e.target.value)}
+                                        className="w-full px-3 py-2.5 border border-red-300 rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                        disabled={externalLoading || isSubmitting}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-red-700 mb-2">
+                                        Código Resolución Cierre
+                                    </label>
                                     <input
                                         type="text"
-                                        value={formData.oficin_codocntrl || ""}
-                                        onChange={(e) => handleInputChange("oficin_codocntrl", e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400"
-                                        placeholder="Código interno"
+                                        value={formData.oficin_codrescierre}
+                                        onChange={(e) => handleInputChange("oficin_codrescierre", e.target.value)}
+                                        className="w-full px-3 py-2.5 border border-red-300 rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                        placeholder="Código de resolución"
                                         disabled={externalLoading || isSubmitting}
                                         maxLength={20}
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Apertura</label>
-                                    <input
-                                        type="date"
-                                        value={formData.oficin_fechaapertura || ""}
-                                        onChange={(e) => handleInputChange("oficin_fechaapertura", e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400"
-                                        disabled={externalLoading || isSubmitting}
-                                    />
-                                </div>
-                                {formData.oficin_ctractual === 0 && (
-                                    <>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Cierre</label>
-                                            <input
-                                                type="date"
-                                                value={formData.oficin_fechacierre || ""}
-                                                onChange={(e) => handleInputChange("oficin_fechacierre", e.target.value)}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400"
-                                                disabled={externalLoading || isSubmitting}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Código de Resolución de Cierre</label>
-                                            <input
-                                                type="text"
-                                                value={formData.oficin_codrescierre || ""}
-                                                onChange={(e) => handleInputChange("oficin_codrescierre", e.target.value)}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400"
-                                                placeholder="Código de resolución"
-                                                disabled={externalLoading || isSubmitting}
-                                                maxLength={20}
-                                            />
-                                        </div>
-                                    </>
-                                )}
                             </div>
-                        </div>
+                        )}
+
+                        {/* Indicador de cambios */}
+                        {hasChanges && (
+                            <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700 flex items-center gap-1">
+                                <Icon name="AlertTriangle" size={12} />
+                                Hay cambios sin guardar
+                            </div>
+                        )}
                     </div>
 
-                    {/* Indicador de cambios */}
-                    {hasChanges && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                            <div className="flex items-start gap-2">
-                                <Icon name="AlertTriangle" size={16} className="text-yellow-600 mt-0.5 flex-shrink-0" />
-                                <div>
-                                    <h4 className="text-sm font-medium text-yellow-800">Cambios detectados</h4>
-                                    <p className="text-sm text-yellow-700 mt-1">Has realizado cambios en el formulario. Asegúrate de guardar antes de salir.</p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    {/* Botones de acción - Siempre en la parte inferior */}
+                    <div className="pt-6 border-t border-gray-200">
+                        <div className="flex gap-3">
+                            <button
+                                type="submit"
+                                disabled={externalLoading || isSubmitting || !isFormValid || !hasChanges || loadingSelects.initial}
+                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 min-h-[44px] ${
+                                    isFormValid && hasChanges && !isSubmitting && !loadingSelects.initial
+                                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-105 transform"
+                                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                }`}
+                                title={!hasChanges ? "No hay cambios para guardar" : ""}
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                                        Actualizando Oficina...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Icon name="Save" size={16} />
+                                        {hasChanges ? "Guardar Cambios" : "Sin Cambios"}
+                                    </>
+                                )}
+                            </button>
 
-                    {/* Botones de acción */}
-                    <div className="flex gap-3 pt-4 border-t border-gray-200">
-                        <button
-                            type="submit"
-                            disabled={externalLoading || isSubmitting || !isFormValid || !hasChanges || loadingSelects.initial}
-                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 min-h-[40px] ${
-                                isFormValid && hasChanges && !isSubmitting && !loadingSelects.initial
-                                    ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5"
-                                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                            }`}
-                            title={!hasChanges ? "No hay cambios para guardar" : ""}
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                                    Actualizando Oficina...
-                                </>
-                            ) : (
-                                <>
-                                    <Icon name="Save" size={16} />
-                                    {hasChanges ? "Guardar Cambios" : "Sin Cambios"}
-                                </>
-                            )}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleCancel}
-                            disabled={externalLoading || isSubmitting}
-                            className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-md text-sm font-medium transition-all duration-200 hover:bg-gray-200 hover:text-gray-800 hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px] flex items-center justify-center gap-2"
-                        >
-                            <Icon name="X" size={16} />
-                            Cancelar
-                        </button>
-                        {hasChanges && (
                             <button
                                 type="button"
-                                onClick={() => {
-                                    if (oficina) {
-                                        setFormData({
-                                            oficin_nombre: oficina.oficin_nombre || "",
-                                            oficin_instit_codigo: oficina.oficin_instit_codigo || "",
-                                            oficin_tofici_codigo: oficina.oficin_tofici_codigo || "",
-                                            oficin_parroq_codigo: oficina.oficin_parroq_codigo || "",
-                                            oficin_direccion: oficina.oficin_direccion || "",
-                                            oficin_telefono: oficina.oficin_telefono || "",
-                                            oficin_diremail: oficina.oficin_diremail || "",
-                                            oficin_codocntrl: oficina.oficin_codocntrl || "",
-                                            oficin_ctractual: oficina.oficin_ctractual || 1,
-                                            oficin_eregis_codigo: oficina.oficin_eregis_codigo || "",
-                                            oficin_rucoficina: oficina.oficin_rucoficina || "",
-                                            oficin_codresapertura: oficina.oficin_codresapertura || "",
-                                            oficin_fechaapertura: oficina.oficin_fechaapertura || "",
-                                            oficin_fechacierre: oficina.oficin_fechacierre || "",
-                                            oficin_codrescierre: oficina.oficin_codrescierre || "",
-                                            oficin_fecharescierre: oficina.oficin_fecharescierre || "",
-                                        });
-                                        setFormErrors({});
-                                        showMessage("info", "Cambios revertidos");
-                                    }
-                                }}
+                                onClick={handleCancel}
                                 disabled={externalLoading || isSubmitting}
-                                className="px-3 py-2.5 bg-yellow-100 text-yellow-700 rounded-md text-sm font-medium transition-all duration-200 hover:bg-yellow-200 hover:text-yellow-800 hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px] flex items-center justify-center"
-                                title="Revertir cambios"
+                                className="px-4 py-3 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-gray-200 hover:text-gray-800 hover:scale-105 transform hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] flex items-center justify-center gap-2"
                             >
-                                <Icon name="RotateCcw" size={16} />
+                                <Icon name="X" size={16} />
+                                Cancelar
                             </button>
-                        )}
+
+                            {hasChanges && (
+                                <button
+                                    type="button"
+                                    onClick={resetForm}
+                                    disabled={externalLoading || isSubmitting}
+                                    className="px-3 py-3 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-yellow-200 hover:text-yellow-800 hover:scale-105 transform hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] flex items-center justify-center"
+                                    title="Revertir cambios"
+                                >
+                                    <Icon name="RotateCcw" size={16} />
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </form>
             </div>
 
             {/* Overlay de loading */}
             {isSubmitting && (
-                <div className="absolute inset-0 bg-white bg-opacity-70 rounded-xl flex items-center justify-center z-10">
-                    <div className="bg-white p-6 rounded-lg shadow-xl flex items-center gap-3">
-                        <div className="animate-spin h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                        <span className="text-gray-700 font-medium text-lg">Actualizando oficina...</span>
+                <div className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center z-10">
+                    <div className="bg-white p-6 rounded-xl shadow-2xl flex items-center gap-3 border">
+                        <div className="animate-spin h-8 w-8 border-3 border-blue-600 border-t-transparent rounded-full"></div>
+                        <span className="text-gray-700 font-medium text-lg">
+                            Actualizando oficina...
+                        </span>
                     </div>
-                </div>
+                </div>  
             )}
         </div>
     );
