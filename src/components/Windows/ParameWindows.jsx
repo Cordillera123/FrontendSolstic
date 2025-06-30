@@ -1,4 +1,4 @@
-// src/components/Windows/ParameWindows.jsx - VERSIÓN FINAL CONVERGIDA
+// src/components/Windows/ParameWindows.jsx - VERSIÓN ACTUALIZADA CON COMPONENTES SEPARADOS
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useButtonPermissions } from "../../hooks/useButtonPermissions";
 import { adminService, iconService } from "../../services/apiService";
@@ -14,448 +14,10 @@ import {
   OptionsList,
   useOptionManagement,
 } from "./OptionComponents";
-import IconSelector from "../UI/IconSelector";
+import ParameWindowsCrear from "./ParameWindowsCrear";
+import ParameWindowsEditar from "./ParameWindowsEditar";
 
-// ===== COMPONENTE MenuForm MEJORADO =====
-const MenuForm = React.memo(
-  ({ editingMenu, icons, loading, onSave, onCancel, showMessage }) => {
-    console.log(
-      "🔵 MenuForm render - editingMenu:",
-      editingMenu?.men_id || "null"
-    );
-
-    // Estados para animaciones y validación
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [formErrors, setFormErrors] = useState({});
-    const [showSuccess, setShowSuccess] = useState(false);
-
-    // Estado del formulario con inicialización optimizada
-    const [formData, setFormData] = useState(() => {
-      if (editingMenu) {
-        console.log("🟢 Inicializando con datos existentes");
-        return {
-          men_nom: editingMenu.men_nom || "",
-          ico_id: editingMenu.ico_id || "",
-          men_componente: editingMenu.men_componente || "",
-          men_eje: editingMenu.men_eje || 1,
-          men_ventana_directa: Boolean(editingMenu.men_ventana_directa),
-        };
-      } else {
-        console.log("🟡 Inicializando formulario vacío");
-        return {
-          men_nom: "",
-          ico_id: "",
-          men_componente: "",
-          men_eje: 1,
-          men_ventana_directa: false,
-        };
-      }
-    });
-
-    // Efecto para actualizar formulario cuando cambie editingMenu
-    useEffect(() => {
-      console.log(
-        "🔄 useEffect ejecutado - editingMenu cambió:",
-        editingMenu?.men_id || "null"
-      );
-
-      if (editingMenu) {
-        setFormData({
-          men_nom: editingMenu.men_nom || "",
-          ico_id: editingMenu.ico_id || "",
-          men_componente: editingMenu.men_componente || "",
-          men_eje: editingMenu.men_eje || 1,
-          men_ventana_directa: Boolean(editingMenu.men_ventana_directa),
-        });
-      } else {
-        setFormData({
-          men_nom: "",
-          ico_id: "",
-          men_componente: "",
-          men_eje: 1,
-          men_ventana_directa: false,
-        });
-      }
-
-      // Limpiar estados cuando cambie el menú
-      setFormErrors({});
-      setShowSuccess(false);
-      setIsSubmitting(false);
-    }, [editingMenu?.men_id]);
-
-    // Validación en tiempo real mejorada
-    const validateField = useCallback(
-      (field, value) => {
-        const errors = { ...formErrors };
-
-        switch (field) {
-          case "men_nom":
-            if (!value?.trim()) {
-              errors.men_nom = "El nombre del menú es requerido";
-            } else if (value.length < 3) {
-              errors.men_nom = "El nombre debe tener al menos 3 caracteres";
-            } else {
-              delete errors.men_nom;
-            }
-            break;
-          case "men_eje":
-            if (value < 1 || value > 9) {
-              errors.men_eje = "El orden debe estar entre 1 y 9";
-            } else {
-              delete errors.men_eje;
-            }
-            break;
-          default:
-            break;
-        }
-
-        setFormErrors(errors);
-        return Object.keys(errors).length === 0;
-      },
-      [formErrors]
-    );
-
-    // Manejador de cambios optimizado
-    const handleInputChange = useCallback(
-      (field, value) => {
-        console.log("⌨️ Escribiendo:", field, "=", value);
-        setFormData((prev) => ({
-          ...prev,
-          [field]: value,
-        }));
-
-        // Validar en tiempo real
-        validateField(field, value);
-      },
-      [validateField]
-    );
-
-    // Manejador de envío mejorado
-    const handleSubmit = useCallback(
-      async (e) => {
-        e.preventDefault();
-
-        // Validación final
-        if (!formData.men_nom?.trim()) {
-          setFormErrors({ men_nom: "El nombre del menú es requerido" });
-          showMessage("error", "El nombre del menú es requerido");
-          return;
-        }
-
-        setIsSubmitting(true);
-        setFormErrors({});
-
-        try {
-          const dataToSend = {
-            ...formData,
-            men_nom: formData.men_nom.trim(),
-            ico_id: formData.ico_id || null,
-            men_componente: formData.men_componente?.trim() || null,
-            men_eje: parseInt(formData.men_eje) || 1,
-            men_ventana_directa: Boolean(formData.men_ventana_directa),
-          };
-
-          // Simular delay para animación
-          await new Promise((resolve) => setTimeout(resolve, 800));
-
-          await onSave(dataToSend, editingMenu);
-
-          // Mostrar éxito
-          setShowSuccess(true);
-          setTimeout(() => setShowSuccess(false), 1500);
-        } catch (error) {
-          console.error("Error en submit:", error);
-        } finally {
-          setIsSubmitting(false);
-        }
-      },
-      [formData, editingMenu, onSave, showMessage]
-    );
-
-    const handleCancel = useCallback(() => {
-      setIsSubmitting(true);
-      setTimeout(() => {
-        onCancel();
-        setIsSubmitting(false);
-      }, 300);
-    }, [onCancel]);
-
-    // Verificar validez del formulario
-    const isFormValid = useMemo(() => {
-      return formData.men_nom?.trim() && Object.keys(formErrors).length === 0;
-    }, [formData.men_nom, formErrors]);
-
-    return (
-      <div className="bg-white p-6 rounded-xl border border-gray-200 mb-6 shadow-sm transition-all duration-300 hover:shadow-md">
-        {/* Header mejorado */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center">
-            <div
-              className={`p-2 rounded-lg mr-3 transition-all duration-300 ${
-                editingMenu
-                  ? "bg-blue-100 text-blue-600"
-                  : "bg-green-100 text-green-600"
-              }`}
-            >
-              <Icon
-                name={editingMenu ? "Edit" : "Plus"}
-                size={20}
-                className="transition-transform duration-300 hover:scale-110"
-              />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-800">
-                {editingMenu
-                  ? `Editar Menú #${editingMenu.men_id}`
-                  : "Crear Nuevo Menú"}
-              </h3>
-              <p className="text-sm text-gray-500 mt-1">
-                {editingMenu
-                  ? "Modifica los datos del menú"
-                  : "Complete los campos para crear un nuevo menú"}
-              </p>
-            </div>
-          </div>
-
-          {/* Indicadores de estado */}
-          {isSubmitting && (
-            <div className="flex items-center space-x-2 text-blue-600">
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
-              <span className="text-sm font-medium">Procesando...</span>
-            </div>
-          )}
-
-          {showSuccess && (
-            <div className="flex items-center space-x-2 text-green-600 animate-bounce">
-              <Icon name="CheckCircle" size={16} />
-              <span className="text-sm font-medium">¡Éxito!</span>
-            </div>
-          )}
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Nombre del Menú */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Nombre del Menú *
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={formData.men_nom || ""}
-                  onChange={(e) => handleInputChange("men_nom", e.target.value)}
-                  className={`w-full border rounded-lg px-4 py-3 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    formErrors.men_nom
-                      ? "border-red-300 bg-red-50"
-                      : formData.men_nom?.trim()
-                      ? "border-green-300 bg-green-50"
-                      : "border-gray-300 hover:border-gray-400"
-                  }`}
-                  placeholder="Ingrese el nombre del menú"
-                  disabled={loading || isSubmitting}
-                  autoComplete="off"
-                />
-                {formData.men_nom?.trim() && !formErrors.men_nom && (
-                  <div className="absolute right-3 top-3.5">
-                    <Icon name="Check" size={16} className="text-green-500" />
-                  </div>
-                )}
-              </div>
-              {formErrors.men_nom && (
-                <p className="text-sm text-red-600 flex items-center animate-shake">
-                  <Icon name="AlertCircle" size={14} className="mr-1" />
-                  {formErrors.men_nom}
-                </p>
-              )}
-              <div className="text-xs text-gray-400">
-                {formData.men_nom?.length || 0}/50 caracteres
-              </div>
-            </div>
-
-            {/* Icono */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Icono
-              </label>
-              <IconSelector
-                icons={icons}
-                selectedIcon={formData.ico_id}
-                onSelect={(iconId) => handleInputChange("ico_id", iconId)}
-                placeholder="Seleccionar icono"
-                disabled={loading || isSubmitting}
-              />
-              <div className="text-xs text-gray-500">
-                Elige un icono para representar visualmente el menú
-              </div>
-
-              {/* Vista previa del icono */}
-              {formData.ico_id && (
-                <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center justify-center w-12 h-12 bg-white rounded-lg border-2 border-gray-300">
-                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <span className="text-blue-600 font-bold text-sm">
-                          {icons
-                            .find(
-                              (icon) =>
-                                (icon.ico_id || icon.id) == formData.ico_id
-                            )
-                            ?.ico_nom?.charAt(0)
-                            .toUpperCase() || "?"}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-900">
-                        Vista previa del icono
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {icons.find(
-                          (icon) => (icon.ico_id || icon.id) == formData.ico_id
-                        )?.ico_nom || "Icono seleccionado"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Componente */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Componente
-              </label>
-              <input
-                type="text"
-                value={formData.men_componente || ""}
-                onChange={(e) =>
-                  handleInputChange("men_componente", e.target.value)
-                }
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400"
-                placeholder="Ej: ParameWindows"
-                disabled={loading || isSubmitting}
-              />
-              <div className="text-xs text-gray-500">
-                Nombre del componente React (opcional)
-              </div>
-            </div>
-
-            {/* Orden de Ejecución */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Orden de Ejecución
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="9"
-                value={formData.men_eje || 1}
-                onChange={(e) =>
-                  handleInputChange("men_eje", parseInt(e.target.value) || 1)
-                }
-                className={`w-full border rounded-lg px-4 py-3 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  formErrors.men_eje
-                    ? "border-red-300 bg-red-50"
-                    : "border-gray-300 hover:border-gray-400"
-                }`}
-                disabled={loading || isSubmitting}
-              />
-              {formErrors.men_eje && (
-                <p className="text-sm text-red-600 flex items-center">
-                  <Icon name="AlertCircle" size={14} className="mr-1" />
-                  {formErrors.men_eje}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Ventana Directa */}
-          <div className="flex items-center p-4 bg-gray-50 rounded-lg transition-all duration-300 hover:bg-gray-100">
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={Boolean(formData.men_ventana_directa)}
-                onChange={(e) =>
-                  handleInputChange("men_ventana_directa", e.target.checked)
-                }
-                className="mr-3 w-4 h-4 text-blue-600 transition-all duration-300 focus:ring-2 focus:ring-blue-500 rounded"
-                disabled={loading || isSubmitting}
-              />
-              <div>
-                <span className="text-sm font-medium text-gray-700">
-                  Ventana Directa
-                </span>
-                <p className="text-xs text-gray-500 mt-1">
-                  El menú se abrirá directamente sin submenús
-                </p>
-              </div>
-            </label>
-          </div>
-
-          {/* Botones */}
-          <div className="flex gap-4 pt-4 border-t border-gray-200">
-            <button
-              type="submit"
-              disabled={loading || isSubmitting || !isFormValid}
-              className={`relative flex-1 px-6 py-3 rounded-lg font-medium transition-all duration-300 transform ${
-                isFormValid && !isSubmitting
-                  ? editingMenu
-                    ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5"
-                    : "bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5"
-                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
-              }`}
-            >
-              {isSubmitting ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                  {editingMenu ? "Actualizando..." : "Creando..."}
-                </div>
-              ) : (
-                <div className="flex items-center justify-center">
-                  <Icon
-                    name={editingMenu ? "Save" : "Plus"}
-                    size={16}
-                    className="mr-2 transition-transform duration-300 group-hover:scale-110"
-                  />
-                  {editingMenu ? "Actualizar Menú" : "Crear Menú"}
-                </div>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleCancel}
-              disabled={loading || isSubmitting}
-              className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium transition-all duration-300 hover:bg-gray-200 hover:text-gray-800 transform hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div className="flex items-center justify-center">
-                <Icon name="X" size={16} className="mr-2" />
-                Cancelar
-              </div>
-            </button>
-          </div>
-        </form>
-
-        {/* Overlay de carga */}
-        {isSubmitting && (
-          <div className="absolute inset-0 bg-white bg-opacity-50 rounded-xl flex items-center justify-center">
-            <div className="bg-white p-4 rounded-lg shadow-lg flex items-center space-x-3">
-              <div className="animate-spin h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-              <span className="text-gray-700 font-medium">
-                {editingMenu ? "Actualizando menú..." : "Creando menú..."}
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-);
-
-MenuForm.displayName = "MenuForm";
-
-// ===== COMPONENTE PRINCIPAL CONVERGIDO =====
+// ===== COMPONENTE PRINCIPAL ACTUALIZADO =====
 const ParameWindows = ({ data }) => {
   // ===== CONFIGURACIÓN =====
   const MENU_ID = 1; // ID del menú "Parametrización de Módulos"
@@ -596,9 +158,11 @@ const ParameWindows = ({ data }) => {
   const [submenus, setSubmenus] = useState([]);
   const [options, setOptions] = useState([]);
   const [icons, setIcons] = useState([]);
-  const [showMenuForm, setShowMenuForm] = useState(false);
+  
+  // ===== NUEVOS ESTADOS PARA FORMULARIOS SEPARADOS =====
+  const [showCreateMenuForm, setShowCreateMenuForm] = useState(false);
+  const [showEditMenuForm, setShowEditMenuForm] = useState(false);
   const [editingMenu, setEditingMenu] = useState(null);
-  const [formKey, setFormKey] = useState(0);
 
   // ===== FUNCIONES BÁSICAS =====
   const showMessage = useCallback((type, text) => {
@@ -670,7 +234,7 @@ const ParameWindows = ({ data }) => {
 
   // ===== MANEJADORES CON VALIDACIÓN DE PERMISOS EFECTIVOS =====
   const handleMenuSave = useCallback(
-    async (formData, editingMenu) => {
+    async (formData, editingMenu = null) => {
       console.log("💾 ParameWindows - Guardando menú:", formData);
 
       // ✅ VALIDACIÓN CON PERMISOS EFECTIVOS
@@ -712,9 +276,9 @@ const ParameWindows = ({ data }) => {
         }
 
         await loadMenus();
-        setShowMenuForm(false);
+        setShowCreateMenuForm(false);
+        setShowEditMenuForm(false);
         setEditingMenu(null);
-        setFormKey((prev) => prev + 1);
       } catch (error) {
         console.error("❌ ParameWindows - Error guardando menú:", error);
         const errorMsg =
@@ -738,8 +302,8 @@ const ParameWindows = ({ data }) => {
 
     console.log("➕ ParameWindows - Nuevo menú - Permiso concedido (efectivo)");
     setEditingMenu(null);
-    setShowMenuForm(true);
-    setFormKey((prev) => prev + 1);
+    setShowCreateMenuForm(true);
+    setShowEditMenuForm(false);
   }, [effectivePermissions.canCreate, showMessage]);
 
   const handleEditMenu = useCallback(
@@ -757,8 +321,8 @@ const ParameWindows = ({ data }) => {
         menu.men_id
       );
       setEditingMenu(menu);
-      setShowMenuForm(true);
-      setFormKey((prev) => prev + 1);
+      setShowEditMenuForm(true);
+      setShowCreateMenuForm(false);
     },
     [effectivePermissions.canUpdate, showMessage]
   );
@@ -798,19 +362,24 @@ const ParameWindows = ({ data }) => {
     [effectivePermissions.canDelete, showMessage, loadMenus]
   );
 
-  const handleMenuCancel = useCallback(() => {
-    console.log("❌ ParameWindows - Cancelando formulario");
-    setShowMenuForm(false);
+  // ===== MANEJADORES DE CANCELACIÓN =====
+  const handleCancelCreateMenu = useCallback(() => {
+    console.log("❌ ParameWindows - Cancelando creación de menú");
+    setShowCreateMenuForm(false);
+  }, []);
+
+  const handleCancelEditMenu = useCallback(() => {
+    console.log("❌ ParameWindows - Cancelando edición de menú");
+    setShowEditMenuForm(false);
     setEditingMenu(null);
-    setFormKey((prev) => prev + 1);
   }, []);
 
   const handleTabChange = useCallback((newTab) => {
     console.log("🔄 ParameWindows - Cambiar tab:", newTab);
     setActiveTab(newTab);
-    setShowMenuForm(false);
+    setShowCreateMenuForm(false);
+    setShowEditMenuForm(false);
     setEditingMenu(null);
-    setFormKey((prev) => prev + 1);
   }, []);
 
   // ===== HOOKS PARA SUBMENÚS Y OPCIONES =====
@@ -872,8 +441,6 @@ const ParameWindows = ({ data }) => {
   ]);
 
   // ===== COMPONENTES MEMOIZADOS =====
- // FRAGMENTO ACTUALIZADO: Lista de Menús con botón de icono únicamente
-
   const MenusList = useMemo(
     () => (
       <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -1177,6 +744,32 @@ const ParameWindows = ({ data }) => {
     );
   }
 
+  // ===== RENDERIZADO DE FORMULARIOS SEPARADOS =====
+  if (showCreateMenuForm) {
+    return (
+      <ParameWindowsCrear
+        onSave={handleMenuSave}
+        onCancel={handleCancelCreateMenu}
+        showMessage={showMessage}
+        loading={loading}
+        icons={icons}
+      />
+    );
+  }
+
+  if (showEditMenuForm) {
+    return (
+      <ParameWindowsEditar
+        editingMenu={editingMenu}
+        onSave={handleMenuSave}
+        onCancel={handleCancelEditMenu}
+        showMessage={showMessage}
+        loading={loading}
+        icons={icons}
+      />
+    );
+  }
+
   const tabs = [
     { id: "menus", name: "Menús", icon: "Menu" },
     { id: "submenus", name: "Submenús", icon: "Layers" },
@@ -1410,22 +1003,7 @@ const ParameWindows = ({ data }) => {
 
       {/* Contenido */}
       <div className="space-y-6">
-        {activeTab === "menus" && (
-          <>
-            {showMenuForm && (
-              <MenuForm
-                key={formKey}
-                editingMenu={editingMenu}
-                icons={icons}
-                loading={loading}
-                onSave={handleMenuSave}
-                onCancel={handleMenuCancel}
-                showMessage={showMessage}
-              />
-            )}
-            {MenusList}
-          </>
-        )}
+        {activeTab === "menus" && MenusList}
 
         {activeTab === "submenus" && (
           <>
@@ -1467,4 +1045,4 @@ const ParameWindows = ({ data }) => {
   );
 };
 
-export default ParameWindows
+export default ParameWindows;

@@ -13,6 +13,8 @@ import UsuParamWindow from '../components/Windows/UsuParamWindow';
 import ConfigWindow from '../components/Windows/ConfigWindow';
 import TiOficinWindow from '../components/Windows/TiOficinWindow';
 import OficinasWindow from '../components/Windows/OficinasWindow';
+import UsuParamWindowCrear from '../components/Windows/UsuParamWindowCrear';
+import UsuParamWindowEditar from '../components/Windows/UsuParamWindowEditar';
 
 // Componente por defecto para desarrollo
 const DefaultWindow = ({ title, data, componentName }) => {
@@ -52,6 +54,8 @@ export const componentMap = {
   'ConfigWindow': ConfigWindow,
   'OficinasWindow': OficinasWindow,
   'TiOficinWindow': TiOficinWindow,
+  'UsuParamWindowCrear': UsuParamWindowCrear,
+  'UsuParamWindowEditar': UsuParamWindowEditar,
 
   // Componentes con props de submódulo
   'ClientRegistry': (props) => <ClientsWindow {...props} subModule="registry" />,
@@ -161,6 +165,20 @@ export const componentConfig = {
     title: 'Configuración del Oficinas',
     },
   'TiOficinWindow':{
+    width: 1000,
+    height: 700,
+    minWidth: 800,
+    minHeight: 600,
+    title: 'Configuración del tipo de  Oficinas',
+    },
+    'UsuParamWindowCrear':{
+    width: 1000,
+    height: 700,
+    minWidth: 800,
+    minHeight: 600,
+    title: 'Configuración del tipo de  Oficinas',
+    },
+    'UsuParamWindowEditar':{
     width: 1000,
     height: 700,
     minWidth: 800,
