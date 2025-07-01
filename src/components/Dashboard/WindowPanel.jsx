@@ -19,7 +19,8 @@ import UsuParamWindow from "../Windows/UsuParamWindow";
 import ConfigWindow from "../Windows/ConfigWindow";
 import TiOficinWindow from "../Windows/TiOficinWindow";
 import OficinasWindow from "../Windows/OficinasWindow";
-import { useTheme } from '../../context/ThemeContext'; // ← AGREGAR ESTA LÍNEA
+import { useTheme } from '../../context/ThemeContext';
+import ThemeConfigWindow from "../Windows/ThemeConfigWindow"; // ← AGREGAR ESTA LÍNEA
 
 const WindowPanel = ({
   window,
@@ -281,6 +282,8 @@ const WindowPanel = ({
         return <OficinasWindow data={window.data} />;
       case "TiOficinWindow":
         return <TiOficinWindow data={window.data}/>;
+      case "ThemeConfigWindow":
+        return <ThemeConfigWindow data={window.data} />;
       default:
         // Contenido por defecto
         return (

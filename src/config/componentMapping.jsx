@@ -15,6 +15,7 @@ import TiOficinWindow from '../components/Windows/TiOficinWindow';
 import OficinasWindow from '../components/Windows/OficinasWindow';
 import UsuParamWindowCrear from '../components/Windows/UsuParamWindowCrear';
 import UsuParamWindowEditar from '../components/Windows/UsuParamWindowEditar';
+import ThemeConfigWindow from '../components/Windows/ThemeConfigWindow'; // Importar el nuevo componente de configuración de tema
 
 // Componente por defecto para desarrollo
 const DefaultWindow = ({ title, data, componentName }) => {
@@ -56,6 +57,7 @@ export const componentMap = {
   'TiOficinWindow': TiOficinWindow,
   'UsuParamWindowCrear': UsuParamWindowCrear,
   'UsuParamWindowEditar': UsuParamWindowEditar,
+  'ThemeConfigWindow': ThemeConfigWindow, // ← AGREGAR EL NUEVO COMPONENTE AQUÍ
 
   // Componentes con props de submódulo
   'ClientRegistry': (props) => <ClientsWindow {...props} subModule="registry" />,
@@ -185,6 +187,13 @@ export const componentConfig = {
     minHeight: 600,
     title: 'Configuración del tipo de  Oficinas',
     },
+  'ThemeConfigWindow': {
+    width: 800,
+    height: 600,
+    minWidth: 600,
+    minHeight: 400,
+    title: 'Configuración de Colores y Tema',
+  },
 };
 
 export const getWindowConfig = (componentName) => {

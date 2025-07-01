@@ -1,7 +1,6 @@
-// src/components/Windows/ThemeConfigWindow.jsx
-import React, { useState, useCallback, useMemo } from 'react';
-import { useButtonPermissions } from '../../hooks/useButtonPermissions';
-import { useTheme } from '../../hooks/useTheme';
+// src/components/Windows/ThemeConfigWindow.jsx - SIN PERMISOS DE BOTONES
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { useTheme } from '../../context/ThemeContext';
 import Icon from '../UI/Icon';
 
 const ColorPicker = ({ label, value, onChange, disabled = false }) => {
@@ -119,17 +118,8 @@ const ThemePreview = ({ themeName, colors, isActive, onClick, disabled = false }
 
 const ThemeConfigWindow = ({
   showMessage = (type, message) => console.log(`${type}: ${message}`),
-  menuId = 9, // ID del menú de configuración
+  menuId = 31, // ID del menú de configuración
 }) => {
-  // Hook de permisos
-  const {
-    canCreate,
-    canRead,
-    canUpdate,
-    canDelete,
-    loading: permissionsLoading,
-  } = useButtonPermissions(menuId, null, true, "menu");
-
   // Hook de tema
   const {
     currentTheme,
@@ -138,7 +128,9 @@ const ThemeConfigWindow = ({
     changeTheme,
     updateCustomColors,
     getCurrentThemeInfo,
+    refreshThemeFromAPI,
     isLoading,
+    isInitialized,
   } = useTheme();
 
   // Estados locales
@@ -162,23 +154,56 @@ const ThemeConfigWindow = ({
     ...customColors,
   });
 
+  // Estado para mostrar indicador de sincronización
+  const [lastSyncTime, setLastSyncTime] = useState(null);
+  const [syncStatus, setSyncStatus] = useState('idle'); // 'idle', 'syncing', 'success', 'error'
+
+  // Actualizar colores temporales cuando cambian los colores globales
+  useEffect(() => {
+    if (isInitialized && customColors) {
+      setTempCustomColors(prev => ({
+        ...prev,
+        ...customColors,
+      }));
+    }
+  }, [customColors, isInitialized]);
+
   // Información del tema actual
   const currentThemeInfo = getCurrentThemeInfo();
 
-  // Manejadores
-  const handleThemeChange = useCallback(async (themeName) => {
-    if (!canUpdate) {
-      showMessage('error', 'No tienes permisos para cambiar el tema');
-      return;
-    }
-
+  // Función para refrescar desde la API
+  const handleRefreshFromAPI = useCallback(async () => {
     try {
-      await changeTheme(themeName);
-      showMessage('success', `Tema cambiado a: ${predefinedThemes[themeName]?.name || themeName}`);
+      setSyncStatus('syncing');
+      await refreshThemeFromAPI();
+      setLastSyncTime(new Date());
+      setSyncStatus('success');
+      showMessage('success', 'Configuración actualizada desde el servidor');
+      
+      setTimeout(() => setSyncStatus('idle'), 2000);
     } catch (error) {
-      showMessage('error', 'Error al cambiar el tema');
+      setSyncStatus('error');
+      showMessage('error', 'Error al actualizar desde el servidor');
+      setTimeout(() => setSyncStatus('idle'), 2000);
     }
-  }, [canUpdate, changeTheme, predefinedThemes, showMessage]);
+  }, [refreshThemeFromAPI, showMessage]);
+
+  // Manejador de cambio de tema con mejor feedback
+  const handleThemeChange = useCallback(async (themeName) => {
+    try {
+      setSyncStatus('syncing');
+      await changeTheme(themeName);
+      setLastSyncTime(new Date());
+      setSyncStatus('success');
+      showMessage('success', `Tema cambiado a: ${predefinedThemes[themeName]?.name || themeName}. Se aplicará en todas las sesiones.`);
+      
+      setTimeout(() => setSyncStatus('idle'), 2000);
+    } catch (error) {
+      setSyncStatus('error');
+      showMessage('error', 'Error al cambiar el tema en el servidor');
+      setTimeout(() => setSyncStatus('idle'), 2000);
+    }
+  }, [changeTheme, predefinedThemes, showMessage]);
 
   const handleCustomColorChange = useCallback((colorKey, colorValue) => {
     setTempCustomColors(prev => ({
@@ -187,42 +212,36 @@ const ThemeConfigWindow = ({
     }));
   }, []);
 
+  // Aplicar colores personalizados con mejor feedback
   const handleApplyCustomColors = useCallback(async () => {
-    if (!canUpdate) {
-      showMessage('error', 'No tienes permisos para aplicar colores personalizados');
-      return;
-    }
-
     try {
+      setSyncStatus('syncing');
       await changeTheme('custom', tempCustomColors);
-      showMessage('success', 'Colores personalizados aplicados correctamente');
+      setLastSyncTime(new Date());
+      setSyncStatus('success');
+      showMessage('success', 'Colores personalizados aplicados correctamente. Se sincronizarán en todas las sesiones.');
+      
+      setTimeout(() => setSyncStatus('idle'), 2000);
     } catch (error) {
-      showMessage('error', 'Error al aplicar colores personalizados');
+      setSyncStatus('error');
+      showMessage('error', 'Error al aplicar colores personalizados en el servidor');
+      setTimeout(() => setSyncStatus('idle'), 2000);
     }
-  }, [canUpdate, changeTheme, tempCustomColors, showMessage]);
+  }, [changeTheme, tempCustomColors, showMessage]);
 
   const handleResetCustomColors = useCallback(() => {
-    if (!canUpdate) {
-      showMessage('error', 'No tienes permisos para resetear colores');
-      return;
-    }
-
     const defaultColors = predefinedThemes.blue.colors;
     setTempCustomColors(defaultColors);
     showMessage('info', 'Colores restablecidos a los valores por defecto');
-  }, [canUpdate, predefinedThemes, showMessage]);
+  }, [predefinedThemes, showMessage]);
 
   const handleExportTheme = useCallback(() => {
-    if (!canRead) {
-      showMessage('error', 'No tienes permisos para exportar el tema');
-      return;
-    }
-
     const themeData = {
       name: currentThemeInfo.displayName,
       theme: currentTheme,
       colors: currentThemeInfo.colors,
       exportDate: new Date().toISOString(),
+      version: '2.0', // Indicar que es la versión global
     };
 
     const blob = new Blob([JSON.stringify(themeData, null, 2)], {
@@ -231,14 +250,14 @@ const ThemeConfigWindow = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `tema-${currentTheme}-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `tema-global-${currentTheme}-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
     showMessage('success', 'Tema exportado correctamente');
-  }, [canRead, currentTheme, currentThemeInfo, showMessage]);
+  }, [currentTheme, currentThemeInfo, showMessage]);
 
   // Colores personalizados organizados por categorías
   const colorCategories = useMemo(() => [
@@ -279,59 +298,55 @@ const ThemeConfigWindow = ({
     },
   ], []);
 
-  // Validaciones de carga
-  if (permissionsLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando permisos...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!canRead) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center max-w-md">
-          <Icon name="Lock" size={48} className="mx-auto mb-4 text-gray-300" />
-          <p className="text-gray-500 mb-2">
-            No tienes permisos para acceder a la configuración de temas
-          </p>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-left">
-            <p className="text-sm text-yellow-800 mb-2">
-              <strong>Información de debug:</strong>
-            </p>
-            <ul className="text-xs text-yellow-700 space-y-1">
-              <li>
-                • Menu ID: <code className="bg-yellow-100 px-1 rounded">{menuId}</code>
-              </li>
-              <li>
-                • Permiso READ: <code className="bg-yellow-100 px-1 rounded">{canRead ? "SÍ" : "NO"}</code>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
       <div className="bg-surface border-b border-border flex-shrink-0">
         <div className="px-6 py-4">
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-            <Icon name="Palette" size={28} className="mr-3 text-primary" />
-            Configuración de Temas
-            <span className="ml-3 text-sm bg-primary-lighter text-primary px-2 py-1 rounded">
-              Tema actual: {currentThemeInfo.displayName}
-            </span>
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Personaliza la apariencia visual del sistema
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                <Icon name="Palette" size={28} className="mr-3 text-primary" />
+                Configuración de Temas Global
+                <span className="ml-3 text-sm bg-primary-lighter text-primary px-2 py-1 rounded">
+                  Tema actual: {currentThemeInfo.displayName}
+                </span>
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Personaliza la apariencia visual del sistema. Los cambios se aplicarán en todas las sesiones.
+              </p>
+            </div>
+            
+            {/* Indicador de sincronización */}
+            <div className="flex items-center space-x-3">
+              {lastSyncTime && (
+                <div className="text-sm text-gray-500">
+                  Última sincronización: {lastSyncTime.toLocaleTimeString()}
+                </div>
+              )}
+              
+              <button
+                onClick={handleRefreshFromAPI}
+                disabled={syncStatus === 'syncing'}
+                className={`p-2 rounded-lg transition-colors ${
+                  syncStatus === 'syncing' 
+                    ? 'bg-blue-100 text-blue-600' 
+                    : syncStatus === 'success'
+                    ? 'bg-green-100 text-green-600'
+                    : syncStatus === 'error'
+                    ? 'bg-red-100 text-red-600'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                } disabled:opacity-50`}
+                title="Refrescar desde servidor"
+              >
+                <Icon 
+                  name={syncStatus === 'syncing' ? 'Loader2' : 'RefreshCw'} 
+                  size={16} 
+                  className={syncStatus === 'syncing' ? 'animate-spin' : ''} 
+                />
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Pestañas */}
@@ -367,10 +382,37 @@ const ThemeConfigWindow = ({
       <div className="flex-1 overflow-auto p-6">
         {activeTab === 'predefined' && (
           <div className="space-y-6">
+            {/* Estado de sincronización */}
+            {syncStatus !== 'idle' && (
+              <div className={`rounded-lg p-4 ${
+                syncStatus === 'syncing' 
+                  ? 'bg-blue-50 border border-blue-200 text-blue-800'
+                  : syncStatus === 'success'
+                  ? 'bg-green-50 border border-green-200 text-green-800'
+                  : 'bg-red-50 border border-red-200 text-red-800'
+              }`}>
+                <div className="flex items-center">
+                  <Icon 
+                    name={
+                      syncStatus === 'syncing' ? 'Loader2' : 
+                      syncStatus === 'success' ? 'CheckCircle' : 'AlertCircle'
+                    } 
+                    size={16} 
+                    className={`mr-2 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} 
+                  />
+                  <span className="text-sm font-medium">
+                    {syncStatus === 'syncing' && 'Sincronizando con el servidor...'}
+                    {syncStatus === 'success' && 'Cambios guardados y sincronizados correctamente'}
+                    {syncStatus === 'error' && 'Error al sincronizar con el servidor'}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Tema actual */}
             <div className="bg-surface rounded-lg border border-border p-4">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                Tema Actual
+                Tema Actual (Global)
               </h3>
               <div className="flex items-center space-x-4">
                 <div className="w-16 h-16 rounded-lg border-2 border-primary bg-primary-lighter flex items-center justify-center">
@@ -379,12 +421,12 @@ const ThemeConfigWindow = ({
                 <div>
                   <h4 className="font-medium text-gray-900">{currentThemeInfo.displayName}</h4>
                   <p className="text-sm text-gray-600">
-                    {currentThemeInfo.isCustom ? 'Tema personalizado' : 'Tema predefinido'}
+                    {currentThemeInfo.isCustom ? 'Tema personalizado' : 'Tema predefinido'} - Se aplica en todas las sesiones
                   </p>
                   <div className="flex items-center mt-2 space-x-2">
                     <button
                       onClick={handleExportTheme}
-                      disabled={!canRead || isLoading}
+                      disabled={isLoading}
                       className="text-sm text-primary hover:text-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Icon name="Download" size={14} className="inline mr-1" />
@@ -410,7 +452,7 @@ const ThemeConfigWindow = ({
                       colors={themeData}
                       isActive={currentTheme === themeName}
                       onClick={handleThemeChange}
-                      disabled={!canUpdate || isLoading}
+                      disabled={isLoading || syncStatus === 'syncing'}
                     />
                   ))}
               </div>
@@ -420,6 +462,33 @@ const ThemeConfigWindow = ({
 
         {activeTab === 'custom' && (
           <div className="space-y-6">
+            {/* Estado de sincronización para tab custom */}
+            {syncStatus !== 'idle' && (
+              <div className={`rounded-lg p-4 ${
+                syncStatus === 'syncing' 
+                  ? 'bg-blue-50 border border-blue-200 text-blue-800'
+                  : syncStatus === 'success'
+                  ? 'bg-green-50 border border-green-200 text-green-800'
+                  : 'bg-red-50 border border-red-200 text-red-800'
+              }`}>
+                <div className="flex items-center">
+                  <Icon 
+                    name={
+                      syncStatus === 'syncing' ? 'Loader2' : 
+                      syncStatus === 'success' ? 'CheckCircle' : 'AlertCircle'
+                    } 
+                    size={16} 
+                    className={`mr-2 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} 
+                  />
+                  <span className="text-sm font-medium">
+                    {syncStatus === 'syncing' && 'Guardando colores personalizados...'}
+                    {syncStatus === 'success' && 'Colores guardados y sincronizados en todas las sesiones'}
+                    {syncStatus === 'error' && 'Error al guardar en el servidor'}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Vista previa del tema personalizado */}
             <div className="bg-surface rounded-lg border border-border p-4">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">
@@ -439,40 +508,44 @@ const ThemeConfigWindow = ({
               </div>
             </div>
 
-            {/* Editor de colores */}
-            <div className="bg-surface rounded-lg border border-border p-4">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">
-                  Editor de Colores
-                </h3>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={handleResetCustomColors}
-                    disabled={!canUpdate || isLoading}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <Icon name="RotateCcw" size={16} className="inline mr-2" />
-                    Resetear
-                  </button>
-                  <button
-                    onClick={handleApplyCustomColors}
-                    disabled={!canUpdate || isLoading}
-                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {isLoading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent inline mr-2"></div>
-                        Aplicando...
-                      </>
-                    ) : (
-                      <>
-                        <Icon name="Check" size={16} className="inline mr-2" />
-                        Aplicar
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
+                  {/* Editor de colores */}
+<div className="bg-surface rounded-lg border border-border p-4">
+  <div className="flex justify-between items-center mb-4">
+    <h3 className="text-lg font-semibold text-gray-800">
+      Editor de Colores
+    </h3>
+  </div>
+
+  {/* Botones en su propia fila */}
+  <div className="mb-4 flex flex-col sm:flex-row gap-3 justify-end">
+    <button
+      onClick={handleResetCustomColors}
+      disabled={isLoading || syncStatus === 'syncing'}
+      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors order-2 sm:order-1"
+    >
+      <Icon name="RotateCcw" size={16} className="inline mr-2" />
+      Resetear
+    </button>
+    
+    <button
+      onClick={handleApplyCustomColors}
+      disabled={isLoading || syncStatus === 'syncing'}
+      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors order-1 sm:order-2"
+      style={{ minWidth: '200px' }}
+    >
+      {syncStatus === 'syncing' ? (
+        <>
+          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent inline mr-2"></div>
+          Guardando...
+        </>
+      ) : (
+        <>
+          <Icon name="Check" size={16} className="inline mr-2" />
+          ✨ APLICAR GLOBALMENTE ✨
+        </>
+      )}
+    </button>
+  </div>
 
               {/* Categorías de colores */}
               <div className="space-y-8">
@@ -488,7 +561,7 @@ const ThemeConfigWindow = ({
                             label={colorConfig.label}
                             value={tempCustomColors[colorConfig.key]}
                             onChange={(value) => handleCustomColorChange(colorConfig.key, value)}
-                            disabled={!canUpdate || isLoading}
+                            disabled={isLoading || syncStatus === 'syncing'}
                           />
                           <p className="text-xs text-gray-500">
                             {colorConfig.description}
@@ -501,19 +574,21 @@ const ThemeConfigWindow = ({
               </div>
             </div>
 
-            {/* Información adicional */}
+            {/* Información adicional actualizada */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-start">
                 <Icon name="Info" size={20} className="text-blue-600 mr-3 mt-0.5" />
                 <div>
                   <h4 className="text-sm font-semibold text-blue-800 mb-2">
-                    Información sobre Colores Personalizados
+                    Información sobre Colores Personalizados Globales
                   </h4>
                   <ul className="text-sm text-blue-700 space-y-1">
-                    <li>• Los colores se aplicarán inmediatamente al hacer clic en "Aplicar"</li>
-                    <li>• Los cambios se guardan automáticamente en tu navegador</li>
+                    <li>• Los colores se aplicarán globalmente en todas las sesiones del sistema</li>
+                    <li>• Los cambios se guardan automáticamente en la base de datos del servidor</li>
+                    <li>• Los usuarios verán los nuevos colores al refrescar o cambiar de ventana</li>
                     <li>• Puedes exportar tu tema personalizado desde la pestaña "Temas Predefinidos"</li>
                     <li>• Usa el botón "Resetear" para volver a los colores por defecto</li>
+                    <li>• El botón de refrescar sincroniza cambios hechos desde otras sesiones</li>
                   </ul>
                 </div>
               </div>
@@ -522,13 +597,13 @@ const ThemeConfigWindow = ({
         )}
       </div>
 
-      {/* Overlay de carga */}
-      {isLoading && (
+      {/* Overlay de carga actualizado */}
+      {(isLoading || syncStatus === 'syncing') && (
         <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-xl shadow-lg flex items-center space-x-3 border">
             <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div>
             <span className="text-gray-700 font-medium">
-              Aplicando tema...
+              {syncStatus === 'syncing' ? 'Sincronizando con servidor...' : 'Aplicando tema...'}
             </span>
           </div>
         </div>

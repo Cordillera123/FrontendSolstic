@@ -1,5 +1,6 @@
-// src/context/ThemeContext.jsx
+// src/context/ThemeContext.jsx - VERSIÓN GLOBAL CON API
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { adminService } from '../services/apiService';
 
 const ThemeContext = createContext();
 
@@ -16,8 +17,9 @@ export const ThemeProvider = ({ children }) => {
   const [currentTheme, setCurrentTheme] = useState('blue');
   const [customColors, setCustomColors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Definición de temas predefinidos
+  // Definición de temas predefinidos (sin cambios)
   const predefinedThemes = {
     blue: {
       name: 'Azul Clásico',
@@ -125,6 +127,95 @@ export const ThemeProvider = ({ children }) => {
     }
   };
 
+  // ✅ NUEVO: Cargar configuración desde la API
+  const loadThemeFromAPI = useCallback(async () => {
+    try {
+      console.log('🎨 ThemeContext - Cargando tema desde API...');
+      setIsLoading(true);
+
+      // Obtener tema actual
+      const themeResponse = await adminService.configuraciones.getByName('sistema_tema_actual');
+      const currentThemeFromAPI = themeResponse.data?.[0]?.conf_detalle || 'blue';
+
+      // Obtener colores personalizados
+      const colorsResponse = await adminService.configuraciones.getByName('sistema_colores_personalizados');
+      const customColorsFromAPI = colorsResponse.data?.[0]?.conf_detalle || '{}';
+
+      let parsedCustomColors = {};
+      try {
+        parsedCustomColors = JSON.parse(customColorsFromAPI);
+      } catch (parseError) {
+        console.warn('⚠️ Error parsing custom colors from API:', parseError);
+        parsedCustomColors = {};
+      }
+
+      console.log('✅ Tema cargado desde API:', {
+        theme: currentThemeFromAPI,
+        customColors: parsedCustomColors
+      });
+
+      // Aplicar tema
+      setCurrentTheme(currentThemeFromAPI);
+      setCustomColors(parsedCustomColors);
+
+      // También guardar en localStorage como respaldo
+      localStorage.setItem('app-theme', currentThemeFromAPI);
+      localStorage.setItem('app-custom-colors', JSON.stringify(parsedCustomColors));
+
+      return { theme: currentThemeFromAPI, colors: parsedCustomColors };
+    } catch (error) {
+      console.error('❌ Error cargando tema desde API:', error);
+      
+      // Fallback: usar localStorage
+      const fallbackTheme = localStorage.getItem('app-theme') || 'blue';
+      const fallbackColors = JSON.parse(localStorage.getItem('app-custom-colors') || '{}');
+      
+      setCurrentTheme(fallbackTheme);
+      setCustomColors(fallbackColors);
+      
+      return { theme: fallbackTheme, colors: fallbackColors };
+    } finally {
+      setIsLoading(false);
+      setIsInitialized(true);
+    }
+  }, []);
+
+  // ✅ NUEVO: Guardar configuración en la API
+  const saveThemeToAPI = useCallback(async (theme, colors = null) => {
+    try {
+      console.log('💾 ThemeContext - Guardando tema en API:', { theme, colors });
+
+      // Guardar tema actual
+      await adminService.configuraciones.updateValue('sistema_tema_actual', theme);
+
+      // Guardar colores personalizados si existen
+      if (colors) {
+        await adminService.configuraciones.updateValue(
+          'sistema_colores_personalizados', 
+          JSON.stringify(colors)
+        );
+      }
+
+      // También guardar en localStorage como respaldo
+      localStorage.setItem('app-theme', theme);
+      if (colors) {
+        localStorage.setItem('app-custom-colors', JSON.stringify(colors));
+      }
+
+      console.log('✅ Tema guardado correctamente en API y localStorage');
+    } catch (error) {
+      console.error('❌ Error guardando tema en API:', error);
+      
+      // Fallback: solo guardar en localStorage
+      localStorage.setItem('app-theme', theme);
+      if (colors) {
+        localStorage.setItem('app-custom-colors', JSON.stringify(colors));
+      }
+      
+      throw error; // Re-lanzar para que el componente pueda manejarlo
+    }
+  }, []);
+
   // Obtener el tema actual con sus colores
   const getCurrentThemeColors = useCallback(() => {
     if (currentTheme === 'custom') {
@@ -133,13 +224,12 @@ export const ThemeProvider = ({ children }) => {
     return predefinedThemes[currentTheme]?.colors || predefinedThemes.blue.colors;
   }, [currentTheme, customColors]);
 
-  // Aplicar colores CSS y clases de tema
+  // Aplicar colores CSS y clases de tema (sin cambios)
   const applyThemeColors = useCallback((colors, themeName) => {
     const root = document.documentElement;
     
     // Aplicar variables CSS
     Object.entries(colors).forEach(([key, value]) => {
-      // Convertir camelCase a kebab-case
       const cssVar = key.replace(/([A-Z])/g, '-$1').toLowerCase();
       root.style.setProperty(`--color-${cssVar}`, value);
     });
@@ -172,89 +262,65 @@ export const ThemeProvider = ({ children }) => {
     }, 600);
   }, []);
 
-  // Cargar tema desde localStorage
-  const loadThemeFromStorage = useCallback(() => {
-    try {
-      const savedTheme = localStorage.getItem('app-theme');
-      const savedCustomColors = localStorage.getItem('app-custom-colors');
-      
-      if (savedTheme) {
-        setCurrentTheme(savedTheme);
-      }
-      
-      if (savedCustomColors) {
-        setCustomColors(JSON.parse(savedCustomColors));
-      }
-    } catch (error) {
-      console.error('Error loading theme from storage:', error);
-    }
-  }, []);
-
-  // Guardar tema en localStorage
-  const saveThemeToStorage = useCallback((theme, colors = null) => {
-    try {
-      localStorage.setItem('app-theme', theme);
-      if (colors) {
-        localStorage.setItem('app-custom-colors', JSON.stringify(colors));
-      }
-    } catch (error) {
-      console.error('Error saving theme to storage:', error);
-    }
-  }, []);
-
-  // Cambiar tema
+  // ✅ ACTUALIZADO: Cambiar tema con persistencia en API
   const changeTheme = useCallback(async (themeName, newCustomColors = null) => {
     setIsLoading(true);
     
     try {
+      console.log('🔄 ThemeContext - Cambiando tema:', { themeName, newCustomColors });
+      
       // Simular delay para mejor UX
       await new Promise(resolve => setTimeout(resolve, 300));
       
+      // Actualizar estado local
       setCurrentTheme(themeName);
       
       if (themeName === 'custom' && newCustomColors) {
         setCustomColors(newCustomColors);
-        saveThemeToStorage(themeName, newCustomColors);
+        await saveThemeToAPI(themeName, newCustomColors);
         applyThemeColors(newCustomColors, themeName);
       } else {
         const themeColors = predefinedThemes[themeName]?.colors || predefinedThemes.blue.colors;
-        saveThemeToStorage(themeName);
+        await saveThemeToAPI(themeName);
         applyThemeColors(themeColors, themeName);
       }
+
+      console.log('✅ Tema cambiado exitosamente');
     } catch (error) {
-      console.error('Error changing theme:', error);
+      console.error('❌ Error cambiando tema:', error);
+      throw error; // Re-lanzar para que el componente pueda mostrarlo
     } finally {
       setIsLoading(false);
     }
-  }, [saveThemeToStorage, applyThemeColors]);
+  }, [saveThemeToAPI, applyThemeColors]);
 
-  // Actualizar colores personalizados
-  const updateCustomColors = useCallback((newColors) => {
-    const updatedColors = { ...customColors, ...newColors };
-    setCustomColors(updatedColors);
-    
-    if (currentTheme === 'custom') {
-      applyThemeColors(updatedColors, 'custom');
-      saveThemeToStorage('custom', updatedColors);
+  // ✅ ACTUALIZADO: Actualizar colores personalizados con persistencia en API
+  const updateCustomColors = useCallback(async (newColors) => {
+    try {
+      const updatedColors = { ...customColors, ...newColors };
+      setCustomColors(updatedColors);
+      
+      if (currentTheme === 'custom') {
+        applyThemeColors(updatedColors, 'custom');
+        await saveThemeToAPI('custom', updatedColors);
+      }
+    } catch (error) {
+      console.error('❌ Error actualizando colores personalizados:', error);
+      throw error;
     }
-  }, [customColors, currentTheme, applyThemeColors, saveThemeToStorage]);
+  }, [customColors, currentTheme, applyThemeColors, saveThemeToAPI]);
 
-  // Obtener clases CSS para elementos específicos
+  // Obtener clases CSS para elementos específicos (sin cambios)
   const getThemeClasses = useCallback((element, variant = 'default') => {
     const baseClasses = {
-      // Sidebar
       sidebar: {
         default: 'bg-sidebar text-white border-r border-border',
         hover: 'hover:bg-sidebar-hover',
       },
-      
-      // Header de ventanas
       windowHeader: {
         default: 'bg-header text-header-text border-b border-border',
         hover: 'hover:bg-primary-dark',
       },
-      
-      // Botones
       button: {
         primary: 'bg-primary hover:bg-primary-dark text-white border-primary',
         secondary: 'bg-surface hover:bg-primary-lighter text-primary border-border',
@@ -262,22 +328,16 @@ export const ThemeProvider = ({ children }) => {
         warning: 'bg-warning hover:bg-yellow-600 text-white',
         danger: 'bg-error hover:bg-red-600 text-white',
       },
-      
-      // Cards y superficies
       card: {
         default: 'bg-surface border-border shadow-sm',
         hover: 'hover:bg-primary-lighter',
         selected: 'bg-primary-lighter border-primary',
       },
-      
-      // Inputs
       input: {
         default: 'bg-surface border-border focus:border-primary focus:ring-primary',
         error: 'bg-surface border-error focus:border-error focus:ring-error',
         success: 'bg-surface border-success focus:border-success focus:ring-success',
       },
-      
-      // Badges y estados
       badge: {
         primary: 'bg-primary-lighter text-primary',
         success: 'bg-green-100 text-green-800',
@@ -303,15 +363,50 @@ export const ThemeProvider = ({ children }) => {
     };
   }, [currentTheme, getCurrentThemeColors, isDarkTheme]);
 
-  // Efectos
+  // ✅ NUEVO: Efecto para cargar tema al inicializar
   useEffect(() => {
-    loadThemeFromStorage();
-  }, [loadThemeFromStorage]);
+    let isMounted = true;
+    
+    const initializeTheme = async () => {
+      try {
+        const themeData = await loadThemeFromAPI();
+        if (isMounted) {
+          // Aplicar tema inmediatamente
+          const colors = themeData.theme === 'custom' 
+            ? themeData.colors 
+            : predefinedThemes[themeData.theme]?.colors || predefinedThemes.blue.colors;
+          
+          applyThemeColors(colors, themeData.theme);
+        }
+      } catch (error) {
+        console.error('❌ Error inicializando tema:', error);
+      }
+    };
 
+    initializeTheme();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [loadThemeFromAPI, applyThemeColors]);
+
+  // Aplicar colores cuando cambie el tema actual
   useEffect(() => {
-    const colors = getCurrentThemeColors();
-    applyThemeColors(colors, currentTheme);
-  }, [getCurrentThemeColors, applyThemeColors, currentTheme]);
+    if (isInitialized) {
+      const colors = getCurrentThemeColors();
+      applyThemeColors(colors, currentTheme);
+    }
+  }, [getCurrentThemeColors, applyThemeColors, currentTheme, isInitialized]);
+
+  // ✅ NUEVO: Función para refrescar tema desde la API
+  const refreshThemeFromAPI = useCallback(async () => {
+    try {
+      console.log('🔄 Refrescando tema desde API...');
+      await loadThemeFromAPI();
+    } catch (error) {
+      console.error('❌ Error refrescando tema:', error);
+    }
+  }, [loadThemeFromAPI]);
 
   // Valor del contexto
   const contextValue = {
@@ -319,6 +414,7 @@ export const ThemeProvider = ({ children }) => {
     currentTheme,
     customColors,
     isLoading,
+    isInitialized,
     
     // Temas disponibles
     predefinedThemes,
@@ -326,6 +422,7 @@ export const ThemeProvider = ({ children }) => {
     // Funciones principales
     changeTheme,
     updateCustomColors,
+    refreshThemeFromAPI,
     
     // Utilidades
     getThemeClasses,

@@ -361,16 +361,68 @@ export const adminService = {
 
     // Obtener configuración por nombre (método específico)
     getByName: async (configName) => {
-      try {
-        const response = await apiClient.get(`/configs`, {
-          params: { conf_nom: configName },
-        });
-        return response.data;
-      } catch (error) {
-        console.error(`Error obteniendo configuración ${configName}:`, error);
-        throw error;
+  try {
+    console.log(`🔍 Obteniendo configuración por nombre: ${configName}`);
+    const response = await apiClient.get(`/configs`, {
+      params: { conf_nom: configName },
+    });
+    
+    console.log(`📥 Respuesta de configuración ${configName}:`, response.data);
+    
+    // ✅ NORMALIZAR: Asegurar que siempre devolvemos el formato correcto
+    let normalizedResponse = {
+      status: "success",
+      data: [],
+      message: "Configuración obtenida correctamente"
+    };
+
+    if (response.data) {
+      if (response.data.status === "success" && response.data.data) {
+        normalizedResponse.data = Array.isArray(response.data.data) 
+          ? response.data.data 
+          : [response.data.data];
+        normalizedResponse.message = response.data.message || normalizedResponse.message;
+      } else if (Array.isArray(response.data)) {
+        normalizedResponse.data = response.data;
+      } else if (response.data.data) {
+        normalizedResponse.data = Array.isArray(response.data.data) 
+          ? response.data.data 
+          : [response.data.data];
       }
-    },
+    }
+
+    // ✅ Si no encontramos la configuración, usar valores por defecto
+    if (normalizedResponse.data.length === 0) {
+      console.log(`⚠️ Configuración ${configName} no encontrada, usando valor por defecto`);
+      
+      const defaultValue = configName === 'sistema_tema_actual' ? 'blue' : '{}';
+      
+      // Fallback: devolver valor por defecto
+      normalizedResponse.data = [{
+        conf_nom: configName,
+        conf_detalle: defaultValue
+      }];
+      normalizedResponse.message = "Usando valor por defecto";
+    }
+
+    console.log(`✅ Configuración ${configName} normalizada:`, normalizedResponse);
+    return normalizedResponse;
+  } catch (error) {
+    console.error(`❌ Error obteniendo configuración ${configName}:`, error);
+    
+    // ✅ FALLBACK: Devolver valor por defecto en caso de error
+    const defaultValue = configName === 'sistema_tema_actual' ? 'blue' : '{}';
+    
+    return {
+      status: "success",
+      data: [{
+        conf_nom: configName,
+        conf_detalle: defaultValue
+      }],
+      message: "Usando valor por defecto por error de conexión"
+    };
+  }
+},
 
     // Actualizar valor de configuración específica
     updateValue: async (configName, newValue) => {

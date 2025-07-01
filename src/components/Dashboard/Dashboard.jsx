@@ -27,33 +27,7 @@ const Dashboard = () => {
   const { currentTheme, changeTheme, predefinedThemes, isLoading } = useTheme(); // ← AGREGAR
 
 // Componente temporal para probar temas (OPCIONAL)
-const ThemeTestButtons = () => (
-  <div className="fixed top-4 right-4 z-50 bg-white p-3 rounded-lg shadow-lg border max-w-xs">
-    <h3 className="text-sm font-semibold mb-2">🎨 Test Temas</h3>
-    <p className="text-xs mb-2">Actual: {currentTheme}</p>
-    <div className="grid grid-cols-2 gap-1">
-      {Object.entries(predefinedThemes)
-        .filter(([key]) => key !== 'custom')
-        .map(([themeName, themeData]) => (
-          <button
-            key={themeName}
-            onClick={() => changeTheme(themeName)}
-            disabled={isLoading}
-            className={`
-              text-xs px-2 py-1 rounded transition-colors
-              ${currentTheme === themeName 
-                ? 'bg-blue-100 text-blue-800' 
-                : 'hover:bg-gray-100 bg-gray-50'
-              }
-              disabled:opacity-50
-            `}
-          >
-            {themeData.name}
-          </button>
-        ))}
-    </div>
-  </div>
-);
+
   const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
 
   // Estados para paginación y gestión de ventanas
@@ -500,7 +474,7 @@ const ThemeTestButtons = () => (
         </div>
       )}
 
-      <ThemeTestButtons />
+      
       {/* Sidebar */}
       <Sidebar onOpenWindow={handleOpenWindow} currentDate={currentDate} />
 
