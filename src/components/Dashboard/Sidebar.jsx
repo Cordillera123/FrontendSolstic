@@ -1,11 +1,83 @@
-// src/components/Dashboard/Sidebar.jsx - OPTIMIZADO para evitar re-renders
+// src/components/Dashboard/Sidebar.jsx - CON PANTALLA DE CARGA PARA TEMAS
 import React, { useState, useEffect, memo } from "react";
-import { ChevronDown, ChevronRight, HelpCircle, Info, Building, MapPin, User } from "lucide-react";
+import { ChevronDown, ChevronRight, HelpCircle, Info, Building, MapPin, User, Loader2, Palette } from "lucide-react";
 import { useAuth } from '../../context/AuthContext';
 import { useUserInfo } from '../../hooks/useUserInfo';
 import LogoutButton from '../Auth/LogoutButton';
 import Icon from "../UI/Icon";
-import { useTheme } from '../../context/ThemeContext'; // ← AGREGAR ESTA LÍNEA
+import { useTheme } from '../../context/ThemeContext';
+
+// ✅ NUEVO: Componente de carga específico para temas
+const ThemeLoadingOverlay = memo(() => {
+  const [loadingText, setLoadingText] = useState('Cargando tema...');
+  const [dots, setDots] = useState('');
+
+  // Animación de texto de carga
+  useEffect(() => {
+    const textInterval = setInterval(() => {
+      setLoadingText(prev => {
+        const texts = [
+          'Cargando tema...',
+          'Aplicando colores...',
+          'Sincronizando estilos...',
+          'Configurando interfaz...'
+        ];
+        const currentIndex = texts.indexOf(prev);
+        return texts[(currentIndex + 1) % texts.length];
+      });
+    }, 1500);
+
+    const dotsInterval = setInterval(() => {
+      setDots(prev => {
+        if (prev === '...') return '';
+        return prev + '.';
+      });
+    }, 500);
+
+    return () => {
+      clearInterval(textInterval);
+      clearInterval(dotsInterval);
+    };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center z-50">
+      <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 max-w-sm w-full mx-4 border border-white/20 shadow-2xl">
+        {/* Icono animado */}
+        <div className="flex justify-center mb-6">
+          <div className="relative">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center animate-pulse">
+              <Palette className="w-8 h-8 text-white" />
+            </div>
+            <div className="absolute inset-0 w-16 h-16 border-4 border-white/30 rounded-full animate-spin border-t-transparent"></div>
+          </div>
+        </div>
+
+        {/* Texto de carga */}
+        <div className="text-center">
+          <h3 className="text-xl font-semibold text-white mb-2">
+            Actualizando Tema
+          </h3>
+          <p className="text-white/80 text-sm mb-4">
+            {loadingText}{dots}
+          </p>
+          
+          {/* Barra de progreso simulada */}
+          <div className="w-full bg-white/20 rounded-full h-2 mb-4">
+            <div className="bg-gradient-to-r from-blue-400 to-purple-500 h-2 rounded-full animate-pulse" 
+                 style={{ width: '70%' }}></div>
+          </div>
+          
+          <p className="text-white/60 text-xs">
+            Cargando colores desde la base de datos...
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+ThemeLoadingOverlay.displayName = 'ThemeLoadingOverlay';
 
 const Sidebar = memo(({
   onOpenWindow,
@@ -13,7 +85,14 @@ const Sidebar = memo(({
 }) => {
   const { user, permissions } = useAuth();
   
-  // ✅ OPTIMIZADO: Hook para información del usuario con configuración específica
+  // ✅ Hook del tema con estados de carga
+  const { 
+    getThemeClasses, 
+    isLoading: themeIsLoading, 
+    isInitialized: themeIsInitialized 
+  } = useTheme();
+  
+  // ✅ Hook de información del usuario
   const {
     userInfo,
     loading: userInfoLoading,
@@ -30,16 +109,63 @@ const Sidebar = memo(({
   } = useUserInfo({
     autoLoad: true,
     basicOnly: true,
-    refreshInterval: 5 * 60 * 1000 // 5 minutos
-    
+    refreshInterval: 5 * 60 * 1000
   });
-  const { getThemeClasses } = useTheme(); // ← AGREGAR ESTA LÍNEA
   
   // Estados para el menú dinámico
   const [menuData, setMenuData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState(new Set());
   const [expandedSubmenus, setExpandedSubmenus] = useState(new Set());
+
+  // ✅ NUEVO: Estado para controlar la pantalla de carga de temas
+  const [showThemeLoading, setShowThemeLoading] = useState(true);
+
+  // ✅ NUEVO: Efecto para manejar el estado de carga del tema
+  useEffect(() => {
+    console.log('🎨 Sidebar - Estado del tema:', {
+      themeIsLoading,
+      themeIsInitialized,
+      showThemeLoading
+    });
+
+    // Si el tema está inicializado, ocultar la pantalla de carga
+    if (themeIsInitialized && !themeIsLoading) {
+      // Agregar un pequeño delay para una transición suave
+      const timer = setTimeout(() => {
+        setShowThemeLoading(false);
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+    
+    // Si el tema está cargando, mostrar la pantalla de carga
+    if (themeIsLoading || !themeIsInitialized) {
+      setShowThemeLoading(true);
+    }
+  }, [themeIsLoading, themeIsInitialized]);
+
+  // ✅ NUEVO: Detectar cuando se recarga la página
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Marcaremos que la página se está recargando
+      sessionStorage.setItem('theme-reloading', 'true');
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    // Al cargar la página, verificar si viene de un reload
+    const wasReloading = sessionStorage.getItem('theme-reloading');
+    if (wasReloading) {
+      console.log('🔄 Sidebar - Detectada recarga de página, mostrando carga de tema');
+      setShowThemeLoading(true);
+      sessionStorage.removeItem('theme-reloading');
+    }
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   // Cargar menús del contexto de autenticación
   useEffect(() => {
@@ -56,7 +182,7 @@ const Sidebar = memo(({
     }
   }, [permissions]);
 
-  // ✅ OPTIMIZADO: Logs solo cuando cambie la información del usuario
+  // Logs de información del usuario
   useEffect(() => {
     if (isReady && userInfo) {
       console.log('✅ Sidebar - Información del usuario lista:', {
@@ -68,7 +194,7 @@ const Sidebar = memo(({
     }
   }, [isReady, displayName, institucion.nombre, oficina.nombre, hasOffice]);
 
-  // Manejar expansión de menús principales
+  // Handlers de menú (sin cambios)
   const toggleMenu = (menuId) => {
     const newExpanded = new Set(expandedMenus);
     if (newExpanded.has(menuId)) {
@@ -95,7 +221,6 @@ const Sidebar = memo(({
     setExpandedSubmenus(newExpanded);
   };
 
-  // Handlers de clic en elementos del menú
   const handleMenuClick = (menu) => {
     if (menu.ventana_directa && menu.componente) {
       onOpenWindow({
@@ -156,27 +281,25 @@ const Sidebar = memo(({
     });
   };
 
-  // Estilos
+  // Estilos (sin cambios)
   const sidebarStyle = {
-  width: "16rem",
-  // backgroundColor eliminado - se usa clase CSS
-  color: "white",
-  display: "flex",
-  flexDirection: "column",
-  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-};
+    width: "16rem",
+    color: "white",
+    display: "flex",
+    flexDirection: "column",
+    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+  };
 
   const headerStyle = {
-  padding: "1rem",
-  // background eliminado - se usa clase CSS
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "center",
-  paddingTop: "1.5rem",
-  paddingBottom: "1.5rem",
-  borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-};
+    padding: "1rem",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: "1.5rem",
+    paddingBottom: "1.5rem",
+    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+  };
 
   const logoStyle = {
     fontSize: "1.25rem",
@@ -207,10 +330,9 @@ const Sidebar = memo(({
   };
 
   const profileContainerStyle = {
-  padding: "0.75rem",
-  borderTop: "1px solid rgba(255, 255, 255, 0.1)",
-  // backgroundColor eliminado - se usa clase CSS
-};
+    padding: "0.75rem",
+    borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+  };
 
   const profileAvatarStyle = {
     width: "2.5rem",
@@ -227,19 +349,22 @@ const Sidebar = memo(({
   };
 
   const userInfoStyle = {
-  padding: "0.75rem",
-  borderTop: "1px solid rgba(255, 255, 255, 0.1)",
-  // backgroundColor eliminado - se usa clase CSS
-  fontSize: "0.75rem",
-  color: "rgba(255, 255, 255, 0.9)",
-};
+    padding: "0.75rem",
+    borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+    fontSize: "0.75rem",
+    color: "rgba(255, 255, 255, 0.9)",
+  };
 
+  // ✅ NUEVO: Mostrar pantalla de carga de temas
+  if (showThemeLoading) {
+    return <ThemeLoadingOverlay />;
+  }
 
-  // Renderizar contenido de carga
+  // Renderizar pantalla de carga normal para menús
   if (loading) {
     return (
-      <div style={sidebarStyle}>
-        <div style={headerStyle}>
+      <div style={sidebarStyle} className={`${getThemeClasses('sidebar')} sidebar-themed theme-transition`}>
+        <div style={headerStyle} className="header-themed theme-transition">
           <div style={logoStyle}>COAC PRINCIPAL</div>
           <div style={dateStyle}>{currentDate}</div>
         </div>
@@ -257,16 +382,15 @@ const Sidebar = memo(({
 
   return (
     <div style={sidebarStyle} className={`${getThemeClasses('sidebar')} sidebar-themed theme-transition`}>
-  <div style={headerStyle} className="header-themed theme-transition">
+      <div style={headerStyle} className="header-themed theme-transition">
         <div style={logoStyle}>COAC PRINCIPAL</div>
         <div style={dateStyle}>{currentDate}</div>
       </div>
 
-      {/* ✅ OPTIMIZADO: Información de ubicación del usuario */}
+      {/* Información de ubicación del usuario */}
       {isReady && userInfo && (
-  <div style={userInfoStyle} className="sidebar-themed theme-transition">
+        <div style={userInfoStyle} className="sidebar-themed theme-transition">
           <div className="space-y-2">
-            {/* Institución */}
             <div className="flex items-center">
               <Building size={12} className="mr-2 text-blue-300" />
               <span className="text-white font-medium text-xs" title={institucion.nombre}>
@@ -274,7 +398,6 @@ const Sidebar = memo(({
               </span>
             </div>
             
-            {/* Oficina */}
             <div className="flex items-center">
               <MapPin size={12} className="mr-2 text-green-300" />
               <span className="text-white text-xs" title={oficina.completa}>
@@ -282,7 +405,6 @@ const Sidebar = memo(({
               </span>
             </div>
             
-            {/* Indicador de estado */}
             <div className="flex items-center justify-between pt-1 border-t border-white border-opacity-20">
               <div className="flex items-center">
                 <div className={`w-2 h-2 rounded-full mr-2 ${hasOffice ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
@@ -304,9 +426,9 @@ const Sidebar = memo(({
         </div>
       )}
 
-      {/* ✅ OPTIMIZADO: Mostrar indicador de carga solo cuando sea necesario */}
-     {userInfoLoading && !isReady && (
-  <div style={userInfoStyle} className="sidebar-themed theme-transition">
+      {/* Indicador de carga de información de usuario */}
+      {userInfoLoading && !isReady && (
+        <div style={userInfoStyle} className="sidebar-themed theme-transition">
           <div className="flex items-center justify-center py-2">
             <div className="animate-spin rounded-full h-4 w-4 border border-white border-t-transparent mr-2"></div>
             <span className="text-xs text-white text-opacity-80">Cargando ubicación...</span>
@@ -323,7 +445,6 @@ const Sidebar = memo(({
         <ul className="mt-2 space-y-1 px-2">
           {menuData.map((menu) => (
             <li key={menu.id}>
-              {/* Menú principal */}
               <div
                 className={`flex items-center p-2 rounded-md cursor-pointer transition-all duration-150 ${
                   expandedMenus.has(menu.id)
@@ -353,7 +474,6 @@ const Sidebar = memo(({
                 )}
               </div>
 
-              {/* Submenús */}
               {expandedMenus.has(menu.id) && menu.submenus && (
                 <ul className="pl-10 mt-1 space-y-1">
                   {menu.submenus.map((submenu) => (
@@ -384,7 +504,6 @@ const Sidebar = memo(({
                         )}
                       </div>
 
-                      {/* Opciones */}
                       {expandedSubmenus.has(submenu.id) && submenu.opciones && (
                         <ul className="pl-8 mt-1 space-y-1">
                           {submenu.opciones.map((option) => (
@@ -412,7 +531,6 @@ const Sidebar = memo(({
           ))}
         </ul>
 
-        {/* Mensaje si no hay menús */}
         {menuData.length === 0 && !loading && (
           <div className="px-4 py-8 text-center">
             <Icon name="AlertCircle" size={32} className="mx-auto mb-2 text-gray-400" />
@@ -441,9 +559,8 @@ const Sidebar = memo(({
         </ul>
       </div>
 
-      {/* ✅ ACTUALIZADO: Perfil de usuario con información completa */}
-    
-<div style={profileContainerStyle} className="sidebar-themed theme-transition">
+      {/* Perfil de usuario */}
+      <div style={profileContainerStyle} className="sidebar-themed theme-transition">
         <div className="flex items-center p-2">
           <div style={profileAvatarStyle}>
             {userInitials || (user?.fullName 
@@ -451,18 +568,15 @@ const Sidebar = memo(({
               : user?.email?.substring(0, 2).toUpperCase() || 'UA')}
           </div>
           <div className="ml-3 flex-1">
-            {/* Nombre del usuario */}
             <div className="font-medium text-sm text-white">
               {displayName || user?.fullName || user?.email || 'Usuario Admin'}
             </div>
             
-            {/* Información de conexión y perfil */}
             <div className="text-xs text-white text-opacity-90 flex items-center">
               <div className="w-2 h-2 rounded-full bg-green-500 mr-1.5"></div>
               Conectado - {userInfo?.perfil || user?.perfil || 'Sin perfil'}
             </div>
 
-            {/* ✅ NUEVA LÍNEA: Mostrar ubicación laboral compacta */}
             {isReady && userInfo && (
               <div className="text-xs text-white text-opacity-75 mt-1 flex items-center">
                 <User size={10} className="mr-1" />
@@ -472,7 +586,6 @@ const Sidebar = memo(({
               </div>
             )}
 
-            {/* Indicador de error */}
             {userInfoError && (
               <div className="text-xs text-red-300 mt-1 flex items-center">
                 <span className="mr-1">⚠</span>

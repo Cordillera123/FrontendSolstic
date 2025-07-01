@@ -214,7 +214,7 @@ ConfigForm.displayName = "ConfigForm";
 
 const ConfigWindow = ({
   showMessage: externalShowMessage,
-  menuId = 30,
+  menuId = 17,
   title = "Gestión de Configuraciones",
 }) => {
   const currentUser = getCurrentUser();

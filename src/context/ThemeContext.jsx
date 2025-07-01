@@ -1,4 +1,4 @@
-// src/context/ThemeContext.jsx - VERSIÓN GLOBAL CON API
+// src/context/ThemeContext.jsx - VERSIÓN MEJORADA CON ESTADOS DE CARGA
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { adminService } from '../services/apiService';
 
@@ -18,6 +18,11 @@ export const ThemeProvider = ({ children }) => {
   const [customColors, setCustomColors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  
+  // ✅ NUEVO: Estados específicos para la carga inicial
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [loadingStage, setLoadingStage] = useState('init'); // 'init', 'loading-theme', 'loading-colors', 'applying', 'complete'
+  const [lastLoadTime, setLastLoadTime] = useState(null);
 
   // Definición de temas predefinidos (sin cambios)
   const predefinedThemes = {
@@ -127,15 +132,19 @@ export const ThemeProvider = ({ children }) => {
     }
   };
 
-  // ✅ NUEVO: Cargar configuración desde la API
+  // ✅ MEJORADO: Cargar configuración desde la API con mejor manejo de estados
   const loadThemeFromAPI = useCallback(async () => {
     try {
-      console.log('🎨 ThemeContext - Cargando tema desde API...');
+      console.log('🎨 ThemeContext - Iniciando carga del tema desde API...');
       setIsLoading(true);
+      setLoadingStage('loading-theme');
 
       // Obtener tema actual
       const themeResponse = await adminService.configuraciones.getByName('sistema_tema_actual');
       const currentThemeFromAPI = themeResponse.data?.[0]?.conf_detalle || 'blue';
+
+      console.log('🎨 Tema obtenido:', currentThemeFromAPI);
+      setLoadingStage('loading-colors');
 
       // Obtener colores personalizados
       const colorsResponse = await adminService.configuraciones.getByName('sistema_colores_personalizados');
@@ -149,10 +158,11 @@ export const ThemeProvider = ({ children }) => {
         parsedCustomColors = {};
       }
 
-      console.log('✅ Tema cargado desde API:', {
-        theme: currentThemeFromAPI,
-        customColors: parsedCustomColors
-      });
+      console.log('✅ Colores personalizados obtenidos:', parsedCustomColors);
+      setLoadingStage('applying');
+
+      // Simular un pequeño delay para mejor UX en la carga
+      await new Promise(resolve => setTimeout(resolve, 800));
 
       // Aplicar tema
       setCurrentTheme(currentThemeFromAPI);
@@ -161,6 +171,14 @@ export const ThemeProvider = ({ children }) => {
       // También guardar en localStorage como respaldo
       localStorage.setItem('app-theme', currentThemeFromAPI);
       localStorage.setItem('app-custom-colors', JSON.stringify(parsedCustomColors));
+
+      setLoadingStage('complete');
+      setLastLoadTime(new Date());
+
+      console.log('✅ Tema cargado y aplicado exitosamente:', {
+        theme: currentThemeFromAPI,
+        customColors: parsedCustomColors
+      });
 
       return { theme: currentThemeFromAPI, colors: parsedCustomColors };
     } catch (error) {
@@ -172,18 +190,23 @@ export const ThemeProvider = ({ children }) => {
       
       setCurrentTheme(fallbackTheme);
       setCustomColors(fallbackColors);
+      setLoadingStage('complete');
+      
+      console.log('🔄 Usando valores de fallback:', { theme: fallbackTheme, colors: fallbackColors });
       
       return { theme: fallbackTheme, colors: fallbackColors };
     } finally {
       setIsLoading(false);
       setIsInitialized(true);
+      setIsInitialLoading(false);
     }
   }, []);
 
-  // ✅ NUEVO: Guardar configuración en la API
+  // ✅ MEJORADO: Guardar configuración en la API con mejor feedback
   const saveThemeToAPI = useCallback(async (theme, colors = null) => {
     try {
       console.log('💾 ThemeContext - Guardando tema en API:', { theme, colors });
+      setIsLoading(true);
 
       // Guardar tema actual
       await adminService.configuraciones.updateValue('sistema_tema_actual', theme);
@@ -202,6 +225,7 @@ export const ThemeProvider = ({ children }) => {
         localStorage.setItem('app-custom-colors', JSON.stringify(colors));
       }
 
+      setLastLoadTime(new Date());
       console.log('✅ Tema guardado correctamente en API y localStorage');
     } catch (error) {
       console.error('❌ Error guardando tema en API:', error);
@@ -213,6 +237,8 @@ export const ThemeProvider = ({ children }) => {
       }
       
       throw error; // Re-lanzar para que el componente pueda manejarlo
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -224,8 +250,10 @@ export const ThemeProvider = ({ children }) => {
     return predefinedThemes[currentTheme]?.colors || predefinedThemes.blue.colors;
   }, [currentTheme, customColors]);
 
-  // Aplicar colores CSS y clases de tema (sin cambios)
+  // ✅ MEJORADO: Aplicar colores CSS con mejor logging
   const applyThemeColors = useCallback((colors, themeName) => {
+    console.log('🎨 Aplicando colores del tema:', themeName, colors);
+    
     const root = document.documentElement;
     
     // Aplicar variables CSS
@@ -260,9 +288,11 @@ export const ThemeProvider = ({ children }) => {
     setTimeout(() => {
       body.classList.remove('theme-changing');
     }, 600);
+
+    console.log('✅ Colores aplicados correctamente al DOM');
   }, []);
 
-  // ✅ ACTUALIZADO: Cambiar tema con persistencia en API
+  // ✅ MEJORADO: Cambiar tema con mejor manejo de estados
   const changeTheme = useCallback(async (themeName, newCustomColors = null) => {
     setIsLoading(true);
     
@@ -288,13 +318,13 @@ export const ThemeProvider = ({ children }) => {
       console.log('✅ Tema cambiado exitosamente');
     } catch (error) {
       console.error('❌ Error cambiando tema:', error);
-      throw error; // Re-lanzar para que el componente pueda mostrarlo
+      throw error;
     } finally {
       setIsLoading(false);
     }
   }, [saveThemeToAPI, applyThemeColors]);
 
-  // ✅ ACTUALIZADO: Actualizar colores personalizados con persistencia en API
+  // Actualizar colores personalizados con persistencia en API
   const updateCustomColors = useCallback(async (newColors) => {
     try {
       const updatedColors = { ...customColors, ...newColors };
@@ -310,7 +340,7 @@ export const ThemeProvider = ({ children }) => {
     }
   }, [customColors, currentTheme, applyThemeColors, saveThemeToAPI]);
 
-  // Obtener clases CSS para elementos específicos (sin cambios)
+  // Obtener clases CSS para elementos específicos
   const getThemeClasses = useCallback((element, variant = 'default') => {
     const baseClasses = {
       sidebar: {
@@ -363,13 +393,27 @@ export const ThemeProvider = ({ children }) => {
     };
   }, [currentTheme, getCurrentThemeColors, isDarkTheme]);
 
-  // ✅ NUEVO: Efecto para cargar tema al inicializar
+  // ✅ MEJORADO: Función para refrescar tema desde la API
+  const refreshThemeFromAPI = useCallback(async () => {
+    try {
+      console.log('🔄 Refrescando tema desde API...');
+      setIsLoading(true);
+      await loadThemeFromAPI();
+    } catch (error) {
+      console.error('❌ Error refrescando tema:', error);
+      throw error;
+    }
+  }, [loadThemeFromAPI]);
+
+  // ✅ MEJORADO: Efecto para cargar tema al inicializar
   useEffect(() => {
     let isMounted = true;
     
     const initializeTheme = async () => {
       try {
+        console.log('🎨 ThemeContext - Inicializando tema...');
         const themeData = await loadThemeFromAPI();
+        
         if (isMounted) {
           // Aplicar tema inmediatamente
           const colors = themeData.theme === 'custom' 
@@ -380,6 +424,14 @@ export const ThemeProvider = ({ children }) => {
         }
       } catch (error) {
         console.error('❌ Error inicializando tema:', error);
+        
+        // En caso de error, aplicar tema por defecto
+        if (isMounted) {
+          const defaultColors = predefinedThemes.blue.colors;
+          applyThemeColors(defaultColors, 'blue');
+          setIsInitialized(true);
+          setIsInitialLoading(false);
+        }
       }
     };
 
@@ -390,23 +442,24 @@ export const ThemeProvider = ({ children }) => {
     };
   }, [loadThemeFromAPI, applyThemeColors]);
 
-  // Aplicar colores cuando cambie el tema actual
+  // ✅ NUEVO: Efecto para detectar cambios de tema en tiempo real
   useEffect(() => {
-    if (isInitialized) {
+    if (isInitialized && !isInitialLoading) {
       const colors = getCurrentThemeColors();
       applyThemeColors(colors, currentTheme);
     }
-  }, [getCurrentThemeColors, applyThemeColors, currentTheme, isInitialized]);
+  }, [getCurrentThemeColors, applyThemeColors, currentTheme, isInitialized, isInitialLoading]);
 
-  // ✅ NUEVO: Función para refrescar tema desde la API
-  const refreshThemeFromAPI = useCallback(async () => {
-    try {
-      console.log('🔄 Refrescando tema desde API...');
-      await loadThemeFromAPI();
-    } catch (error) {
-      console.error('❌ Error refrescando tema:', error);
+  // ✅ NUEVO: Efecto para limpiar estados de carga después de un tiempo
+  useEffect(() => {
+    if (isInitialized && !isLoading) {
+      const timer = setTimeout(() => {
+        setLoadingStage('complete');
+      }, 1000);
+      
+      return () => clearTimeout(timer);
     }
-  }, [loadThemeFromAPI]);
+  }, [isInitialized, isLoading]);
 
   // Valor del contexto
   const contextValue = {
@@ -415,6 +468,11 @@ export const ThemeProvider = ({ children }) => {
     customColors,
     isLoading,
     isInitialized,
+    
+    // ✅ NUEVOS: Estados específicos de carga
+    isInitialLoading,
+    loadingStage,
+    lastLoadTime,
     
     // Temas disponibles
     predefinedThemes,

@@ -355,22 +355,26 @@ const TipoOficinaForm = React.memo(
 TipoOficinaForm.displayName = "TipoOficinaForm";
 
 // ===== COMPONENTE PRINCIPAL =====
+// En TiOficinWindow.jsx, cambia estas líneas:
+
 const TiOficinWindow = ({ 
   showMessage: externalShowMessage,
-  menuId = 27, // ID del menú para tipos de oficina
+  menuId = 20, // ✅ ID del submenu "Tipos de Oficina"
   title = "Gestión de Tipos de Oficina" 
 }) => {
   // Obtener usuario actual
   const currentUser = getCurrentUser();
   const currentUserId = currentUser?.usu_id;
 
-  console.log("🔍 TipoOficinaWindow - Usuario actual:", {
+  console.log("🔍 TipoOficinaWindow - Usuario actual (Solución Rápida):", {
     usu_id: currentUserId,
     usu_nom: currentUser?.usu_nom,
     per_id: currentUser?.per_id,
+    menuId,
+    solucion: "submenu_como_menu"
   });
 
-  // Hook de permisos
+  // ✅ CAMBIO CRÍTICO: Usar "submenu" en lugar de "menu"
   const {
     canCreate,
     canRead,
@@ -378,8 +382,14 @@ const TiOficinWindow = ({
     canDelete,
     loading: permissionsLoading,
     error: permissionsError,
-  } = useButtonPermissions(menuId, null, true, "menu");
+  } = useButtonPermissions(
+    menuId,    // 20 - Submenu "Tipos de Oficina"
+    null,      // No segundo parámetro
+    true,      // autoLoad
+    "submenu"  // ✅ CAMBIO: De "menu" a "submenu"
+  );
 
+  // ... resto del código igual, sin cambios ...
   // Estados del componente
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });

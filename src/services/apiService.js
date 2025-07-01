@@ -361,68 +361,68 @@ export const adminService = {
 
     // Obtener configuración por nombre (método específico)
     getByName: async (configName) => {
-  try {
-    console.log(`🔍 Obteniendo configuración por nombre: ${configName}`);
-    const response = await apiClient.get(`/configs`, {
-      params: { conf_nom: configName },
-    });
-    
-    console.log(`📥 Respuesta de configuración ${configName}:`, response.data);
-    
-    // ✅ NORMALIZAR: Asegurar que siempre devolvemos el formato correcto
-    let normalizedResponse = {
-      status: "success",
-      data: [],
-      message: "Configuración obtenida correctamente"
-    };
+      try {
+        console.log(`🔍 Obteniendo configuración por nombre: ${configName}`);
+        const response = await apiClient.get(`/configs`, {
+          params: { conf_nom: configName },
+        });
 
-    if (response.data) {
-      if (response.data.status === "success" && response.data.data) {
-        normalizedResponse.data = Array.isArray(response.data.data) 
-          ? response.data.data 
-          : [response.data.data];
-        normalizedResponse.message = response.data.message || normalizedResponse.message;
-      } else if (Array.isArray(response.data)) {
-        normalizedResponse.data = response.data;
-      } else if (response.data.data) {
-        normalizedResponse.data = Array.isArray(response.data.data) 
-          ? response.data.data 
-          : [response.data.data];
+        console.log(`📥 Respuesta de configuración ${configName}:`, response.data);
+
+        // ✅ NORMALIZAR: Asegurar que siempre devolvemos el formato correcto
+        let normalizedResponse = {
+          status: "success",
+          data: [],
+          message: "Configuración obtenida correctamente"
+        };
+
+        if (response.data) {
+          if (response.data.status === "success" && response.data.data) {
+            normalizedResponse.data = Array.isArray(response.data.data)
+              ? response.data.data
+              : [response.data.data];
+            normalizedResponse.message = response.data.message || normalizedResponse.message;
+          } else if (Array.isArray(response.data)) {
+            normalizedResponse.data = response.data;
+          } else if (response.data.data) {
+            normalizedResponse.data = Array.isArray(response.data.data)
+              ? response.data.data
+              : [response.data.data];
+          }
+        }
+
+        // ✅ Si no encontramos la configuración, usar valores por defecto
+        if (normalizedResponse.data.length === 0) {
+          console.log(`⚠️ Configuración ${configName} no encontrada, usando valor por defecto`);
+
+          const defaultValue = configName === 'sistema_tema_actual' ? 'blue' : '{}';
+
+          // Fallback: devolver valor por defecto
+          normalizedResponse.data = [{
+            conf_nom: configName,
+            conf_detalle: defaultValue
+          }];
+          normalizedResponse.message = "Usando valor por defecto";
+        }
+
+        console.log(`✅ Configuración ${configName} normalizada:`, normalizedResponse);
+        return normalizedResponse;
+      } catch (error) {
+        console.error(`❌ Error obteniendo configuración ${configName}:`, error);
+
+        // ✅ FALLBACK: Devolver valor por defecto en caso de error
+        const defaultValue = configName === 'sistema_tema_actual' ? 'blue' : '{}';
+
+        return {
+          status: "success",
+          data: [{
+            conf_nom: configName,
+            conf_detalle: defaultValue
+          }],
+          message: "Usando valor por defecto por error de conexión"
+        };
       }
-    }
-
-    // ✅ Si no encontramos la configuración, usar valores por defecto
-    if (normalizedResponse.data.length === 0) {
-      console.log(`⚠️ Configuración ${configName} no encontrada, usando valor por defecto`);
-      
-      const defaultValue = configName === 'sistema_tema_actual' ? 'blue' : '{}';
-      
-      // Fallback: devolver valor por defecto
-      normalizedResponse.data = [{
-        conf_nom: configName,
-        conf_detalle: defaultValue
-      }];
-      normalizedResponse.message = "Usando valor por defecto";
-    }
-
-    console.log(`✅ Configuración ${configName} normalizada:`, normalizedResponse);
-    return normalizedResponse;
-  } catch (error) {
-    console.error(`❌ Error obteniendo configuración ${configName}:`, error);
-    
-    // ✅ FALLBACK: Devolver valor por defecto en caso de error
-    const defaultValue = configName === 'sistema_tema_actual' ? 'blue' : '{}';
-    
-    return {
-      status: "success",
-      data: [{
-        conf_nom: configName,
-        conf_detalle: defaultValue
-      }],
-      message: "Usando valor por defecto por error de conexión"
-    };
-  }
-},
+    },
 
     // Actualizar valor de configuración específica
     updateValue: async (configName, newValue) => {
@@ -744,7 +744,7 @@ export const adminService = {
               total: allOficinas.data?.total || 0,
               activas: allOficinas.data?.current_page
                 ? allOficinas.data.data?.filter((o) => o.oficin_ctractual === 1)
-                    .length || 0
+                  .length || 0
                 : 0,
             },
             message: "Estadísticas básicas calculadas",
@@ -2470,8 +2470,7 @@ export const adminService = {
                 const hasPermission = boton.has_permission === true;
 
                 console.log(
-                  `  🔘 Botón ${boton.bot_codigo}: ${
-                    hasPermission ? "✅ PERMITIDO" : "❌ DENEGADO"
+                  `  🔘 Botón ${boton.bot_codigo}: ${hasPermission ? "✅ PERMITIDO" : "❌ DENEGADO"
                   }`,
                   {
                     profile_permission: boton.profile_permission,
@@ -2821,6 +2820,48 @@ export const adminService = {
     /**
      * ✅ NUEVO: Obtener permisos efectivos del usuario actual para una opción
      */
+    async getMySubmenuButtonPermissions(menuId, submenuId) {
+      try {
+        console.log(`🔍 apiService: Obteniendo permisos de submenu ${submenuId} en menú ${menuId}`);
+
+        const response = await apiClient.get(`/submenu-button-permissions/${menuId}/${submenuId}`);
+
+        if (response.data?.status === 'success' || response.data?.success === true) {
+          console.log('✅ apiService: Permisos de submenu obtenidos:', response.data);
+          return response.data;
+        } else {
+          console.error('❌ apiService: Error en respuesta de permisos de submenu:', response.data);
+          throw new Error(response.data?.message || 'Error al obtener permisos de submenu');
+        }
+      } catch (error) {
+        console.error('❌ Error obteniendo permisos de submenu:', error);
+        console.error('❌ Error details:', error.response?.data);
+        console.error('❌ Error status:', error.response?.status);
+        throw error;
+      }
+    },
+
+    /**
+     * Verificar permiso específico de botón en submenu
+     */
+    async checkSubmenuButtonPermission(menuId, submenuId, buttonCode) {
+      try {
+        console.log(`🔍 apiService: Verificando permiso ${buttonCode} en submenu ${submenuId}`);
+
+        const response = await apiClient.post('/check-submenu-button-permission', {
+          men_id: menuId,
+          sub_id: submenuId,
+          bot_codigo: buttonCode
+        });
+
+        return response.data?.has_permission || false;
+      } catch (error) {
+        console.error('❌ Error verificando permiso de submenu:', error);
+        return false;
+      }
+    },
+
+
     async getMyButtonPermissions(opcId) {
       try {
         // Obtener usuario actual desde el sistema de autenticación
@@ -2891,8 +2932,7 @@ export const adminService = {
             );
             if (button) {
               console.log(
-                `✅ Botón encontrado: ${
-                  button.hasPermission ? "PERMITIDO" : "DENEGADO"
+                `✅ Botón encontrado: ${button.hasPermission ? "PERMITIDO" : "DENEGADO"
                 }`
               );
               return button.hasPermission;
@@ -2907,8 +2947,7 @@ export const adminService = {
               );
               if (button) {
                 console.log(
-                  `✅ Botón encontrado en submenú: ${
-                    button.hasPermission ? "PERMITIDO" : "DENEGADO"
+                  `✅ Botón encontrado en submenú: ${button.hasPermission ? "PERMITIDO" : "DENEGADO"
                   }`
                 );
                 return button.hasPermission;
@@ -2923,8 +2962,7 @@ export const adminService = {
                 );
                 if (button) {
                   console.log(
-                    `✅ Botón encontrado en opción: ${
-                      button.hasPermission ? "PERMITIDO" : "DENEGADO"
+                    `✅ Botón encontrado en opción: ${button.hasPermission ? "PERMITIDO" : "DENEGADO"
                     }`
                   );
                   return button.hasPermission;
@@ -2989,6 +3027,26 @@ export const adminService = {
   // ✅ CORRECCIÓN: buttonUtils con getMyMenuButtonPermissions mejorado
   buttonUtils: {
     // ✅ MÉTODO PARA OPCIONES REGULARES
+    async getMySubmenuAsMenuPermissions(submenuId) {
+      try {
+        console.log(`🔍 apiService: Obteniendo permisos de submenu ${submenuId} como menú`);
+
+        const response = await apiClient.get(`/submenu-button-permissions/${submenuId}`);
+
+        if (response.data?.status === 'success' || response.data?.success === true) {
+          console.log('✅ apiService: Permisos de submenu obtenidos:', response.data);
+          return response.data;
+        } else {
+          console.error('❌ apiService: Error en respuesta de permisos de submenu:', response.data);
+          throw new Error(response.data?.message || 'Error al obtener permisos de submenu');
+        }
+      } catch (error) {
+        console.error('❌ Error obteniendo permisos de submenu como menú:', error);
+        console.error('❌ Error details:', error.response?.data);
+        console.error('❌ Error status:', error.response?.status);
+        throw error;
+      }
+    },
     async getMyButtonPermissions(opcionId) {
       try {
         console.log(

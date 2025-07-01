@@ -11,16 +11,20 @@ import EditarOficinaForm from "./EditarOficinaForm";
 
 const OficinasWindow = ({
   showMessage: externalShowMessage,
-  menuId = 25,
+  // ✅ SOLUCIÓN RÁPIDA: Usar solo el ID del submenu
+  menuId = 19,      // ID del submenu "Oficinas"
   title = "Gestión de Oficinas",
 }) => {
-  console.log("🏢 OficinasWindow - Iniciando componente");
+  console.log("🏢 OficinasWindow - Iniciando componente (Solución Rápida)", {
+    menuId,
+    solucion: "submenu_como_menu"
+  });
 
   // Obtener usuario actual
   const currentUser = getCurrentUser();
   const currentUserId = currentUser?.usu_id;
 
-  // Hook de permisos
+  // ✅ Hook de permisos con SOLUCIÓN RÁPIDA
   const {
     canCreate,
     canRead,
@@ -28,7 +32,12 @@ const OficinasWindow = ({
     canDelete,
     loading: permissionsLoading,
     error: permissionsError,
-  } = useButtonPermissions(menuId, null, true, "menu");
+  } = useButtonPermissions(
+    menuId,    // 19 - Submenu "Oficinas" 
+    null,      // No segundo parámetro
+    true,      // autoLoad
+    "submenu"  // ✅ Tipo "submenu" (ahora funciona con la solución rápida)
+  );
 
   // Estados principales del componente
   const [loading, setLoading] = useState(false);
@@ -36,7 +45,7 @@ const OficinasWindow = ({
   const [oficinas, setOficinas] = useState([]);
 
   // Estados para control de vista
-  const [currentView, setCurrentView] = useState("lista"); // "lista", "crear", "editar"
+  const [currentView, setCurrentView] = useState("lista");
   const [editingOficina, setEditingOficina] = useState(null);
 
   // Estados para filtros y búsqueda
@@ -55,7 +64,7 @@ const OficinasWindow = ({
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  // ✅ FUNCIÓN MEJORADA PARA MOSTRAR MENSAJES
+  // ✅ FUNCIÓN PARA MOSTRAR MENSAJES
   const showMessage = useCallback(
     (type, text) => {
       console.log("📢 OficinasWindow - Mensaje:", type, text);
@@ -69,7 +78,21 @@ const OficinasWindow = ({
     [externalShowMessage]
   );
 
-  // ✅ FUNCIÓN MEJORADA PARA CARGAR OFICINAS
+  // Debug de permisos
+  useEffect(() => {
+    console.log("🔍 OficinasWindow - Estado de permisos (Solución Rápida):", {
+      menuId,
+      canCreate,
+      canRead,
+      canUpdate,
+      canDelete,
+      permissionsLoading,
+      permissionsError: permissionsError?.message,
+      tipoSolucion: "submenu_como_menu"
+    });
+  }, [menuId, canCreate, canRead, canUpdate, canDelete, permissionsLoading, permissionsError]);
+
+  // ✅ FUNCIÓN PARA CARGAR OFICINAS
   const loadOficinas = useCallback(
     async (page = 1, customFilters = {}) => {
       console.log("🔍 Cargando oficinas - página:", page);
@@ -98,9 +121,7 @@ const OficinasWindow = ({
           let oficinasData = [];
           let paginationInfo = {};
 
-          // Manejar diferentes formatos de respuesta paginada
           if (result.data.data && Array.isArray(result.data.data)) {
-            // Formato Laravel paginado
             oficinasData = result.data.data;
             paginationInfo = {
               current_page: result.data.current_page || 1,
@@ -109,7 +130,6 @@ const OficinasWindow = ({
               per_page: result.data.per_page || perPage,
             };
           } else if (Array.isArray(result.data)) {
-            // Array directo
             oficinasData = result.data;
             paginationInfo = {
               current_page: 1,

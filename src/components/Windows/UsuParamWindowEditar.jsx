@@ -1,5 +1,6 @@
+// src/components/Windows/UsuParamWindowEditar.jsx - CON SOPORTE PARA OFICINAS
 import React, { useState, useEffect, useCallback } from "react";
-// import { adminService } from "../../services/apiService";
+import { adminService } from "../../services/apiService";
 import Icon from "../UI/Icon";
 
 const UsuParamWindowEditar = ({
@@ -21,6 +22,7 @@ const UsuParamWindowEditar = ({
     per_id: "",
     est_id: 1,
     usu_deshabilitado: false,
+    oficin_codigo: "", // ✅ NUEVO CAMPO PARA OFICINA
   });
 
   const [errors, setErrors] = useState({});
@@ -28,6 +30,78 @@ const UsuParamWindowEditar = ({
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // ✅ NUEVOS ESTADOS PARA OFICINAS
+  const [oficinas, setOficinas] = useState([]);
+  const [loadingOficinas, setLoadingOficinas] = useState(false);
+  const [oficinaSelected, setOficinaSelected] = useState(null);
+  const [oficinaActual, setOficinaActual] = useState(null);
+
+  // ✅ NUEVO: Cargar oficinas disponibles - OPTIMIZADO
+  const loadOficinas = useCallback(async () => {
+    try {
+      setLoadingOficinas(true);
+      console.log("🏢 Cargando oficinas disponibles...");
+      
+      const response = await adminService.oficinas.getActivas();
+      
+      if (response.status === "success" && response.data) {
+        let oficinasData = [];
+        
+        // Manejar diferentes formatos de respuesta
+        if (response.data.data && Array.isArray(response.data.data)) {
+          oficinasData = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          oficinasData = response.data;
+        }
+        
+        console.log("✅ Oficinas cargadas:", oficinasData.length);
+        setOficinas(oficinasData);
+        
+        // Si estamos editando, buscar la oficina actual
+        if (editingUsuario?.oficin_codigo) {
+          const oficinaActual = oficinasData.find(
+            oficina => oficina.oficin_codigo === editingUsuario.oficin_codigo
+          );
+          if (oficinaActual) {
+            setOficinaActual(oficinaActual);
+            setOficinaSelected(oficinaActual);
+            console.log("🎯 Oficina actual encontrada:", oficinaActual.oficin_nombre);
+          }
+        }
+      } else {
+        console.warn("⚠️ No se pudieron cargar las oficinas");
+        setOficinas([]);
+      }
+    } catch (error) {
+      console.error("❌ Error cargando oficinas:", error);
+      if (showMessage) {
+        showMessage("error", "Error al cargar las oficinas disponibles");
+      }
+      setOficinas([]);
+    } finally {
+      setLoadingOficinas(false);
+    }
+  }, []); // ✅ CORREGIDO: Remover dependencias que causan re-renders
+
+  // ✅ OPTIMIZADO: Cargar oficinas solo una vez al montar
+  useEffect(() => {
+    loadOficinas();
+  }, []); // ✅ CORREGIDO: Array vacío para ejecutar solo al montar
+
+  // ✅ NUEVO: Efecto separado para manejar la oficina actual del usuario
+  useEffect(() => {
+    if (editingUsuario?.oficin_codigo && oficinas.length > 0) {
+      const oficinaActual = oficinas.find(
+        oficina => oficina.oficin_codigo === editingUsuario.oficin_codigo
+      );
+      if (oficinaActual) {
+        setOficinaActual(oficinaActual);
+        setOficinaSelected(oficinaActual);
+        console.log("🎯 Oficina actual encontrada:", oficinaActual.oficin_nombre);
+      }
+    }
+  }, [editingUsuario?.oficin_codigo, oficinas]);
 
   // Inicializar formulario con datos del usuario a editar
   useEffect(() => {
@@ -52,6 +126,7 @@ const UsuParamWindowEditar = ({
           editingUsuario.usu_deshabilitado === "1" ||
           editingUsuario.usu_deshabilitado === "true"
         ),
+        oficin_codigo: editingUsuario.oficin_codigo || "", // ✅ CARGAR OFICINA ACTUAL
       });
     } else {
       // Modo creación - formulario vacío
@@ -66,6 +141,7 @@ const UsuParamWindowEditar = ({
         per_id: "",
         est_id: 1,
         usu_deshabilitado: false,
+        oficin_codigo: "", // ✅ SIN OFICINA INICIAL
       });
     }
 
@@ -78,10 +154,30 @@ const UsuParamWindowEditar = ({
   const handleInputChange = useCallback((field, value) => {
     console.log(`📝 Campo ${field} cambiado a:`, value);
     
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    // ✅ PROCESAMIENTO ESPECIAL PARA OFICINA
+    if (field === "oficin_codigo") {
+      const processedValue = value === "" ? null : parseInt(value);
+      
+      // Actualizar oficina seleccionada para mostrar información adicional
+      if (processedValue) {
+        const oficina = oficinas.find(o => o.oficin_codigo === processedValue);
+        setOficinaSelected(oficina || null);
+        console.log("🏢 Oficina seleccionada:", oficina?.oficin_nombre || "Ninguna");
+      } else {
+        setOficinaSelected(null);
+        console.log("🏢 Oficina deseleccionada");
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        [field]: processedValue
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
 
     // Limpiar error del campo cuando el usuario empiece a escribir
     if (errors[field]) {
@@ -90,7 +186,7 @@ const UsuParamWindowEditar = ({
         [field]: null
       }));
     }
-  }, [errors]);
+  }, [errors, oficinas]);
 
   // Validar formulario
   const validateForm = useCallback(() => {
@@ -152,11 +248,16 @@ const UsuParamWindowEditar = ({
       }
     }
 
+    // ✅ VALIDACIÓN DE OFICINA (OPCIONAL)
+    if (formData.oficin_codigo && !oficinas.find(o => o.oficin_codigo === formData.oficin_codigo)) {
+      newErrors.oficin_codigo = "Oficina inválida";
+    }
+
     console.log("🔍 Errores de validación:", newErrors);
     setErrors(newErrors);
     
     return Object.keys(newErrors).length === 0;
-  }, [formData, editingUsuario]);
+  }, [formData, editingUsuario, oficinas]);
 
   // Manejar envío del formulario
   const handleSubmit = useCallback(async (e) => {
@@ -181,6 +282,7 @@ const UsuParamWindowEditar = ({
         per_id: parseInt(formData.per_id),
         est_id: parseInt(formData.est_id),
         usu_deshabilitado: formData.usu_deshabilitado,
+        oficin_codigo: formData.oficin_codigo || null, // ✅ INCLUIR OFICINA
       };
 
       // Solo incluir contraseña si se proporcionó
@@ -280,11 +382,20 @@ const UsuParamWindowEditar = ({
           editingUsuario.usu_deshabilitado === "1" ||
           editingUsuario.usu_deshabilitado === "true"
         ),
+        oficin_codigo: editingUsuario.oficin_codigo || "", // ✅ RESTAURAR OFICINA ORIGINAL
       });
+      
+      // ✅ RESTAURAR OFICINA SELECCIONADA
+      if (oficinaActual) {
+        setOficinaSelected(oficinaActual);
+      } else {
+        setOficinaSelected(null);
+      }
+      
       setErrors({});
       showMessage("info", "Cambios revertidos");
     }
-  }, [editingUsuario, showMessage]);
+  }, [editingUsuario, oficinaActual, showMessage]);
 
   return (
     <div className="w-full h-full flex flex-col bg-white">
@@ -308,12 +419,13 @@ const UsuParamWindowEditar = ({
                 <span className="text-slate-600">
                   {editingUsuario ? `${editingUsuario.usu_nom} ${editingUsuario.usu_ape}` : "Nuevo usuario"}
                 </span>
-                {/* {hasChanges && editingUsuario && (
-                //   <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1">
-                //     <Icon name="AlertTriangle" size={12} />
-                //     Sin guardar
-                //   </span>
-                )} */}
+                {/* ✅ MOSTRAR OFICINA ACTUAL SI EXISTE */}
+                {editingUsuario && oficinaActual && (
+                  <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1">
+                    <Icon name="Building" size={10} />
+                    {oficinaActual.oficin_nombre}
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -340,7 +452,7 @@ const UsuParamWindowEditar = ({
       )}
 
       {/* Contenido del formulario - Optimizado para llenar el espacio */}
-      <div className="flex-1 flex flex-col p-4">
+      <div className="flex-1 flex flex-col p-4 overflow-y-auto">
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col justify-between space-y-4">
           <div className="space-y-4">
             {/* Fila 1: Nombre y Apellido */}
@@ -451,7 +563,7 @@ const UsuParamWindowEditar = ({
               </div>
             </div>
 
-            {/* Fila 3: Perfil y Estado */}
+            {/* Fila 3: Perfil y Oficina */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -481,42 +593,120 @@ const UsuParamWindowEditar = ({
                 )}
               </div>
 
+              {/* ✅ NUEVA SECCIÓN DE OFICINA */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Estado
+                  <div className="flex items-center gap-2">
+                    <Icon name="Building" size={14} />
+                    Oficina (opcional)
+                  </div>
                 </label>
-                <div className="flex gap-4 pt-2">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="est_id"
-                      value={1}
-                      checked={formData.est_id === 1}
-                      onChange={(e) => handleInputChange("est_id", parseInt(e.target.value))}
-                      className="w-4 h-4 text-green-600"
-                      disabled={loading || isSubmitting}
-                    />
-                    <span className="text-sm text-green-600 font-medium flex items-center gap-1">
-                      <Icon name="CheckCircle" size={14} />
-                      Activo
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="est_id"
-                      value={2}
-                      checked={formData.est_id === 2}
-                      onChange={(e) => handleInputChange("est_id", parseInt(e.target.value))}
-                      className="w-4 h-4 text-red-600"
-                      disabled={loading || isSubmitting}
-                    />
-                    <span className="text-sm text-red-600 font-medium flex items-center gap-1">
-                      <Icon name="XCircle" size={14} />
-                      Inactivo
-                    </span>
-                  </label>
+                <div className="space-y-2">
+                  <select
+                    value={formData.oficin_codigo || ""}
+                    onChange={(e) => handleInputChange("oficin_codigo", e.target.value)}
+                    className={`w-full px-3 py-2.5 border rounded text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.oficin_codigo
+                        ? "border-red-300 bg-red-50"
+                        : formData.oficin_codigo
+                          ? "border-blue-300 bg-blue-50"
+                          : "border-gray-300 hover:border-gray-400"
+                    }`}
+                    disabled={loading || isSubmitting || loadingOficinas}
+                  >
+                    <option value="">Sin oficina asignada</option>
+                    {oficinas.map((oficina) => (
+                      <option key={oficina.oficin_codigo} value={oficina.oficin_codigo}>
+                        {oficina.tipo_oficina ? `${oficina.tipo_oficina} - ` : ""}{oficina.oficin_nombre}
+                      </option>
+                    ))}
+                  </select>
+                  
+                  {/* Mostrar información de la oficina seleccionada */}
+                  {oficinaSelected && (
+                    <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                      <div className="flex items-center gap-1 text-blue-700">
+                        <Icon name="MapPin" size={12} />
+                        <span className="font-medium">{oficinaSelected.oficin_nombre}</span>
+                        {/* ✅ INDICAR SI ES CAMBIO */}
+                        {editingUsuario && oficinaSelected.oficin_codigo !== editingUsuario.oficin_codigo && (
+                          <span className="bg-yellow-100 text-yellow-700 px-1 py-0.5 rounded text-xs ml-1">
+                            CAMBIO
+                          </span>
+                        )}
+                      </div>
+                      {oficinaSelected.oficin_direccion && (
+                        <p className="text-blue-600 mt-1">{oficinaSelected.oficin_direccion}</p>
+                      )}
+                      {oficinaSelected.institucion && (
+                        <p className="text-blue-600 mt-1">
+                          <Icon name="Building2" size={10} className="inline mr-1" />
+                          {oficinaSelected.institucion}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* ✅ MOSTRAR OFICINA ACTUAL SI ES DIFERENTE */}
+                  {editingUsuario && oficinaActual && (!oficinaSelected || oficinaSelected.oficin_codigo !== oficinaActual.oficin_codigo) && (
+                    <div className="p-2 bg-gray-50 border border-gray-200 rounded text-xs">
+                      <div className="flex items-center gap-1 text-gray-600">
+                        <Icon name="Clock" size={12} />
+                        <span className="font-medium">Oficina actual:</span>
+                        <span>{oficinaActual.oficin_nombre}</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {loadingOficinas && (
+                    <div className="p-2 bg-gray-50 border border-gray-200 rounded text-xs text-gray-600 flex items-center gap-1">
+                      <div className="animate-spin h-3 w-3 border border-gray-400 border-t-transparent rounded-full"></div>
+                      Cargando oficinas...
+                    </div>
+                  )}
                 </div>
+                {errors.oficin_codigo && (
+                  <p className="text-xs text-red-600 mt-1">{errors.oficin_codigo}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Fila 4: Estado */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Estado
+              </label>
+              <div className="flex gap-4 pt-2">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="est_id"
+                    value={1}
+                    checked={formData.est_id === 1}
+                    onChange={(e) => handleInputChange("est_id", parseInt(e.target.value))}
+                    className="w-4 h-4 text-green-600"
+                    disabled={loading || isSubmitting}
+                  />
+                  <span className="text-sm text-green-600 font-medium flex items-center gap-1">
+                    <Icon name="CheckCircle" size={14} />
+                    Activo
+                  </span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="est_id"
+                    value={2}
+                    checked={formData.est_id === 2}
+                    onChange={(e) => handleInputChange("est_id", parseInt(e.target.value))}
+                    className="w-4 h-4 text-red-600"
+                    disabled={loading || isSubmitting}
+                  />
+                  <span className="text-sm text-red-600 font-medium flex items-center gap-1">
+                    <Icon name="XCircle" size={14} />
+                    Inactivo
+                  </span>
+                </label>
               </div>
             </div>
 
@@ -533,7 +723,7 @@ const UsuParamWindowEditar = ({
               </div>
             )}
 
-            {/* Fila 4: Contraseñas */}
+            {/* Fila 5: Contraseñas */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -619,18 +809,11 @@ const UsuParamWindowEditar = ({
                     <li>• El email será usado para el inicio de sesión</li>
                     <li>• {editingUsuario ? "Deje los campos de contraseña vacíos para mantener la actual" : "La contraseña debe tener al menos 6 caracteres"}</li>
                     <li>• {editingUsuario ? "Si cambia la contraseña, debe confirmarla" : "Debe confirmar la contraseña"}</li>
+                    <li>• La oficina es opcional y puede cambiarse en cualquier momento</li>
                   </ul>
                 </div>
               </div>
             </div>
-
-            {/* Indicador de cambios */}
-            {/* {hasChanges && editingUsuario && (
-              <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700 flex items-center gap-1">
-                <Icon name="AlertTriangle" size={12} />
-                Hay cambios sin guardar
-              </div>
-            )} */}
           </div>
 
           {/* Botones de acción - Siempre en la parte inferior */}
