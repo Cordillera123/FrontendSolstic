@@ -439,13 +439,12 @@ export const adminService = {
     },
   },
 
-  oficinas: {
+  // apiService.js - Sección oficinas CORREGIDA sin duplicados
+oficinas: {
+    // ✅ MÉTODO PRINCIPAL PARA OBTENER TODAS LAS OFICINAS
     async getAll(params = {}) {
       try {
-        console.log(
-          "🔍 Oficinas API - Obteniendo todas las oficinas con params:",
-          params
-        );
+        console.log("🔍 Oficinas API - Obteniendo todas las oficinas con params:", params);
 
         const queryString = apiUtils.buildQueryParams(params);
         const url = queryString ? `/oficinas?${queryString}` : "/oficinas";
@@ -463,8 +462,7 @@ export const adminService = {
         if (response.data) {
           if (response.data.status === "success" && response.data.data) {
             normalizedResponse.data = response.data.data;
-            normalizedResponse.message =
-              response.data.message || normalizedResponse.message;
+            normalizedResponse.message = response.data.message || normalizedResponse.message;
             normalizedResponse.debug_info = response.data.debug_info;
           } else if (Array.isArray(response.data)) {
             normalizedResponse.data = response.data;
@@ -476,10 +474,7 @@ export const adminService = {
           }
         }
 
-        console.log(
-          "✅ Oficinas API - Respuesta normalizada:",
-          normalizedResponse
-        );
+        console.log("✅ Oficinas API - Respuesta normalizada:", normalizedResponse);
         return normalizedResponse;
       } catch (error) {
         console.error("❌ Error en oficinas.getAll:", error);
@@ -493,10 +488,10 @@ export const adminService = {
       }
     },
 
+    // ✅ MÉTODO PARA OBTENER OFICINAS ACTIVAS
     async getActivas(params = {}) {
       try {
         console.log("🔍 Oficinas API - Obteniendo oficinas activas");
-
         const activeParams = { ...params, solo_activas: true };
         return await this.getAll(activeParams);
       } catch (error) {
@@ -505,14 +500,13 @@ export const adminService = {
       }
     },
 
+    // ✅ MÉTODO PARA LISTAR OFICINAS (para selects)
     async listar(params = {}) {
       try {
         console.log("🔍 Oficinas API - Obteniendo lista para selects:", params);
 
         const queryString = apiUtils.buildQueryParams(params);
-        const url = queryString
-          ? `/oficinas/listar?${queryString}`
-          : "/oficinas/listar";
+        const url = queryString ? `/oficinas/listar?${queryString}` : "/oficinas/listar";
 
         const response = await apiClient.get(url);
         console.log("📥 Oficinas API - Lista:", response.data);
@@ -520,8 +514,7 @@ export const adminService = {
         return {
           status: "success",
           data: response.data.data || response.data || [],
-          message:
-            response.data.message || "Lista de oficinas obtenida correctamente",
+          message: response.data.message || "Lista de oficinas obtenida correctamente",
         };
       } catch (error) {
         console.error("❌ Error en oficinas.listar:", error);
@@ -535,6 +528,7 @@ export const adminService = {
       }
     },
 
+    // ✅ MÉTODO PARA OBTENER UNA OFICINA POR ID
     async getById(id) {
       try {
         console.log("🔍 Oficinas API - Obteniendo oficina por ID:", id);
@@ -547,34 +541,30 @@ export const adminService = {
         console.log("📥 Oficinas API - Oficina obtenida:", response.data);
 
         return {
-          status: "success",
+          success: response.data.status === 'success',
           data: response.data.data || response.data,
           message: response.data.message || "Oficina obtenida correctamente",
         };
       } catch (error) {
         console.error("❌ Error en oficinas.getById:", error);
         const apiError = apiUtils.handleApiError(error);
-        throw {
-          status: "error",
+        return {
+          success: false,
+          data: null,
           message: apiError.message,
           errors: apiError.errors,
         };
       }
     },
 
+    // ✅ MÉTODO PARA CREAR OFICINA
     async create(data) {
       try {
         console.log("🔍 Oficinas API - Creando oficina:", data);
 
         // Validaciones básicas
-        if (
-          !data.oficin_nombre ||
-          !data.oficin_instit_codigo ||
-          !data.oficin_tofici_codigo
-        ) {
-          throw new Error(
-            "Nombre, institución y tipo de oficina son requeridos"
-          );
+        if (!data.oficin_nombre || !data.oficin_instit_codigo || !data.oficin_tofici_codigo) {
+          throw new Error("Nombre, institución y tipo de oficina son requeridos");
         }
 
         const response = await apiClient.post("/oficinas", data);
@@ -598,6 +588,7 @@ export const adminService = {
       }
     },
 
+    // ✅ MÉTODO PARA ACTUALIZAR OFICINA
     async update(id, data) {
       try {
         console.log("🔍 Oficinas API - Actualizando oficina:", id, data);
@@ -606,14 +597,8 @@ export const adminService = {
           throw new Error("ID de oficina inválido");
         }
 
-        if (
-          !data.oficin_nombre ||
-          !data.oficin_instit_codigo ||
-          !data.oficin_tofici_codigo
-        ) {
-          throw new Error(
-            "Nombre, institución y tipo de oficina son requeridos"
-          );
+        if (!data.oficin_nombre || !data.oficin_instit_codigo || !data.oficin_tofici_codigo) {
+          throw new Error("Nombre, institución y tipo de oficina son requeridos");
         }
 
         const response = await apiClient.put(`/oficinas/${id}`, data);
@@ -637,6 +622,7 @@ export const adminService = {
       }
     },
 
+    // ✅ MÉTODO PARA ELIMINAR OFICINA
     async delete(id) {
       try {
         console.log("🔍 Oficinas API - Eliminando oficina:", id);
@@ -663,15 +649,10 @@ export const adminService = {
 
         if (error.response?.status === 422) {
           // Error por usuarios asignados
-          errorMessage =
-            error.response.data?.message ||
-            "No se puede eliminar: la oficina tiene usuarios asignados";
+          errorMessage = error.response.data?.message || "No se puede eliminar: la oficina tiene usuarios asignados";
         } else if (error.response?.status === 404) {
           errorMessage = "Oficina no encontrada";
-        } else if (
-          errorMessage.includes("constraint") ||
-          errorMessage.includes("foreign key")
-        ) {
+        } else if (errorMessage.includes("constraint") || errorMessage.includes("foreign key")) {
           errorMessage = "No se puede eliminar: existen registros dependientes";
         }
 
@@ -683,44 +664,39 @@ export const adminService = {
       }
     },
 
+    // ✅ MÉTODO PARA OBTENER USUARIOS DE UNA OFICINA
     async getUsuarios(id, params = {}) {
       try {
-        console.log(
-          "🔍 Oficinas API - Obteniendo usuarios de oficina:",
-          id,
-          params
-        );
+        console.log("🔍 Oficinas API - Obteniendo usuarios de oficina:", id, params);
 
         if (!id || isNaN(id)) {
           throw new Error("ID de oficina inválido");
         }
 
         const queryString = apiUtils.buildQueryParams(params);
-        const url = queryString
-          ? `/oficinas/${id}/usuarios?${queryString}`
-          : `/oficinas/${id}/usuarios`;
+        const url = queryString ? `/oficinas/${id}/usuarios?${queryString}` : `/oficinas/${id}/usuarios`;
 
         const response = await apiClient.get(url);
         console.log("📥 Oficinas API - Usuarios de oficina:", response.data);
 
         return {
-          status: "success",
+          success: response.data.status === 'success',
           data: response.data.data || response.data,
-          message:
-            response.data.message ||
-            "Usuarios de oficina obtenidos correctamente",
+          message: response.data.message || "Usuarios de oficina obtenidos correctamente",
         };
       } catch (error) {
         console.error("❌ Error en oficinas.getUsuarios:", error);
         const apiError = apiUtils.handleApiError(error);
-        throw {
-          status: "error",
+        return {
+          success: false,
+          data: null,
           message: apiError.message,
           errors: apiError.errors,
         };
       }
     },
 
+    // ✅ MÉTODO PARA OBTENER ESTADÍSTICAS
     async getStats() {
       try {
         console.log("🔍 Oficinas API - Obteniendo estadísticas");
@@ -730,8 +706,7 @@ export const adminService = {
         return {
           status: "success",
           data: response.data.data || response.data,
-          message:
-            response.data.message || "Estadísticas obtenidas correctamente",
+          message: response.data.message || "Estadísticas obtenidas correctamente",
         };
       } catch (error) {
         console.error("❌ Error obteniendo estadísticas de oficinas:", error);
@@ -743,8 +718,7 @@ export const adminService = {
             data: {
               total: allOficinas.data?.total || 0,
               activas: allOficinas.data?.current_page
-                ? allOficinas.data.data?.filter((o) => o.oficin_ctractual === 1)
-                  .length || 0
+                ? allOficinas.data.data?.filter((o) => o.oficin_ctractual === 1).length || 0
                 : 0,
             },
             message: "Estadísticas básicas calculadas",
@@ -760,13 +734,10 @@ export const adminService = {
       }
     },
 
-    // Métodos de utilidad para filtros
+    // ✅ MÉTODOS DE UTILIDAD PARA FILTROS
     async getByInstitucion(institucionId, params = {}) {
       try {
-        console.log(
-          "🔍 Oficinas API - Filtrando por institución:",
-          institucionId
-        );
+        console.log("🔍 Oficinas API - Filtrando por institución:", institucionId);
         const filterParams = { ...params, instit_codigo: institucionId };
         return await this.getAll(filterParams);
       } catch (error) {

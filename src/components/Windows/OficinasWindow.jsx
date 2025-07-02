@@ -1,4 +1,4 @@
-// src/components/Windows/OficinasWindow.jsx - REFACTORIZADO CON COMPONENTES SEPARADOS
+// src/components/Windows/OficinasWindow.jsx - ACTUALIZADO PARA USAR ShowOficinaForm
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useButtonPermissions } from "../../hooks/useButtonPermissions";
 import { adminService } from "../../services/apiService";
@@ -8,23 +8,23 @@ import Icon from "../UI/Icon";
 // Importar los componentes separados desde la misma carpeta
 import CrearOficinaForm from "./CrearOficinaForm";
 import EditarOficinaForm from "./EditarOficinaForm";
+import ShowOficinaForm from "./ShowOficinaForm"; // ✅ NUEVO IMPORT
 
 const OficinasWindow = ({
   showMessage: externalShowMessage,
-  // ✅ SOLUCIÓN RÁPIDA: Usar solo el ID del submenu
   menuId = 19,      // ID del submenu "Oficinas"
   title = "Gestión de Oficinas",
 }) => {
-  console.log("🏢 OficinasWindow - Iniciando componente (Solución Rápida)", {
+  console.log("🏢 OficinasWindow - Iniciando componente", {
     menuId,
-    solucion: "submenu_como_menu"
+    currentView: "lista"
   });
 
   // Obtener usuario actual
   const currentUser = getCurrentUser();
   const currentUserId = currentUser?.usu_id;
 
-  // ✅ Hook de permisos con SOLUCIÓN RÁPIDA
+  // Hook de permisos
   const {
     canCreate,
     canRead,
@@ -36,7 +36,7 @@ const OficinasWindow = ({
     menuId,    // 19 - Submenu "Oficinas" 
     null,      // No segundo parámetro
     true,      // autoLoad
-    "submenu"  // ✅ Tipo "submenu" (ahora funciona con la solución rápida)
+    "submenu"  // Tipo "submenu"
   );
 
   // Estados principales del componente
@@ -44,9 +44,10 @@ const OficinasWindow = ({
   const [message, setMessage] = useState({ type: "", text: "" });
   const [oficinas, setOficinas] = useState([]);
 
-  // Estados para control de vista
-  const [currentView, setCurrentView] = useState("lista");
+  // ✅ Estados para control de vista - ACTUALIZADO
+  const [currentView, setCurrentView] = useState("lista"); // 'lista' | 'crear' | 'editar' | 'mostrar'
   const [editingOficina, setEditingOficina] = useState(null);
+  const [viewingOficina, setViewingOficina] = useState(null); // ✅ NUEVO ESTADO
 
   // Estados para filtros y búsqueda
   const [searchTerm, setSearchTerm] = useState("");
@@ -80,15 +81,14 @@ const OficinasWindow = ({
 
   // Debug de permisos
   useEffect(() => {
-    console.log("🔍 OficinasWindow - Estado de permisos (Solución Rápida):", {
+    console.log("🔍 OficinasWindow - Estado de permisos:", {
       menuId,
       canCreate,
       canRead,
       canUpdate,
       canDelete,
       permissionsLoading,
-      permissionsError: permissionsError?.message,
-      tipoSolucion: "submenu_como_menu"
+      permissionsError: permissionsError?.message
     });
   }, [menuId, canCreate, canRead, canUpdate, canDelete, permissionsLoading, permissionsError]);
 
@@ -197,14 +197,8 @@ const OficinasWindow = ({
         let result;
 
         if (editingOficina) {
-          console.log(
-            "🔄 Actualizando oficina ID:",
-            editingOficina.oficin_codigo
-          );
-          result = await adminService.oficinas.update(
-            editingOficina.oficin_codigo,
-            formData
-          );
+          console.log("🔄 Actualizando oficina ID:", editingOficina.oficin_codigo);
+          result = await adminService.oficinas.update(editingOficina.oficin_codigo, formData);
           showMessage("success", "Oficina actualizada correctamente");
         } else {
           console.log("➕ Creando nueva oficina");
@@ -276,6 +270,7 @@ const OficinasWindow = ({
 
     console.log("➕ Iniciando creación de oficina");
     setEditingOficina(null);
+    setViewingOficina(null); // ✅ LIMPIAR VIEWING
     setCurrentView("crear");
   }, [canCreate, showMessage]);
 
@@ -289,10 +284,19 @@ const OficinasWindow = ({
 
       console.log("✏️ Iniciando edición de oficina:", oficina.oficin_codigo);
       setEditingOficina(oficina);
+      setViewingOficina(null); // ✅ LIMPIAR VIEWING
       setCurrentView("editar");
     },
     [canUpdate, showMessage]
   );
+
+  // ✅ NUEVA FUNCIÓN PARA MOSTRAR DETALLES DE OFICINA
+  const handleShowOficina = useCallback((oficina) => {
+    console.log("👁️ Mostrando detalles de oficina:", oficina.oficin_codigo);
+    setViewingOficina(oficina);
+    setEditingOficina(null); // ✅ LIMPIAR EDITING
+    setCurrentView("mostrar");
+  }, []);
 
   // ✅ FUNCIÓN PARA ELIMINAR OFICINA
   const handleDeleteOficina = useCallback(
@@ -312,15 +316,10 @@ const OficinasWindow = ({
         setLoading(true);
         console.log("🗑️ Eliminando oficina:", oficina.oficin_codigo);
 
-        const result = await adminService.oficinas.delete(
-          oficina.oficin_codigo
-        );
+        const result = await adminService.oficinas.delete(oficina.oficin_codigo);
 
         if (result?.status === "success") {
-          showMessage(
-            "success",
-            result.message || "Oficina eliminada correctamente"
-          );
+          showMessage("success", result.message || "Oficina eliminada correctamente");
         } else {
           showMessage("error", result?.message || "Error al eliminar oficina");
         }
@@ -346,11 +345,12 @@ const OficinasWindow = ({
     [canDelete, showMessage, loadOficinas, currentPage]
   );
 
-  // ✅ FUNCIÓN PARA CANCELAR FORMULARIOS
+  // ✅ FUNCIÓN PARA CANCELAR FORMULARIOS - ACTUALIZADA
   const handleFormCancel = useCallback(() => {
     console.log("❌ Cancelando formulario - volviendo a lista");
     setCurrentView("lista");
     setEditingOficina(null);
+    setViewingOficina(null); // ✅ LIMPIAR VIEWING
   }, []);
 
   // ✅ FUNCIONES DE FILTRADO Y PAGINACIÓN
@@ -402,30 +402,13 @@ const OficinasWindow = ({
     });
   }, [oficinas, sortConfig]);
 
-  // Función para ver usuarios de una oficina
+  // Función para ver usuarios de una oficina (mantenida para compatibilidad)
   const handleVerUsuarios = useCallback(
     async (oficina) => {
-      try {
-        console.log("👥 Viendo usuarios de oficina:", oficina.oficin_codigo);
-        const result = await adminService.oficinas.getUsuarios(
-          oficina.oficin_codigo
-        );
-
-        if (result?.status === "success") {
-          console.log("📊 Usuarios de oficina:", result.data);
-          showMessage(
-            "info",
-            `La oficina "${oficina.oficin_nombre}" tiene ${
-              result.data.resumen?.total_usuarios || 0
-            } usuarios`
-          );
-        }
-      } catch (error) {
-        console.error("❌ Error obteniendo usuarios:", error);
-        showMessage("error", "Error al obtener usuarios de la oficina");
-      }
+      // Ahora simplemente abre la vista de detalles
+      handleShowOficina(oficina);
     },
-    [showMessage]
+    [handleShowOficina]
   );
 
   // Cargar datos al montar el componente
@@ -509,7 +492,7 @@ const OficinasWindow = ({
     );
   }
 
-  // ✅ RENDERIZADO CONDICIONAL SEGÚN LA VISTA ACTUAL
+  // ✅ RENDERIZADO CONDICIONAL SEGÚN LA VISTA ACTUAL - ACTUALIZADO
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -530,6 +513,17 @@ const OficinasWindow = ({
             onSave={handleOficinaSave}
             onCancel={handleFormCancel}
             showMessage={showMessage}
+            loading={loading}
+          />
+        )}
+
+        {/* =============== NUEVA VISTA DE MOSTRAR OFICINA =============== */}
+        {currentView === "mostrar" && (
+          <ShowOficinaForm
+            oficinaId={viewingOficina?.oficin_codigo}
+            oficinaNombre={viewingOficina?.oficin_nombre}
+            showMessage={showMessage}
+            onCancel={handleFormCancel}
             loading={loading}
           />
         )}
@@ -734,7 +728,7 @@ const OficinasWindow = ({
                       {searchTerm && (
                         <button
                           onClick={() => setSearchTerm("")}
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                         >
                           <Icon name="X" size={14} />
                         </button>
@@ -1113,11 +1107,9 @@ const OficinasWindow = ({
                             {/* COLUMNA ACCIONES */}
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex items-center justify-end space-x-2">
-                                {/* Botón VER */}
+                                {/* ✅ Botón VER - ACTUALIZADO para usar handleShowOficina */}
                                 <button
-                                  onClick={() =>
-                                    console.log("Ver detalles:", oficina)
-                                  }
+                                  onClick={() => handleShowOficina(oficina)}
                                   className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-all duration-200 transform hover:scale-105"
                                   title={`Ver detalles de ${oficina.oficin_nombre}`}
                                 >
@@ -1274,6 +1266,12 @@ const OficinasWindow = ({
                     <div>
                       Editando oficina: {editingOficina.oficin_codigo} -{" "}
                       {editingOficina.oficin_nombre}
+                    </div>
+                  )}
+                  {/* ✅ Debug info para Show Oficina */}
+                  {viewingOficina && (
+                    <div>
+                      Viendo oficina: {viewingOficina.oficin_codigo} - {viewingOficina.oficin_nombre}
                     </div>
                   )}
                 </div>
