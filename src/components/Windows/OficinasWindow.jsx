@@ -58,6 +58,71 @@ const OficinasWindow = ({
     parroq_codigo: "",
     solo_activas: false,
   });
+  const [institucionesOptions, setInstitucionesOptions] = useState([]);
+  const [tiposOficinaOptions, setTiposOficinaOptions] = useState([]);
+  const [parroquiasOptions, setParroquiasOptions] = useState([]);
+
+  const loadFilterOptions = useCallback(async () => {
+    try {
+      console.log("🔍 Cargando opciones de filtros...");
+
+      // Cargar instituciones
+      try {
+        const institucionesResult = await adminService.instituciones.listar();
+        if (institucionesResult.status === "success") {
+          setInstitucionesOptions(institucionesResult.data);
+          console.log("✅ Instituciones cargadas:", institucionesResult.data.length);
+        }
+      } catch (error) {
+        console.warn("⚠️ Error cargando instituciones:", error);
+        setInstitucionesOptions([
+          { value: 1, label: "Banco Central del Ecuador" },
+          { value: 2, label: "Superintendencia de Bancos" },
+          { value: 3, label: "IESS" },
+        ]);
+      }
+
+      // Cargar tipos de oficina
+      try {
+        const tiposResult = await adminService.tiposOficina.getActivos();
+        if (tiposResult.status === "success") {
+          const tiposFormateados = tiposResult.data.map(tipo => ({
+            value: tipo.tofici_codigo || tipo.value,
+            label: tipo.tofici_descripcion || tipo.label
+          }));
+          setTiposOficinaOptions(tiposFormateados);
+          console.log("✅ Tipos de oficina cargados:", tiposFormateados.length);
+        }
+      } catch (error) {
+        console.warn("⚠️ Error cargando tipos de oficina:", error);
+        setTiposOficinaOptions([
+          { value: 1, label: "Oficina Principal" },
+          { value: 2, label: "Sucursal" },
+          { value: 3, label: "Agencia" },
+        ]);
+      }
+
+      // ✅ REMOVER CARGA DE PARROQUIAS YA QUE NO ESTÁ DISPONIBLE
+      // Las parroquias se cargarán cuando implementes el endpoint
+      console.log("⚠️ Parroquias temporalmente deshabilitadas - endpoint no disponible");
+      setParroquiasOptions([]);
+
+    } catch (error) {
+      console.error("❌ Error cargando opciones de filtros:", error);
+      // Usar valores por defecto
+      setInstitucionesOptions([
+        { value: 1, label: "Banco Central del Ecuador" },
+        { value: 2, label: "Superintendencia de Bancos" },
+        { value: 3, label: "IESS" },
+      ]);
+      setTiposOficinaOptions([
+        { value: 1, label: "Oficina Principal" },
+        { value: 2, label: "Sucursal" },
+        { value: 3, label: "Agencia" },
+      ]);
+      setParroquiasOptions([]);
+    }
+  }, []);
 
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -355,14 +420,20 @@ const OficinasWindow = ({
 
   // ✅ FUNCIONES DE FILTRADO Y PAGINACIÓN
   const handleFilterChange = useCallback((filterKey, value) => {
-    setFilters((prev) => ({
-      ...prev,
-      [filterKey]: value,
-    }));
-    setCurrentPage(1);
+    console.log(`🔍 Cambiando filtro ${filterKey}:`, value);
+    setFilters((prev) => {
+      const newFilters = {
+        ...prev,
+        [filterKey]: value,
+      };
+      console.log("🔍 Nuevos filtros:", newFilters);
+      return newFilters;
+    });
+    setCurrentPage(1); // Resetear a página 1 cuando cambian los filtros
   }, []);
 
   const clearFilters = useCallback(() => {
+    console.log("🧹 Limpiando filtros");
     setFilters({
       instit_codigo: "",
       tofici_codigo: "",
@@ -372,6 +443,11 @@ const OficinasWindow = ({
     setSearchTerm("");
     setCurrentPage(1);
   }, []);
+
+  const applyFilters = useCallback(() => {
+    console.log("🔍 Aplicando filtros manualmente");
+    loadOficinas(1); // Cargar primera página con filtros actuales
+  }, [loadOficinas]);
 
   const handlePageChange = useCallback(
     (page) => {
@@ -415,9 +491,10 @@ const OficinasWindow = ({
   useEffect(() => {
     console.log("🔄 OficinasWindow - useEffect mount");
     if (canRead && currentView === "lista") {
-      loadOficinas();
+      loadFilterOptions(); // Cargar opciones primero
+      loadOficinas(); // Luego cargar oficinas
     }
-  }, [loadOficinas, canRead, currentView]);
+  }, [loadFilterOptions, loadOficinas, canRead, currentView]);
 
   // Efecto para búsqueda con debounce
   useEffect(() => {
@@ -667,15 +744,14 @@ const OficinasWindow = ({
             {/* Mensaje de notificación */}
             {message.text && (
               <div
-                className={`mb-6 p-4 rounded-lg border-l-4 transition-all duration-300 ${
-                  message.type === "success"
-                    ? "bg-green-50 border-green-400 text-green-700"
-                    : message.type === "error"
+                className={`mb-6 p-4 rounded-lg border-l-4 transition-all duration-300 ${message.type === "success"
+                  ? "bg-green-50 border-green-400 text-green-700"
+                  : message.type === "error"
                     ? "bg-red-50 border-red-400 text-red-700"
                     : message.type === "warning"
-                    ? "bg-yellow-50 border-yellow-400 text-yellow-700"
-                    : "bg-blue-50 border-blue-400 text-blue-700"
-                }`}
+                      ? "bg-yellow-50 border-yellow-400 text-yellow-700"
+                      : "bg-blue-50 border-blue-400 text-blue-700"
+                  }`}
               >
                 <div className="flex items-center">
                   <Icon
@@ -683,10 +759,10 @@ const OficinasWindow = ({
                       message.type === "success"
                         ? "CheckCircle"
                         : message.type === "error"
-                        ? "AlertCircle"
-                        : message.type === "warning"
-                        ? "AlertTriangle"
-                        : "Info"
+                          ? "AlertCircle"
+                          : message.type === "warning"
+                            ? "AlertTriangle"
+                            : "Info"
                     }
                     size={20}
                     className="mr-2"
@@ -706,7 +782,8 @@ const OficinasWindow = ({
               </div>
 
               <div className="p-4">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                {/* ✅ CAMBIO: Grid de 4 columnas en lugar de 5 (removimos parroquias) */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   {/* Búsqueda general */}
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">
@@ -769,7 +846,11 @@ const OficinasWindow = ({
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Todas las instituciones</option>
-                      {/* Aquí cargarías las instituciones disponibles */}
+                      {institucionesOptions.map((institucion) => (
+                        <option key={institucion.value} value={institucion.value}>
+                          {institucion.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -786,40 +867,90 @@ const OficinasWindow = ({
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Todos los tipos</option>
-                      {/* Aquí cargarías los tipos disponibles */}
+                      {tiposOficinaOptions.map((tipo) => (
+                        <option key={tipo.value} value={tipo.value}>
+                          {tipo.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
+                  {/* ✅ REMOVIDO: Filtro de parroquias temporalmente */}
+                  {/* Será agregado cuando implementes el endpoint */}
+                </div>
 
-                  {/* Botones de acción */}
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Acciones
-                    </label>
-                    <div className="flex gap-2">
+                {/* Botones de acción - MOVIDOS FUERA DEL GRID */}
+                <div className="mt-4 flex justify-end gap-3">
+                  <button
+                    onClick={clearFilters}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                    disabled={loading}
+                  >
+                    <Icon name="RotateCcw" size={14} className="inline mr-2" />
+                    Limpiar filtros
+                  </button>
+                  <button
+                    onClick={applyFilters}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    disabled={loading}
+                  >
+                    <Icon name="Search" size={14} className="inline mr-2" />
+                    Aplicar filtros
+                  </button>
+                </div>
+
+                {/* Indicadores de filtros activos */}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {searchTerm && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+                      <Icon name="Search" size={12} className="mr-1" />
+                      Búsqueda: "{searchTerm}"
                       <button
-                        onClick={clearFilters}
-                        className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                        onClick={() => setSearchTerm("")}
+                        className="ml-2 text-blue-600 hover:text-blue-800"
                       >
-                        <Icon
-                          name="RotateCcw"
-                          size={14}
-                          className="inline mr-1"
-                        />
-                        Limpiar
+                        <Icon name="X" size={12} />
                       </button>
+                    </span>
+                  )}
+                  {filters.solo_activas && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
+                      <Icon name="CheckCircle" size={12} className="mr-1" />
+                      Solo activas
                       <button
-                        onClick={() => loadOficinas(1)}
-                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                        onClick={() => handleFilterChange("solo_activas", false)}
+                        className="ml-2 text-green-600 hover:text-green-800"
                       >
-                        <Icon name="Search" size={14} className="inline mr-1" />
-                        Buscar
+                        <Icon name="X" size={12} />
                       </button>
-                    </div>
-                  </div>
+                    </span>
+                  )}
+                  {filters.instit_codigo && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800">
+                      <Icon name="Building" size={12} className="mr-1" />
+                      Institución: {institucionesOptions.find(i => i.value.toString() === filters.instit_codigo.toString())?.label || filters.instit_codigo}
+                      <button
+                        onClick={() => handleFilterChange("instit_codigo", "")}
+                        className="ml-2 text-purple-600 hover:text-purple-800"
+                      >
+                        <Icon name="X" size={12} />
+                      </button>
+                    </span>
+                  )}
+                  {filters.tofici_codigo && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-orange-100 text-orange-800">
+                      <Icon name="Building2" size={12} className="mr-1" />
+                      Tipo: {tiposOficinaOptions.find(t => t.value.toString() === filters.tofici_codigo.toString())?.label || filters.tofici_codigo}
+                      <button
+                        onClick={() => handleFilterChange("tofici_codigo", "")}
+                        className="ml-2 text-orange-600 hover:text-orange-800"
+                      >
+                        <Icon name="X" size={12} />
+                      </button>
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
-
             {/* Lista de Oficinas */}
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
               <div className="flex justify-between items-center p-4 border-b border-gray-200">
@@ -977,18 +1108,16 @@ const OficinasWindow = ({
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
                                 <div
-                                  className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                    oficina.oficin_ctractual === 1
-                                      ? "bg-green-100"
-                                      : "bg-red-100"
-                                  }`}
+                                  className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${oficina.oficin_ctractual === 1
+                                    ? "bg-green-100"
+                                    : "bg-red-100"
+                                    }`}
                                 >
                                   <span
-                                    className={`font-medium text-sm ${
-                                      oficina.oficin_ctractual === 1
-                                        ? "text-green-600"
-                                        : "text-red-600"
-                                    }`}
+                                    className={`font-medium text-sm ${oficina.oficin_ctractual === 1
+                                      ? "text-green-600"
+                                      : "text-red-600"
+                                      }`}
                                   >
                                     {oficina.oficin_codigo}
                                   </span>
@@ -1083,11 +1212,10 @@ const OficinasWindow = ({
                             {/* COLUMNA ESTADO */}
                             <td className="px-6 py-4 whitespace-nowrap text-center">
                               <span
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  oficina.oficin_ctractual === 1
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-red-100 text-red-800"
-                                }`}
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${oficina.oficin_ctractual === 1
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                                  }`}
                               >
                                 <Icon
                                   name={
@@ -1210,11 +1338,10 @@ const OficinasWindow = ({
                                   key={pageNum}
                                   onClick={() => handlePageChange(pageNum)}
                                   disabled={loading}
-                                  className={`px-3 py-1 border rounded-md text-sm font-medium transition-colors ${
-                                    currentPage === pageNum
-                                      ? "border-blue-500 bg-blue-50 text-blue-600"
-                                      : "border-gray-300 text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                  className={`px-3 py-1 border rounded-md text-sm font-medium transition-colors ${currentPage === pageNum
+                                    ? "border-blue-500 bg-blue-50 text-blue-600"
+                                    : "border-gray-300 text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                                 >
                                   {pageNum}
                                 </button>

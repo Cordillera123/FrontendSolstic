@@ -440,14 +440,26 @@ export const adminService = {
   },
 
   // apiService.js - Sección oficinas CORREGIDA sin duplicados
-oficinas: {
+  oficinas: {
     // ✅ MÉTODO PRINCIPAL PARA OBTENER TODAS LAS OFICINAS
     async getAll(params = {}) {
       try {
         console.log("🔍 Oficinas API - Obteniendo todas las oficinas con params:", params);
 
-        const queryString = apiUtils.buildQueryParams(params);
+        // ✅ LIMPIAR PARÁMETROS VACÍOS
+        const cleanParams = {};
+        Object.keys(params).forEach(key => {
+          if (params[key] !== null && params[key] !== undefined && params[key] !== "") {
+            cleanParams[key] = params[key];
+          }
+        });
+
+        console.log("🔍 Oficinas API - Parámetros limpios:", cleanParams);
+
+        const queryString = apiUtils.buildQueryParams(cleanParams);
         const url = queryString ? `/oficinas?${queryString}` : "/oficinas";
+
+        console.log("🔍 Oficinas API - URL final:", url);
 
         const response = await apiClient.get(url);
         console.log("📥 Oficinas API - Respuesta:", response.data);
@@ -478,6 +490,9 @@ oficinas: {
         return normalizedResponse;
       } catch (error) {
         console.error("❌ Error en oficinas.getAll:", error);
+        console.error("❌ Error response:", error.response?.data);
+        console.error("❌ Error status:", error.response?.status);
+
         const apiError = apiUtils.handleApiError(error);
         throw {
           status: "error",
@@ -487,6 +502,7 @@ oficinas: {
         };
       }
     },
+
 
     // ✅ MÉTODO PARA OBTENER OFICINAS ACTIVAS
     async getActivas(params = {}) {
@@ -736,26 +752,32 @@ oficinas: {
 
     // ✅ MÉTODOS DE UTILIDAD PARA FILTROS
     async getByInstitucion(institucionId, params = {}) {
-      try {
-        console.log("🔍 Oficinas API - Filtrando por institución:", institucionId);
-        const filterParams = { ...params, instit_codigo: institucionId };
-        return await this.getAll(filterParams);
-      } catch (error) {
-        console.error("❌ Error filtrando oficinas por institución:", error);
-        throw error;
-      }
-    },
+  try {
+    console.log("🔍 Oficinas API - Filtrando por institución:", institucionId);
+    const filterParams = { 
+      ...params, 
+      instit_codigo: institucionId 
+    };
+    return await this.getAll(filterParams);
+  } catch (error) {
+    console.error("❌ Error filtrando oficinas por institución:", error);
+    throw error;
+  }
+},
 
     async getByTipo(tipoId, params = {}) {
-      try {
-        console.log("🔍 Oficinas API - Filtrando por tipo:", tipoId);
-        const filterParams = { ...params, tofici_codigo: tipoId };
-        return await this.getAll(filterParams);
-      } catch (error) {
-        console.error("❌ Error filtrando oficinas por tipo:", error);
-        throw error;
-      }
-    },
+  try {
+    console.log("🔍 Oficinas API - Filtrando por tipo:", tipoId);
+    const filterParams = { 
+      ...params, 
+      tofici_codigo: tipoId 
+    };
+    return await this.getAll(filterParams);
+  } catch (error) {
+    console.error("❌ Error filtrando oficinas por tipo:", error);
+    throw error;
+  }
+},
 
     async getByParroquia(parroquiaId, params = {}) {
       try {
@@ -770,8 +792,11 @@ oficinas: {
 
     async search(searchTerm, params = {}) {
       try {
-        console.log("🔍 Oficinas API - Búsqueda:", searchTerm);
-        const searchParams = { ...params, search: searchTerm };
+        console.log("🔍 Oficinas API - Búsqueda:", searchTerm, params);
+        const searchParams = {
+          ...params,
+          search: searchTerm
+        };
         return await this.getAll(searchParams);
       } catch (error) {
         console.error("❌ Error en búsqueda de oficinas:", error);
