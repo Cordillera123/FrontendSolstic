@@ -9,30 +9,30 @@ import { useTheme } from '../../context/ThemeContext';
 
 // ✅ NUEVO: Componente de carga específico para temas
 const ThemeLoadingOverlay = memo(() => {
-  const [loadingText, setLoadingText] = useState('Cargando tema...');
+  const [loadingText, setLoadingText] = useState('Cargando configuración...');
   const [dots, setDots] = useState('');
 
-  // Animación de texto de carga
+  // Animación de texto de carga más profesional
   useEffect(() => {
     const textInterval = setInterval(() => {
       setLoadingText(prev => {
         const texts = [
-          'Cargando tema...',
-          'Aplicando colores...',
-          'Sincronizando estilos...',
-          'Configurando interfaz...'
+          'Cargando configuración...',
+          'Verificando permisos...',
+          'Inicializando sistema...',
+          'Preparando interfaz...'
         ];
         const currentIndex = texts.indexOf(prev);
         return texts[(currentIndex + 1) % texts.length];
       });
-    }, 1500);
+    }, 1200);
 
     const dotsInterval = setInterval(() => {
       setDots(prev => {
         if (prev === '...') return '';
         return prev + '.';
       });
-    }, 500);
+    }, 600);
 
     return () => {
       clearInterval(textInterval);
@@ -41,38 +41,109 @@ const ThemeLoadingOverlay = memo(() => {
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center z-50">
-      <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 max-w-sm w-full mx-4 border border-white/20 shadow-2xl">
-        {/* Icono animado */}
-        <div className="flex justify-center mb-6">
+    <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
+      {/* Fondo con patrón sutil */}
+      <div className="absolute inset-0 opacity-5">
+        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="cooperativa-pattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+              <circle cx="20" cy="20" r="1" fill="#64748b"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#cooperativa-pattern)"/>
+        </svg>
+      </div>
+
+      {/* Contenedor principal */}
+      <div className="relative bg-white rounded-xl p-8 max-w-md w-full mx-4 border border-gray-200 shadow-lg">
+        {/* Logo/Icono profesional */}
+        <div className="flex justify-center mb-8">
           <div className="relative">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center animate-pulse">
-              <Palette className="w-8 h-8 text-white" />
+            {/* Círculo exterior */}
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center border-4 border-gray-200">
+              {/* Icono de cooperativa/building */}
+              <svg 
+                className="w-10 h-10 text-gray-600" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={1.5} 
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                />
+              </svg>
             </div>
-            <div className="absolute inset-0 w-16 h-16 border-4 border-white/30 rounded-full animate-spin border-t-transparent"></div>
+            
+            {/* Indicador de carga animado */}
+            <div className="absolute inset-0 w-20 h-20 border-3 border-gray-300 rounded-full animate-spin border-t-blue-600"></div>
           </div>
         </div>
 
+        {/* Información de la cooperativa */}
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800 mb-1">
+            COAC PRINCIPAL
+          </h1>
+          <p className="text-sm text-gray-500 font-medium">
+            Sistema de Gestión Cooperativa
+          </p>
+        </div>
+
         {/* Texto de carga */}
-        <div className="text-center">
-          <h3 className="text-xl font-semibold text-white mb-2">
-            Actualizando Tema
-          </h3>
-          <p className="text-white/80 text-sm mb-4">
+        <div className="text-center mb-6">
+          <p className="text-gray-700 text-base font-medium mb-2">
             {loadingText}{dots}
           </p>
           
-          {/* Barra de progreso simulada */}
-          <div className="w-full bg-white/20 rounded-full h-2 mb-4">
-            <div className="bg-gradient-to-r from-blue-400 to-purple-500 h-2 rounded-full animate-pulse" 
-                 style={{ width: '70%' }}></div>
+          {/* Barra de progreso profesional */}
+          <div className="w-full bg-gray-200 rounded-full h-1.5 mb-4">
+            <div 
+              className="bg-gradient-to-r from-blue-600 to-blue-700 h-1.5 rounded-full transition-all duration-1000 ease-in-out" 
+              style={{ 
+                width: '75%',
+                animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+              }}
+            ></div>
           </div>
           
-          <p className="text-white/60 text-xs">
-            Cargando colores desde la base de datos...
+          <p className="text-gray-500 text-xs">
+            Inicializando componentes del sistema
           </p>
         </div>
+
+        {/* Información adicional */}
+        <div className="border-t border-gray-100 pt-4">
+          <div className="flex items-center justify-center space-x-4 text-xs text-gray-400">
+            <div className="flex items-center">
+              <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
+              <span>Conexión segura</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
+              <span>Datos protegidos</span>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Estilos CSS personalizados */}
+      <style jsx>{`
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: .7;
+          }
+        }
+        
+        .border-3 {
+          border-width: 3px;
+        }
+      `}</style>
     </div>
   );
 });
