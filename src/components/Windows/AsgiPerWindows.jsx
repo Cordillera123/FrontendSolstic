@@ -6,6 +6,7 @@ import AsgiPerUsWindows from './AsgiPerUsWindows';
 import AsigPerBotWindow from './AsigPerBotWindow';
 import AsigModulosDirectosTab from './AsigModulosDirectosTab';
 import AsigPerBotUserWindow from './AsigPerBotUserWindow';
+import AsigPerfilVisibilidadWindow from './AsigPerfilVisibilidadWindow';
 
 // ===== COMPONENTES MEMOIZADOS =====
 const TabButton = memo(({ label, icon, isActive, onClick, badge = null }) => (
@@ -465,13 +466,14 @@ const AsgiPerWindows = () => {
     }, [menuStructure]);
 
     // ===== CONFIGURACIÓN DE PESTAÑAS ACTUALIZADA =====
-    const tabs = [
-        { id: 'profiles', label: 'Permisos por Perfil', icon: 'Shield' },
-        { id: 'users', label: 'Permisos por Usuario', icon: 'User' },
-        { id: 'modules', label: 'Módulos Directos', icon: 'Monitor', badge: 'Nuevo' },
-        { id: 'buttons', label: 'Permisos de Botones', icon: 'Settings' },
-        { id: 'userButtons', label: 'Botones por Usuario', icon: 'UserCog', badge: 'Nuevo' }
-    ];
+   const tabs = [
+    { id: 'profiles', label: 'Permisos por Perfil', icon: 'Shield' },
+    { id: 'users', label: 'Permisos por Usuario', icon: 'User' },
+    { id: 'modules', label: 'Módulos Directos', icon: 'Monitor', badge: 'Nuevo' },
+    { id: 'buttons', label: 'Permisos de Botones', icon: 'Settings' },
+    { id: 'userButtons', label: 'Botones por Usuario', icon: 'UserCog', badge: 'Nuevo' },
+    { id: 'profileVisibility', label: 'Visibilidad de Perfiles', icon: 'Eye', badge: 'Nuevo' } // ✅ NUEVA PESTAÑA
+];
 
     // ===== RENDER PRINCIPAL =====
     if (loading && !selectedProfile && activeTab === 'profiles') {
@@ -668,7 +670,11 @@ const AsgiPerWindows = () => {
                 <AsigPerBotUserWindow
                     showMessage={showMessage}
                 />
-            ) : null}
+            ) : activeTab === 'profileVisibility' ? (
+    <AsigPerfilVisibilidadWindow
+        showMessage={showMessage}
+    />
+) : null}
         </div>
     );
 };

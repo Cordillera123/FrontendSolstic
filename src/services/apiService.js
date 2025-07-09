@@ -2180,6 +2180,176 @@ export const adminService = {
     },
 
     /**
+   * Obtener perfiles que el usuario autenticado puede ver
+   */
+  async getPerfilesPermitidos() {
+    try {
+      console.log("🔍 Usuario API - Obteniendo perfiles permitidos");
+      const response = await apiClient.get("/usuarios/perfiles-permitidos");
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: response.data.message || "Perfiles permitidos obtenidos correctamente",
+      };
+    } catch (error) {
+      console.error("❌ Error en usuarios.getPerfilesPermitidos:", error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  /**
+   * Obtener perfiles para el filtro en el listado de usuarios
+   */
+  async getPerfilesParaFiltro() {
+    try {
+      console.log("🔍 Usuario API - Obteniendo perfiles para filtro");
+      const response = await apiClient.get("/usuarios/perfiles-para-filtro");
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: response.data.message || "Perfiles para filtro obtenidos correctamente",
+      };
+    } catch (error) {
+      console.error("❌ Error en usuarios.getPerfilesParaFiltro:", error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  /**
+   * Asignar permisos de visibilidad de perfiles a un usuario
+   */
+  async asignarPerfilVisibilidad(usuarioId, perfilesIds) {
+    try {
+      console.log("🔍 Usuario API - Asignando visibilidad de perfiles:", { usuarioId, perfilesIds });
+      
+      const response = await apiClient.post(
+        `/usuarios/${usuarioId}/asignar-perfil-visibilidad`,
+        { perfiles_ids: perfilesIds }
+      );
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: response.data.message || "Visibilidad de perfiles asignada correctamente",
+      };
+    } catch (error) {
+      console.error("❌ Error en usuarios.asignarPerfilVisibilidad:", error);
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  /**
+   * Obtener perfiles visibles para un usuario específico
+   * NOTA: Este endpoint aún no existe en el backend, pero el frontend lo necesita
+   */
+  async getPerfilesVisiblesUsuario(usuarioId) {
+    try {
+      console.log("🔍 Usuario API - Obteniendo perfiles visibles del usuario:", usuarioId);
+      
+      const response = await apiClient.get(`/usuarios/${usuarioId}/perfiles-visibles`);
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: response.data.message || "Perfiles visibles obtenidos correctamente",
+      };
+    } catch (error) {
+      console.error("❌ Error en usuarios.getPerfilesVisiblesUsuario:", error);
+      
+      // Si el endpoint no existe (404), devolver array vacío en lugar de error
+      if (error.response?.status === 404) {
+        console.warn("⚠️ Endpoint perfiles-visibles no implementado, devolviendo array vacío");
+        return {
+          status: "success",
+          data: [],
+          message: "Endpoint no implementado, sin perfiles visibles configurados",
+        };
+      }
+      
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+
+  // ===== MÉTODOS HELPER PARA VISIBILIDAD =====
+
+  /**
+   * Verificar si un usuario puede ver un perfil específico
+   */
+  async puedeVerPerfil(usuarioId, perfilId) {
+    try {
+      const result = await this.getPerfilesVisiblesUsuario(usuarioId);
+      if (result.status === "success" && Array.isArray(result.data)) {
+        return result.data.some(perfil => perfil.per_id === perfilId);
+      }
+      return false;
+    } catch (error) {
+      console.error("❌ Error verificando visibilidad de perfil:", error);
+      return false;
+    }
+  },
+
+  /**
+   * Obtener estadísticas de visibilidad de perfiles
+   */
+  async getEstadisticasVisibilidad() {
+    try {
+      console.log("🔍 Usuario API - Obteniendo estadísticas de visibilidad");
+      
+      // Este endpoint tampoco existe aún, pero sería útil para dashboards
+      const response = await apiClient.get("/usuarios/estadisticas-visibilidad");
+      
+      return {
+        status: "success",
+        data: response.data.data || response.data,
+        message: "Estadísticas de visibilidad obtenidas correctamente",
+      };
+    } catch (error) {
+      console.error("❌ Error en usuarios.getEstadisticasVisibilidad:", error);
+      
+      // Devolver datos por defecto si el endpoint no existe
+      if (error.response?.status === 404) {
+        return {
+          status: "success",
+          data: {
+            total_usuarios: 0,
+            usuarios_con_visibilidad_configurada: 0,
+            perfiles_mas_visibles: [],
+          },
+          message: "Endpoint no implementado, datos por defecto",
+        };
+      }
+      
+      const apiError = apiUtils.handleApiError(error);
+      throw {
+        status: "error",
+        message: apiError.message,
+        errors: apiError.errors,
+      };
+    }
+  },
+    /**
      * ✅ MÉTODO OPTIMIZADO: Obtener resumen rápido del usuario (solo lo esencial para UI)
      * Este método procesa los datos que ya vienen del backend correctamente
      */
