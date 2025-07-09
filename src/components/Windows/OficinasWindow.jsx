@@ -1,4 +1,4 @@
-// src/components/Windows/OficinasWindow.jsx - REFACTORIZADO CON COMPONENTES SEPARADOS
+// src/components/Windows/OficinasWindow.jsx - ACTUALIZADO PARA USAR ShowOficinaForm
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useButtonPermissions } from "../../hooks/useButtonPermissions";
 import { adminService } from "../../services/apiService";
@@ -8,23 +8,23 @@ import Icon from "../UI/Icon";
 // Importar los componentes separados desde la misma carpeta
 import CrearOficinaForm from "./CrearOficinaForm";
 import EditarOficinaForm from "./EditarOficinaForm";
+import ShowOficinaForm from "./ShowOficinaForm"; // ✅ NUEVO IMPORT
 
 const OficinasWindow = ({
   showMessage: externalShowMessage,
-  // ✅ SOLUCIÓN RÁPIDA: Usar solo el ID del submenu
   menuId = 19,      // ID del submenu "Oficinas"
   title = "Gestión de Oficinas",
 }) => {
-  console.log("🏢 OficinasWindow - Iniciando componente (Solución Rápida)", {
+  console.log("🏢 OficinasWindow - Iniciando componente", {
     menuId,
-    solucion: "submenu_como_menu"
+    currentView: "lista"
   });
 
   // Obtener usuario actual
   const currentUser = getCurrentUser();
   const currentUserId = currentUser?.usu_id;
 
-  // ✅ Hook de permisos con SOLUCIÓN RÁPIDA
+  // Hook de permisos
   const {
     canCreate,
     canRead,
@@ -36,7 +36,7 @@ const OficinasWindow = ({
     menuId,    // 19 - Submenu "Oficinas" 
     null,      // No segundo parámetro
     true,      // autoLoad
-    "submenu"  // ✅ Tipo "submenu" (ahora funciona con la solución rápida)
+    "submenu"  // Tipo "submenu"
   );
 
   // Estados principales del componente
@@ -44,9 +44,10 @@ const OficinasWindow = ({
   const [message, setMessage] = useState({ type: "", text: "" });
   const [oficinas, setOficinas] = useState([]);
 
-  // Estados para control de vista
-  const [currentView, setCurrentView] = useState("lista");
+  // ✅ Estados para control de vista - ACTUALIZADO
+  const [currentView, setCurrentView] = useState("lista"); // 'lista' | 'crear' | 'editar' | 'mostrar'
   const [editingOficina, setEditingOficina] = useState(null);
+  const [viewingOficina, setViewingOficina] = useState(null); // ✅ NUEVO ESTADO
 
   // Estados para filtros y búsqueda
   const [searchTerm, setSearchTerm] = useState("");
@@ -57,6 +58,71 @@ const OficinasWindow = ({
     parroq_codigo: "",
     solo_activas: false,
   });
+  const [institucionesOptions, setInstitucionesOptions] = useState([]);
+  const [tiposOficinaOptions, setTiposOficinaOptions] = useState([]);
+  const [parroquiasOptions, setParroquiasOptions] = useState([]);
+
+  const loadFilterOptions = useCallback(async () => {
+    try {
+      console.log("🔍 Cargando opciones de filtros...");
+
+      // Cargar instituciones
+      try {
+        const institucionesResult = await adminService.instituciones.listar();
+        if (institucionesResult.status === "success") {
+          setInstitucionesOptions(institucionesResult.data);
+          console.log("✅ Instituciones cargadas:", institucionesResult.data.length);
+        }
+      } catch (error) {
+        console.warn("⚠️ Error cargando instituciones:", error);
+        setInstitucionesOptions([
+          { value: 1, label: "Banco Central del Ecuador" },
+          { value: 2, label: "Superintendencia de Bancos" },
+          { value: 3, label: "IESS" },
+        ]);
+      }
+
+      // Cargar tipos de oficina
+      try {
+        const tiposResult = await adminService.tiposOficina.getActivos();
+        if (tiposResult.status === "success") {
+          const tiposFormateados = tiposResult.data.map(tipo => ({
+            value: tipo.tofici_codigo || tipo.value,
+            label: tipo.tofici_descripcion || tipo.label
+          }));
+          setTiposOficinaOptions(tiposFormateados);
+          console.log("✅ Tipos de oficina cargados:", tiposFormateados.length);
+        }
+      } catch (error) {
+        console.warn("⚠️ Error cargando tipos de oficina:", error);
+        setTiposOficinaOptions([
+          { value: 1, label: "Oficina Principal" },
+          { value: 2, label: "Sucursal" },
+          { value: 3, label: "Agencia" },
+        ]);
+      }
+
+      // ✅ REMOVER CARGA DE PARROQUIAS YA QUE NO ESTÁ DISPONIBLE
+      // Las parroquias se cargarán cuando implementes el endpoint
+      console.log("⚠️ Parroquias temporalmente deshabilitadas - endpoint no disponible");
+      setParroquiasOptions([]);
+
+    } catch (error) {
+      console.error("❌ Error cargando opciones de filtros:", error);
+      // Usar valores por defecto
+      setInstitucionesOptions([
+        { value: 1, label: "Banco Central del Ecuador" },
+        { value: 2, label: "Superintendencia de Bancos" },
+        { value: 3, label: "IESS" },
+      ]);
+      setTiposOficinaOptions([
+        { value: 1, label: "Oficina Principal" },
+        { value: 2, label: "Sucursal" },
+        { value: 3, label: "Agencia" },
+      ]);
+      setParroquiasOptions([]);
+    }
+  }, []);
 
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -80,15 +146,14 @@ const OficinasWindow = ({
 
   // Debug de permisos
   useEffect(() => {
-    console.log("🔍 OficinasWindow - Estado de permisos (Solución Rápida):", {
+    console.log("🔍 OficinasWindow - Estado de permisos:", {
       menuId,
       canCreate,
       canRead,
       canUpdate,
       canDelete,
       permissionsLoading,
-      permissionsError: permissionsError?.message,
-      tipoSolucion: "submenu_como_menu"
+      permissionsError: permissionsError?.message
     });
   }, [menuId, canCreate, canRead, canUpdate, canDelete, permissionsLoading, permissionsError]);
 
@@ -197,14 +262,8 @@ const OficinasWindow = ({
         let result;
 
         if (editingOficina) {
-          console.log(
-            "🔄 Actualizando oficina ID:",
-            editingOficina.oficin_codigo
-          );
-          result = await adminService.oficinas.update(
-            editingOficina.oficin_codigo,
-            formData
-          );
+          console.log("🔄 Actualizando oficina ID:", editingOficina.oficin_codigo);
+          result = await adminService.oficinas.update(editingOficina.oficin_codigo, formData);
           showMessage("success", "Oficina actualizada correctamente");
         } else {
           console.log("➕ Creando nueva oficina");
@@ -276,6 +335,7 @@ const OficinasWindow = ({
 
     console.log("➕ Iniciando creación de oficina");
     setEditingOficina(null);
+    setViewingOficina(null); // ✅ LIMPIAR VIEWING
     setCurrentView("crear");
   }, [canCreate, showMessage]);
 
@@ -289,10 +349,19 @@ const OficinasWindow = ({
 
       console.log("✏️ Iniciando edición de oficina:", oficina.oficin_codigo);
       setEditingOficina(oficina);
+      setViewingOficina(null); // ✅ LIMPIAR VIEWING
       setCurrentView("editar");
     },
     [canUpdate, showMessage]
   );
+
+  // ✅ NUEVA FUNCIÓN PARA MOSTRAR DETALLES DE OFICINA
+  const handleShowOficina = useCallback((oficina) => {
+    console.log("👁️ Mostrando detalles de oficina:", oficina.oficin_codigo);
+    setViewingOficina(oficina);
+    setEditingOficina(null); // ✅ LIMPIAR EDITING
+    setCurrentView("mostrar");
+  }, []);
 
   // ✅ FUNCIÓN PARA ELIMINAR OFICINA
   const handleDeleteOficina = useCallback(
@@ -312,15 +381,10 @@ const OficinasWindow = ({
         setLoading(true);
         console.log("🗑️ Eliminando oficina:", oficina.oficin_codigo);
 
-        const result = await adminService.oficinas.delete(
-          oficina.oficin_codigo
-        );
+        const result = await adminService.oficinas.delete(oficina.oficin_codigo);
 
         if (result?.status === "success") {
-          showMessage(
-            "success",
-            result.message || "Oficina eliminada correctamente"
-          );
+          showMessage("success", result.message || "Oficina eliminada correctamente");
         } else {
           showMessage("error", result?.message || "Error al eliminar oficina");
         }
@@ -346,23 +410,30 @@ const OficinasWindow = ({
     [canDelete, showMessage, loadOficinas, currentPage]
   );
 
-  // ✅ FUNCIÓN PARA CANCELAR FORMULARIOS
+  // ✅ FUNCIÓN PARA CANCELAR FORMULARIOS - ACTUALIZADA
   const handleFormCancel = useCallback(() => {
     console.log("❌ Cancelando formulario - volviendo a lista");
     setCurrentView("lista");
     setEditingOficina(null);
+    setViewingOficina(null); // ✅ LIMPIAR VIEWING
   }, []);
 
   // ✅ FUNCIONES DE FILTRADO Y PAGINACIÓN
   const handleFilterChange = useCallback((filterKey, value) => {
-    setFilters((prev) => ({
-      ...prev,
-      [filterKey]: value,
-    }));
-    setCurrentPage(1);
+    console.log(`🔍 Cambiando filtro ${filterKey}:`, value);
+    setFilters((prev) => {
+      const newFilters = {
+        ...prev,
+        [filterKey]: value,
+      };
+      console.log("🔍 Nuevos filtros:", newFilters);
+      return newFilters;
+    });
+    setCurrentPage(1); // Resetear a página 1 cuando cambian los filtros
   }, []);
 
   const clearFilters = useCallback(() => {
+    console.log("🧹 Limpiando filtros");
     setFilters({
       instit_codigo: "",
       tofici_codigo: "",
@@ -372,6 +443,11 @@ const OficinasWindow = ({
     setSearchTerm("");
     setCurrentPage(1);
   }, []);
+
+  const applyFilters = useCallback(() => {
+    console.log("🔍 Aplicando filtros manualmente");
+    loadOficinas(1); // Cargar primera página con filtros actuales
+  }, [loadOficinas]);
 
   const handlePageChange = useCallback(
     (page) => {
@@ -402,39 +478,23 @@ const OficinasWindow = ({
     });
   }, [oficinas, sortConfig]);
 
-  // Función para ver usuarios de una oficina
+  // Función para ver usuarios de una oficina (mantenida para compatibilidad)
   const handleVerUsuarios = useCallback(
     async (oficina) => {
-      try {
-        console.log("👥 Viendo usuarios de oficina:", oficina.oficin_codigo);
-        const result = await adminService.oficinas.getUsuarios(
-          oficina.oficin_codigo
-        );
-
-        if (result?.status === "success") {
-          console.log("📊 Usuarios de oficina:", result.data);
-          showMessage(
-            "info",
-            `La oficina "${oficina.oficin_nombre}" tiene ${
-              result.data.resumen?.total_usuarios || 0
-            } usuarios`
-          );
-        }
-      } catch (error) {
-        console.error("❌ Error obteniendo usuarios:", error);
-        showMessage("error", "Error al obtener usuarios de la oficina");
-      }
+      // Ahora simplemente abre la vista de detalles
+      handleShowOficina(oficina);
     },
-    [showMessage]
+    [handleShowOficina]
   );
 
   // Cargar datos al montar el componente
   useEffect(() => {
     console.log("🔄 OficinasWindow - useEffect mount");
     if (canRead && currentView === "lista") {
-      loadOficinas();
+      loadFilterOptions(); // Cargar opciones primero
+      loadOficinas(); // Luego cargar oficinas
     }
-  }, [loadOficinas, canRead, currentView]);
+  }, [loadFilterOptions, loadOficinas, canRead, currentView]);
 
   // Efecto para búsqueda con debounce
   useEffect(() => {
@@ -509,7 +569,7 @@ const OficinasWindow = ({
     );
   }
 
-  // ✅ RENDERIZADO CONDICIONAL SEGÚN LA VISTA ACTUAL
+  // ✅ RENDERIZADO CONDICIONAL SEGÚN LA VISTA ACTUAL - ACTUALIZADO
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -530,6 +590,17 @@ const OficinasWindow = ({
             onSave={handleOficinaSave}
             onCancel={handleFormCancel}
             showMessage={showMessage}
+            loading={loading}
+          />
+        )}
+
+        {/* =============== NUEVA VISTA DE MOSTRAR OFICINA =============== */}
+        {currentView === "mostrar" && (
+          <ShowOficinaForm
+            oficinaId={viewingOficina?.oficin_codigo}
+            oficinaNombre={viewingOficina?.oficin_nombre}
+            showMessage={showMessage}
+            onCancel={handleFormCancel}
             loading={loading}
           />
         )}
@@ -673,15 +744,14 @@ const OficinasWindow = ({
             {/* Mensaje de notificación */}
             {message.text && (
               <div
-                className={`mb-6 p-4 rounded-lg border-l-4 transition-all duration-300 ${
-                  message.type === "success"
-                    ? "bg-green-50 border-green-400 text-green-700"
-                    : message.type === "error"
+                className={`mb-6 p-4 rounded-lg border-l-4 transition-all duration-300 ${message.type === "success"
+                  ? "bg-green-50 border-green-400 text-green-700"
+                  : message.type === "error"
                     ? "bg-red-50 border-red-400 text-red-700"
                     : message.type === "warning"
-                    ? "bg-yellow-50 border-yellow-400 text-yellow-700"
-                    : "bg-blue-50 border-blue-400 text-blue-700"
-                }`}
+                      ? "bg-yellow-50 border-yellow-400 text-yellow-700"
+                      : "bg-blue-50 border-blue-400 text-blue-700"
+                  }`}
               >
                 <div className="flex items-center">
                   <Icon
@@ -689,10 +759,10 @@ const OficinasWindow = ({
                       message.type === "success"
                         ? "CheckCircle"
                         : message.type === "error"
-                        ? "AlertCircle"
-                        : message.type === "warning"
-                        ? "AlertTriangle"
-                        : "Info"
+                          ? "AlertCircle"
+                          : message.type === "warning"
+                            ? "AlertTriangle"
+                            : "Info"
                     }
                     size={20}
                     className="mr-2"
@@ -712,7 +782,8 @@ const OficinasWindow = ({
               </div>
 
               <div className="p-4">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                {/* ✅ CAMBIO: Grid de 4 columnas en lugar de 5 (removimos parroquias) */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   {/* Búsqueda general */}
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">
@@ -734,7 +805,7 @@ const OficinasWindow = ({
                       {searchTerm && (
                         <button
                           onClick={() => setSearchTerm("")}
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                         >
                           <Icon name="X" size={14} />
                         </button>
@@ -775,7 +846,11 @@ const OficinasWindow = ({
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Todas las instituciones</option>
-                      {/* Aquí cargarías las instituciones disponibles */}
+                      {institucionesOptions.map((institucion) => (
+                        <option key={institucion.value} value={institucion.value}>
+                          {institucion.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -792,40 +867,90 @@ const OficinasWindow = ({
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Todos los tipos</option>
-                      {/* Aquí cargarías los tipos disponibles */}
+                      {tiposOficinaOptions.map((tipo) => (
+                        <option key={tipo.value} value={tipo.value}>
+                          {tipo.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
+                  {/* ✅ REMOVIDO: Filtro de parroquias temporalmente */}
+                  {/* Será agregado cuando implementes el endpoint */}
+                </div>
 
-                  {/* Botones de acción */}
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Acciones
-                    </label>
-                    <div className="flex gap-2">
+                {/* Botones de acción - MOVIDOS FUERA DEL GRID */}
+                <div className="mt-4 flex justify-end gap-3">
+                  <button
+                    onClick={clearFilters}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                    disabled={loading}
+                  >
+                    <Icon name="RotateCcw" size={14} className="inline mr-2" />
+                    Limpiar filtros
+                  </button>
+                  <button
+                    onClick={applyFilters}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    disabled={loading}
+                  >
+                    <Icon name="Search" size={14} className="inline mr-2" />
+                    Aplicar filtros
+                  </button>
+                </div>
+
+                {/* Indicadores de filtros activos */}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {searchTerm && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+                      <Icon name="Search" size={12} className="mr-1" />
+                      Búsqueda: "{searchTerm}"
                       <button
-                        onClick={clearFilters}
-                        className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                        onClick={() => setSearchTerm("")}
+                        className="ml-2 text-blue-600 hover:text-blue-800"
                       >
-                        <Icon
-                          name="RotateCcw"
-                          size={14}
-                          className="inline mr-1"
-                        />
-                        Limpiar
+                        <Icon name="X" size={12} />
                       </button>
+                    </span>
+                  )}
+                  {filters.solo_activas && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
+                      <Icon name="CheckCircle" size={12} className="mr-1" />
+                      Solo activas
                       <button
-                        onClick={() => loadOficinas(1)}
-                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                        onClick={() => handleFilterChange("solo_activas", false)}
+                        className="ml-2 text-green-600 hover:text-green-800"
                       >
-                        <Icon name="Search" size={14} className="inline mr-1" />
-                        Buscar
+                        <Icon name="X" size={12} />
                       </button>
-                    </div>
-                  </div>
+                    </span>
+                  )}
+                  {filters.instit_codigo && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800">
+                      <Icon name="Building" size={12} className="mr-1" />
+                      Institución: {institucionesOptions.find(i => i.value.toString() === filters.instit_codigo.toString())?.label || filters.instit_codigo}
+                      <button
+                        onClick={() => handleFilterChange("instit_codigo", "")}
+                        className="ml-2 text-purple-600 hover:text-purple-800"
+                      >
+                        <Icon name="X" size={12} />
+                      </button>
+                    </span>
+                  )}
+                  {filters.tofici_codigo && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-orange-100 text-orange-800">
+                      <Icon name="Building2" size={12} className="mr-1" />
+                      Tipo: {tiposOficinaOptions.find(t => t.value.toString() === filters.tofici_codigo.toString())?.label || filters.tofici_codigo}
+                      <button
+                        onClick={() => handleFilterChange("tofici_codigo", "")}
+                        className="ml-2 text-orange-600 hover:text-orange-800"
+                      >
+                        <Icon name="X" size={12} />
+                      </button>
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
-
             {/* Lista de Oficinas */}
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
               <div className="flex justify-between items-center p-4 border-b border-gray-200">
@@ -983,18 +1108,16 @@ const OficinasWindow = ({
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
                                 <div
-                                  className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                    oficina.oficin_ctractual === 1
-                                      ? "bg-green-100"
-                                      : "bg-red-100"
-                                  }`}
+                                  className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${oficina.oficin_ctractual === 1
+                                    ? "bg-green-100"
+                                    : "bg-red-100"
+                                    }`}
                                 >
                                   <span
-                                    className={`font-medium text-sm ${
-                                      oficina.oficin_ctractual === 1
-                                        ? "text-green-600"
-                                        : "text-red-600"
-                                    }`}
+                                    className={`font-medium text-sm ${oficina.oficin_ctractual === 1
+                                      ? "text-green-600"
+                                      : "text-red-600"
+                                      }`}
                                   >
                                     {oficina.oficin_codigo}
                                   </span>
@@ -1089,11 +1212,10 @@ const OficinasWindow = ({
                             {/* COLUMNA ESTADO */}
                             <td className="px-6 py-4 whitespace-nowrap text-center">
                               <span
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  oficina.oficin_ctractual === 1
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-red-100 text-red-800"
-                                }`}
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${oficina.oficin_ctractual === 1
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                                  }`}
                               >
                                 <Icon
                                   name={
@@ -1113,11 +1235,9 @@ const OficinasWindow = ({
                             {/* COLUMNA ACCIONES */}
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex items-center justify-end space-x-2">
-                                {/* Botón VER */}
+                                {/* ✅ Botón VER - ACTUALIZADO para usar handleShowOficina */}
                                 <button
-                                  onClick={() =>
-                                    console.log("Ver detalles:", oficina)
-                                  }
+                                  onClick={() => handleShowOficina(oficina)}
                                   className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-all duration-200 transform hover:scale-105"
                                   title={`Ver detalles de ${oficina.oficin_nombre}`}
                                 >
@@ -1218,11 +1338,10 @@ const OficinasWindow = ({
                                   key={pageNum}
                                   onClick={() => handlePageChange(pageNum)}
                                   disabled={loading}
-                                  className={`px-3 py-1 border rounded-md text-sm font-medium transition-colors ${
-                                    currentPage === pageNum
-                                      ? "border-blue-500 bg-blue-50 text-blue-600"
-                                      : "border-gray-300 text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                  className={`px-3 py-1 border rounded-md text-sm font-medium transition-colors ${currentPage === pageNum
+                                    ? "border-blue-500 bg-blue-50 text-blue-600"
+                                    : "border-gray-300 text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                                 >
                                   {pageNum}
                                 </button>
@@ -1274,6 +1393,12 @@ const OficinasWindow = ({
                     <div>
                       Editando oficina: {editingOficina.oficin_codigo} -{" "}
                       {editingOficina.oficin_nombre}
+                    </div>
+                  )}
+                  {/* ✅ Debug info para Show Oficina */}
+                  {viewingOficina && (
+                    <div>
+                      Viendo oficina: {viewingOficina.oficin_codigo} - {viewingOficina.oficin_nombre}
                     </div>
                   )}
                 </div>
