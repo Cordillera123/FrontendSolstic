@@ -1,8 +1,9 @@
-// src/components/Auth/Login.jsx - VERSIÓN SIMPLIFICADA Y ROBUSTA
+// src/components/Auth/Login.jsx - CON SOPORTE PARA LOGO PERSONALIZADO
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useLogo } from '../../context/LogoContext';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -17,8 +18,12 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, isAuthenticated } = useAuth();
+  const { getLogoUrl, isLoading: logoLoading } = useLogo();
 
   const from = location.state?.from?.pathname || '/dashboard';
+
+  // Obtener URL del logo para login
+  const loginLogoUrl = getLogoUrl('login');
 
   // Verificar si ya está autenticado
   useEffect(() => {
@@ -79,23 +84,20 @@ const Login = () => {
     return true;
   }, [formData.email, formData.password]);
 
-  // 🔥 FUNCIÓN PRINCIPAL DE LOGIN - SIN MANEJO DE EVENTOS
+  // Función principal de login
   const performLogin = useCallback(async () => {
     console.log('🔐 Iniciando proceso de login...');
     
-    // Validar antes de proceder
     if (!validateForm()) {
       console.log('❌ Validación fallida');
       return;
     }
     
-    // Prevenir doble submit
     if (loading) {
       console.log('⏳ Login ya en progreso...');
       return;
     }
     
-    // Activar loading
     setLoading(true);
     setError('');
     
@@ -105,7 +107,6 @@ const Login = () => {
       const cleanEmail = formData.email.trim().toLowerCase();
       const cleanPassword = formData.password.trim();
       
-      // Llamar al login
       const result = await login(cleanEmail, cleanPassword);
       console.log('✅ Login exitoso:', result);
       
@@ -118,17 +119,14 @@ const Login = () => {
         localStorage.removeItem('rememberedUser');
       }
       
-      // Navegación exitosa
       console.log('🔄 Navegando a:', from);
       navigate(from, { replace: true });
       
     } catch (error) {
       console.error('❌ Error durante el login:', error);
       
-      // Resetear loading inmediatamente
       setLoading(false);
       
-      // Determinar mensaje de error
       let errorMessage = 'Error al iniciar sesión. Intente nuevamente.';
       
       if (error?.response?.status === 401) {
@@ -149,7 +147,6 @@ const Login = () => {
         errorMessage = error.message;
       }
       
-      // Mostrar error
       setError(errorMessage);
       
       // Focus en email para facilitar reintento
@@ -163,13 +160,13 @@ const Login = () => {
     }
   }, [formData.email, formData.password, validateForm, loading, login, rememberMe, from, navigate]);
 
-  // ✅ MANEJO DE FORM SUBMIT
+  // Manejo de form submit
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
     performLogin();
   }, [performLogin]);
 
-  // ✅ MANEJO DE TECLA ENTER
+  // Manejo de tecla Enter
   const handleKeyPress = useCallback((e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -177,21 +174,41 @@ const Login = () => {
     }
   }, [performLogin]);
 
-  // ✅ MANEJO DE CLICK EN BOTÓN
-  const handleButtonClick = useCallback(() => {
-    performLogin();
-  }, [performLogin]);
-
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f0f9ff' }}>
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg overflow-hidden">
-        {/* Header */}
+        {/* Header con Logo Personalizado */}
         <div className="py-8 px-6 flex flex-col items-center" style={{ background: 'linear-gradient(to right, #0ea5e9, #0369a1)' }}>
-          <div className="h-16 mb-2 flex items-center justify-center">
-            <h1 className="text-2xl font-bold text-white tracking-tight">
+          {/* Logo Container */}
+          <div className="h-20 mb-4 flex items-center justify-center w-full">
+            {logoLoading ? (
+              // Placeholder mientras carga el logo
+              <div className="animate-pulse">
+                <div className="h-16 w-48 bg-white bg-opacity-20 rounded"></div>
+              </div>
+            ) : (
+              <img
+                src={loginLogoUrl}
+                alt="Logo COAC"
+                className="max-h-16 max-w-full object-contain"
+                // ✅ REMOVIDO: filtro que convertía la imagen a blanco
+                // style={{ filter: 'brightness(0) invert(1)' }}
+                onError={(e) => {
+                  // Fallback a texto si la imagen no carga
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'block';
+                }}
+              />
+            )}
+            {/* Fallback text */}
+            <h1 
+              className="text-2xl font-bold text-white tracking-tight" 
+              style={{ display: 'none' }}
+            >
               COAC SISTEMA
             </h1>
           </div>
+          
           <h2 className="text-white opacity-90 text-sm mt-1">
             Sistema Financiero Integrado
           </h2>
@@ -216,7 +233,7 @@ const Login = () => {
             </div>
           )}
           
-          {/* ✅ FORMULARIO SIMPLIFICADO */}
+          {/* Formulario */}
           <form onSubmit={handleSubmit} noValidate>
             <div className="mb-4">
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
@@ -288,7 +305,7 @@ const Login = () => {
               </label>
             </div>
             
-            {/* ✅ BOTÓN SIMPLIFICADO - USA SUBMIT DEL FORM */}
+            {/* Botón de submit */}
             <button
               type="submit"
               className={`w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 ${
@@ -318,7 +335,7 @@ const Login = () => {
           {/* Debug info (solo desarrollo) */}
           {process.env.NODE_ENV === 'development' && (
             <div className="mt-4 p-2 bg-gray-100 rounded text-xs text-gray-600">
-              <strong>Debug:</strong> Loading: {loading.toString()} | Error: {error ? 'Sí' : 'No'} | Auth: {isAuthenticated ? 'Sí' : 'No'}
+              <strong>Debug:</strong> Loading: {loading.toString()} | Error: {error ? 'Sí' : 'No'} | Auth: {isAuthenticated ? 'Sí' : 'No'} | Logo: {loginLogoUrl}
             </div>
           )}
         </div>
@@ -329,7 +346,7 @@ const Login = () => {
             &copy; {new Date().getFullYear()} Cooperativa de Ahorro y Crédito. Todos los derechos reservados.
           </p>
           <p className="text-xs text-gray-400 mt-1">
-            v1.0.0
+            v2.0.0
           </p>
         </div>
       </div>

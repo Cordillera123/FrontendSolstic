@@ -1,4 +1,4 @@
-// src/components/Windows/AsgiPerUsWindows.jsx - OPTIMIZADO PARA EVITAR RE-RENDERS
+// src/components/Windows/AsgiPerUsWindows.jsx - CORREGIDO
 import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { adminService } from "../../services/apiService";
 import Icon from "../UI/Icon";
@@ -421,6 +421,7 @@ const SubmenuTreeItem = memo(
 const AsgiPerUsWindows = ({ showMessage }) => {
   // ===== ESTADOS =====
   const [usuarios, setUsuarios] = useState([]);
+  const [allUsuarios, setAllUsuarios] = useState([]); // NUEVO: Todos los usuarios sin filtrar
   const [perfiles, setPerfiles] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedProfile, setSelectedProfile] = useState("");
@@ -446,37 +447,64 @@ const AsgiPerUsWindows = ({ showMessage }) => {
     setSearchTerm(e.target.value);
   }, []);
 
-  // ===== CARGAR DATOS =====
-  const loadUsuarios = useCallback(
-    async (perfilId = "") => {
-      setLoading(true);
-      try {
-        const url = perfilId ? `/usuarios?perfil_id=${perfilId}` : "/usuarios";
-        const response = await fetch(`http://127.0.0.1:8000/api${url}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-            "Content-Type": "application/json",
-          },
-        });
+  // ===== FUNCIÓN PARA CARGAR TODOS LOS USUARIOS =====
+  const loadAllUsuarios = useCallback(async () => {
+    setLoading(true);
+    try {
+      let allUsers = [];
+      let page = 1;
+      let hasMorePages = true;
+
+      // Cargar todas las páginas disponibles
+      while (hasMorePages) {
+        const response = await fetch(
+          `http://127.0.0.1:8000/api/usuarios?page=${page}&per_page=100`, // INCREMENTADO per_page
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
         if (!response.ok) throw new Error("Error al cargar usuarios");
 
         const result = await response.json();
         if (result.status === "success") {
-          const usuarios = result.data.data?.data || result.data.data || [];
-          setUsuarios(usuarios);
+          const userData = result.data.data?.data || result.data.data || [];
+          
+          if (userData.length === 0) {
+            hasMorePages = false;
+          } else {
+            allUsers = [...allUsers, ...userData];
+            
+            // Verificar si hay más páginas
+            const pagination = result.data.data?.pagination || result.data.pagination;
+            if (pagination) {
+              hasMorePages = page < pagination.last_page;
+            } else {
+              // Si no hay información de paginación, asumir que no hay más páginas
+              hasMorePages = false;
+            }
+            page++;
+          }
         } else {
+          hasMorePages = false;
           showMessage("error", "Error al cargar usuarios");
         }
-      } catch (error) {
-        console.error("Error loading users:", error);
-        showMessage("error", error.message || "Error al cargar usuarios");
-      } finally {
-        setLoading(false);
       }
-    },
-    [showMessage]
-  );
+
+      console.log(`Total usuarios cargados: ${allUsers.length}`); // DEBUG
+      setAllUsuarios(allUsers);
+      setUsuarios(allUsers); // Inicialmente mostrar todos
+
+    } catch (error) {
+      console.error("Error loading users:", error);
+      showMessage("error", error.message || "Error al cargar usuarios");
+    } finally {
+      setLoading(false);
+    }
+  }, [showMessage]);
 
   const loadPerfiles = useCallback(async () => {
     try {
@@ -490,7 +518,7 @@ const AsgiPerUsWindows = ({ showMessage }) => {
     }
   }, [showMessage]);
 
-const loadUserPermissions = useCallback(async (userId) => {
+  const loadUserPermissions = useCallback(async (userId) => {
     if (!userId) return;
     setLoadingPermissions(true);
     try {
@@ -520,28 +548,33 @@ const loadUserPermissions = useCallback(async (userId) => {
     } finally {
         setLoadingPermissions(false);
     }
-}, [selectedUser?.per_id, showMessage]);
-
+  }, [selectedUser?.per_id, showMessage]);
 
   // ===== EFECTOS OPTIMIZADOS =====
   useEffect(() => {
     loadPerfiles();
-    loadUsuarios();
-  }, []); // Solo se ejecuta una vez
+    loadAllUsuarios(); // CAMBIO: Cargar todos los usuarios de una vez
+  }, [loadPerfiles, loadAllUsuarios]);
 
+  // NUEVO: Efecto para filtrar usuarios por perfil
   useEffect(() => {
     if (selectedProfile) {
-      loadUsuarios(selectedProfile);
+      // Filtrar usuarios por per_id (corregido el campo)
+      const filteredUsers = allUsuarios.filter(usuario => 
+        String(usuario.per_id) === String(selectedProfile)
+      );
+      console.log(`Filtrando por perfil ${selectedProfile}: ${filteredUsers.length} usuarios`); // DEBUG
+      setUsuarios(filteredUsers);
     } else {
-      loadUsuarios();
+      setUsuarios(allUsuarios);
     }
-  }, [selectedProfile]); // Solo depende del perfil seleccionado
+  }, [selectedProfile, allUsuarios]);
 
   useEffect(() => {
     if (selectedUser?.usu_id) {
       loadUserPermissions(selectedUser.usu_id);
     }
-  }, [selectedUser?.usu_id]); // Solo depende del ID del usuario
+  }, [selectedUser?.usu_id, loadUserPermissions]);
 
   // ===== MANEJO DE EXPANSIÓN =====
   const toggleMenuExpansion = useCallback((menuId) => {
@@ -761,6 +794,9 @@ const loadUserPermissions = useCallback(async (userId) => {
           <h3 className="font-semibold text-gray-800 mb-4 flex items-center">
             <Icon name="Users" size={20} className="mr-2" />
             Usuarios del Sistema
+            <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+              {filteredUsuarios.length} / {allUsuarios.length}
+            </span>
           </h3>
 
           {/* Filtros */}

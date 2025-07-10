@@ -19,6 +19,21 @@ export default defineConfig({
       rewrites: [
         { from: /^\/.*$/, to: '/index.html' }
       ]
+    },
+    // ✅ AGREGAR CONFIGURACIÓN DE PROXY
+    proxy: {
+      // Redirigir todas las peticiones a /api hacia el backend Laravel
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        secure: false
+      },
+      // Redirigir todas las peticiones a /storage hacia el backend Laravel
+      '/storage': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        secure: false
+      }
     }
   },
 
