@@ -15,7 +15,8 @@ import TiOficinWindow from '../components/Windows/TiOficinWindow';
 import OficinasWindow from '../components/Windows/OficinasWindow';
 import UsuParamWindowCrear from '../components/Windows/UsuParamWindowCrear';
 import UsuParamWindowEditar from '../components/Windows/UsuParamWindowEditar';
-import ThemeConfigWindow from '../components/Windows/ThemeConfigWindow'; // Importar el nuevo componente de configuración de tema
+import ThemeConfigWindow from '../components/Windows/ThemeConfigWindow';
+import LogoConfigWindow from '../components/Windows/LogoConfigWindow'; // Importar el nuevo componente de configuración de tema
 
 // Componente por defecto para desarrollo
 const DefaultWindow = ({ title, data, componentName }) => {
@@ -58,7 +59,7 @@ export const componentMap = {
   'UsuParamWindowCrear': UsuParamWindowCrear,
   'UsuParamWindowEditar': UsuParamWindowEditar,
   'ThemeConfigWindow': ThemeConfigWindow, // ← AGREGAR EL NUEVO COMPONENTE AQUÍ
-
+  'LogoConfigWindow': LogoConfigWindow, // ← AGREGAR EL NUEVO COMPONENTE AQUÍ
   // Componentes con props de submódulo
   'ClientRegistry': (props) => <ClientsWindow {...props} subModule="registry" />,
   'ClientSearch': (props) => <ClientsWindow {...props} subModule="search" />,
@@ -193,6 +194,13 @@ export const componentConfig = {
     minWidth: 600,
     minHeight: 400,
     title: 'Configuración de Colores y Tema',
+  },
+  'LogoConfigWindow': {
+    width: 800,
+    height: 600,
+    minWidth: 600,
+    minHeight: 400,
+    title: 'Configuración de Logo',
   },
 };
 

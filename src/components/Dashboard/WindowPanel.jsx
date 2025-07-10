@@ -20,7 +20,8 @@ import ConfigWindow from "../Windows/ConfigWindow";
 import TiOficinWindow from "../Windows/TiOficinWindow";
 import OficinasWindow from "../Windows/OficinasWindow";
 import { useTheme } from '../../context/ThemeContext';
-import ThemeConfigWindow from "../Windows/ThemeConfigWindow"; // ← AGREGAR ESTA LÍNEA
+import ThemeConfigWindow from "../Windows/ThemeConfigWindow";
+import LogoConfigWindow from "../Windows/LogoConfigWindow"; // ← AGREGAR ESTA LÍNEA
 
 const WindowPanel = ({
   window,
@@ -284,6 +285,8 @@ const WindowPanel = ({
         return <TiOficinWindow data={window.data}/>;
       case "ThemeConfigWindow":
         return <ThemeConfigWindow data={window.data} />;
+      case "LogoConfigWindow":
+        return <LogoConfigWindow data={window.data} />;
       default:
         // Contenido por defecto
         return (
