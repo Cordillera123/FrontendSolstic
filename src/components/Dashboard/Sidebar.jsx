@@ -1,11 +1,12 @@
-// src/components/Dashboard/Sidebar.jsx - CON PANTALLA DE CARGA PARA TEMAS
+// src/components/Dashboard/Sidebar.jsx - CON PANTALLA DE CARGA PARA TEMAS Y LOGO PERSONALIZADO
 import React, { useState, useEffect, memo } from "react";
 import { ChevronDown, ChevronRight, HelpCircle, Info, Building, MapPin, User, Loader2, Palette } from "lucide-react";
 import { useAuth } from '../../context/AuthContext';
 import { useUserInfo } from '../../hooks/useUserInfo';
+import { useLogo } from '../../context/LogoContext';
+import { useTheme } from '../../context/ThemeContext';
 import LogoutButton from '../Auth/LogoutButton';
 import Icon from "../UI/Icon";
-import { useTheme } from '../../context/ThemeContext';
 
 // ✅ NUEVO: Componente de carga específico para temas
 const ThemeLoadingOverlay = memo(() => {
@@ -163,6 +164,10 @@ const Sidebar = memo(({
     isInitialized: themeIsInitialized 
   } = useTheme();
   
+  // ✅ NUEVO: Hook del logo
+  const { getLogoUrl, isLoading: logoLoading } = useLogo();
+  const sidebarLogoUrl = getLogoUrl('sidebar');
+  
   // ✅ Hook de información del usuario
   const {
     userInfo,
@@ -189,10 +194,10 @@ const Sidebar = memo(({
   const [expandedMenus, setExpandedMenus] = useState(new Set());
   const [expandedSubmenus, setExpandedSubmenus] = useState(new Set());
 
-  // ✅ NUEVO: Estado para controlar la pantalla de carga de temas
+  // ✅ Estado para controlar la pantalla de carga de temas
   const [showThemeLoading, setShowThemeLoading] = useState(true);
 
-  // ✅ NUEVO: Efecto para manejar el estado de carga del tema
+  // ✅ Efecto para manejar el estado de carga del tema
   useEffect(() => {
     console.log('🎨 Sidebar - Estado del tema:', {
       themeIsLoading,
@@ -216,7 +221,7 @@ const Sidebar = memo(({
     }
   }, [themeIsLoading, themeIsInitialized]);
 
-  // ✅ NUEVO: Detectar cuando se recarga la página
+  // ✅ Detectar cuando se recarga la página
   useEffect(() => {
     const handleBeforeUnload = () => {
       // Marcaremos que la página se está recargando
@@ -237,6 +242,15 @@ const Sidebar = memo(({
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
+
+  // ✅ NUEVO: Log para debug del logo
+  useEffect(() => {
+    console.log('🖼️ Sidebar - Estado del logo:', {
+      logoLoading,
+      sidebarLogoUrl,
+      hasUrl: !!sidebarLogoUrl
+    });
+  }, [logoLoading, sidebarLogoUrl]);
 
   // Cargar menús del contexto de autenticación
   useEffect(() => {
@@ -352,6 +366,12 @@ const Sidebar = memo(({
     });
   };
 
+  // ✅ NUEVO: Handler para error de logo
+  const handleLogoError = (e) => {
+    console.log('❌ Sidebar - Error al cargar logo:', e.target.src);
+    e.target.style.display = 'none';
+  };
+
   // Estilos (sin cambios)
   const sidebarStyle = {
     width: "16rem",
@@ -426,7 +446,7 @@ const Sidebar = memo(({
     color: "rgba(255, 255, 255, 0.9)",
   };
 
-  // ✅ NUEVO: Mostrar pantalla de carga de temas
+  // ✅ Mostrar pantalla de carga de temas
   if (showThemeLoading) {
     return <ThemeLoadingOverlay />;
   }
@@ -436,6 +456,21 @@ const Sidebar = memo(({
     return (
       <div style={sidebarStyle} className={`${getThemeClasses('sidebar')} sidebar-themed theme-transition`}>
         <div style={headerStyle} className="header-themed theme-transition">
+          {/* ✅ NUEVO: Logo personalizado en pantalla de carga */}
+          <div className="flex flex-col items-center mb-2">
+            {logoLoading ? (
+              <div className="animate-pulse h-14 w-44 bg-white bg-opacity-10 rounded mb-2"></div>
+            ) : sidebarLogoUrl ? (
+              <img
+                src={sidebarLogoUrl}
+                alt="Logo Sidebar"
+                className="max-h-14 max-w-[180px] mb-2 object-contain"
+                onError={handleLogoError}
+                draggable={false}
+              />
+            ) : null}
+          </div>
+          
           <div style={logoStyle}>COAC PRINCIPAL</div>
           <div style={dateStyle}>{currentDate}</div>
         </div>
@@ -454,6 +489,22 @@ const Sidebar = memo(({
   return (
     <div style={sidebarStyle} className={`${getThemeClasses('sidebar')} sidebar-themed theme-transition`}>
       <div style={headerStyle} className="header-themed theme-transition">
+        {/* ✅ NUEVO: Logo personalizado */}
+        <div className="flex flex-col items-center mb-2">
+          {logoLoading ? (
+            <div className="animate-pulse h-14 w-44 bg-white bg-opacity-10 rounded mb-2"></div>
+          ) : sidebarLogoUrl ? (
+            <img
+              src={sidebarLogoUrl}
+              alt="Logo Sidebar"
+              className="max-h-14 max-w-[180px] mb-2 object-contain"
+              onError={handleLogoError}
+              draggable={false}
+            />
+          ) : null}
+        </div>
+        
+        {/* Título y fecha */}
         <div style={logoStyle}>COAC PRINCIPAL</div>
         <div style={dateStyle}>{currentDate}</div>
       </div>
