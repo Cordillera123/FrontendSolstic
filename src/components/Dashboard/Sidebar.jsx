@@ -1,6 +1,6 @@
-// src/components/Dashboard/Sidebar.jsx - CON PANTALLA DE CARGA PARA TEMAS Y LOGO PERSONALIZADO
+// src/components/Dashboard/Sidebar.jsx - CON ALERTA DE HORARIO INTEGRADA
 import React, { useState, useEffect, memo } from "react";
-import { ChevronDown, ChevronRight, HelpCircle, Info, Building, MapPin, User, Loader2, Palette } from "lucide-react";
+import { ChevronDown, ChevronRight, HelpCircle, Info, Building, MapPin, User, Loader2, Palette, Clock, AlertTriangle, LogOut } from "lucide-react";
 import { useAuth } from '../../context/AuthContext';
 import { useUserInfo } from '../../hooks/useUserInfo';
 import { useLogo } from '../../context/LogoContext';
@@ -8,12 +8,129 @@ import { useTheme } from '../../context/ThemeContext';
 import LogoutButton from '../Auth/LogoutButton';
 import Icon from "../UI/Icon";
 
-// ✅ NUEVO: Componente de carga específico para temas
+// ✅ NUEVO: Componente de alerta de horario integrado
+const ScheduleAlert = memo(({ scheduleInfo, onForceLogout }) => {
+  const [segundosRestantes, setSegundosRestantes] = useState(
+    (scheduleInfo?.tiempo_restante_minutos || 1) * 60
+  );
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (segundosRestantes <= 0) {
+      onForceLogout();
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setSegundosRestantes(prev => {
+        if (prev <= 1) {
+          onForceLogout();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [segundosRestantes, onForceLogout]);
+
+  const formatearTiempo = (segundos) => {
+    const minutos = Math.floor(segundos / 60);
+    const segs = segundos % 60;
+    return `${minutos}:${segs.toString().padStart(2, '0')}`;
+  };
+
+  const getColorClasses = () => {
+    if (segundosRestantes <= 30) return {
+      bg: 'bg-red-500',
+      text: 'text-red-100',
+      border: 'border-red-300',
+      pulse: 'animate-pulse'
+    };
+    if (segundosRestantes <= 60) return {
+      bg: 'bg-orange-500',
+      text: 'text-orange-100',
+      border: 'border-orange-300',
+      pulse: ''
+    };
+    return {
+      bg: 'bg-yellow-500',
+      text: 'text-yellow-100',
+      border: 'border-yellow-300',
+      pulse: ''
+    };
+  };
+
+  if (!visible) return null;
+
+  const colors = getColorClasses();
+
+  return (
+    <div className={`mx-2 mb-3 p-3 rounded-lg border-2 ${colors.bg} ${colors.border} ${colors.pulse}`}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center">
+          <Clock size={16} className={`mr-2 ${colors.text}`} />
+          <span className={`text-sm font-bold ${colors.text}`}>
+            Sesión expira en:
+          </span>
+        </div>
+        <button
+          onClick={() => setVisible(false)}
+          className={`${colors.text} hover:opacity-70 transition-opacity`}
+        >
+          <Icon name="X" size={14} />
+        </button>
+      </div>
+
+      <div className="text-center mb-2">
+        <div className={`text-2xl font-bold ${colors.text}`}>
+          {formatearTiempo(segundosRestantes)}
+        </div>
+      </div>
+
+      <div className={`text-xs ${colors.text} space-y-1 mb-3`}>
+        <div className="flex justify-between">
+          <span>Horario termina:</span>
+          <span className="font-medium">{scheduleInfo?.horario?.fin || 'N/A'}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Oficina:</span>
+          <span className="font-medium truncate ml-2">
+            {scheduleInfo?.oficina_nombre || 'N/A'}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={() => setVisible(false)}
+          className="flex-1 px-2 py-1 bg-white bg-opacity-20 text-white rounded text-xs hover:bg-opacity-30 transition-all"
+        >
+          Ocultar
+        </button>
+        <button
+          onClick={onForceLogout}
+          className="flex-1 px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-all flex items-center justify-center"
+        >
+          <LogOut size={12} className="mr-1" />
+          Salir
+        </button>
+      </div>
+
+      <div className={`text-xs ${colors.text} text-center mt-2 opacity-90`}>
+        ⚠️ Guarde su trabajo antes del cierre
+      </div>
+    </div>
+  );
+});
+
+ScheduleAlert.displayName = 'ScheduleAlert';
+
+// ✅ Componente de carga de temas (sin cambios)
 const ThemeLoadingOverlay = memo(() => {
   const [loadingText, setLoadingText] = useState('Cargando configuración...');
   const [dots, setDots] = useState('');
 
-  // Animación de texto de carga más profesional
   useEffect(() => {
     const textInterval = setInterval(() => {
       setLoadingText(prev => {
@@ -43,7 +160,6 @@ const ThemeLoadingOverlay = memo(() => {
 
   return (
     <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
-      {/* Fondo con patrón sutil */}
       <div className="absolute inset-0 opacity-5">
         <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -55,14 +171,10 @@ const ThemeLoadingOverlay = memo(() => {
         </svg>
       </div>
 
-      {/* Contenedor principal */}
       <div className="relative bg-white rounded-xl p-8 max-w-md w-full mx-4 border border-gray-200 shadow-lg">
-        {/* Logo/Icono profesional */}
         <div className="flex justify-center mb-8">
           <div className="relative">
-            {/* Círculo exterior */}
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center border-4 border-gray-200">
-              {/* Icono de cooperativa/building */}
               <svg 
                 className="w-10 h-10 text-gray-600" 
                 fill="none" 
@@ -77,13 +189,10 @@ const ThemeLoadingOverlay = memo(() => {
                 />
               </svg>
             </div>
-            
-            {/* Indicador de carga animado */}
             <div className="absolute inset-0 w-20 h-20 border-3 border-gray-300 rounded-full animate-spin border-t-blue-600"></div>
           </div>
         </div>
 
-        {/* Información de la cooperativa */}
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800 mb-1">
             COAC PRINCIPAL
@@ -93,13 +202,11 @@ const ThemeLoadingOverlay = memo(() => {
           </p>
         </div>
 
-        {/* Texto de carga */}
         <div className="text-center mb-6">
           <p className="text-gray-700 text-base font-medium mb-2">
             {loadingText}{dots}
           </p>
           
-          {/* Barra de progreso profesional */}
           <div className="w-full bg-gray-200 rounded-full h-1.5 mb-4">
             <div 
               className="bg-gradient-to-r from-blue-600 to-blue-700 h-1.5 rounded-full transition-all duration-1000 ease-in-out" 
@@ -115,7 +222,6 @@ const ThemeLoadingOverlay = memo(() => {
           </p>
         </div>
 
-        {/* Información adicional */}
         <div className="border-t border-gray-100 pt-4">
           <div className="flex items-center justify-center space-x-4 text-xs text-gray-400">
             <div className="flex items-center">
@@ -130,7 +236,6 @@ const ThemeLoadingOverlay = memo(() => {
         </div>
       </div>
 
-      {/* Estilos CSS personalizados */}
       <style jsx>{`
         @keyframes pulse {
           0%, 100% {
@@ -155,20 +260,18 @@ const Sidebar = memo(({
   onOpenWindow,
   currentDate,
 }) => {
-  const { user, permissions } = useAuth();
+  // ✅ ACTUALIZADO: Incluir scheduleInfo y forceLogout del contexto
+  const { user, permissions, scheduleInfo, forceLogout } = useAuth();
   
-  // ✅ Hook del tema con estados de carga
   const { 
     getThemeClasses, 
     isLoading: themeIsLoading, 
     isInitialized: themeIsInitialized 
   } = useTheme();
   
-  // ✅ NUEVO: Hook del logo
   const { getLogoUrl, isLoading: logoLoading } = useLogo();
   const sidebarLogoUrl = getLogoUrl('sidebar');
   
-  // ✅ Hook de información del usuario
   const {
     userInfo,
     loading: userInfoLoading,
@@ -193,11 +296,31 @@ const Sidebar = memo(({
   const [loading, setLoading] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState(new Set());
   const [expandedSubmenus, setExpandedSubmenus] = useState(new Set());
-
-  // ✅ Estado para controlar la pantalla de carga de temas
   const [showThemeLoading, setShowThemeLoading] = useState(true);
 
-  // ✅ Efecto para manejar el estado de carga del tema
+  // ✅ NUEVO: Estado para controlar la visibilidad de la alerta
+  const [scheduleAlertVisible, setScheduleAlertVisible] = useState(true);
+
+  // ✅ NUEVO: Detectar cuando mostrar la alerta de horario
+  const shouldShowScheduleAlert = 
+    scheduleInfo?.alerta_cierre_proximo && 
+    scheduleInfo?.tiempo_restante_minutos <= 10 && // Mostrar cuando quedan 10 minutos o menos
+    scheduleAlertVisible &&
+    !scheduleInfo?.es_super_admin;
+
+  // ✅ Log para debug de información de horario
+  useEffect(() => {
+    if (scheduleInfo) {
+      console.log('🕐 Sidebar - Información de horario:', {
+        alerta_cierre_proximo: scheduleInfo.alerta_cierre_proximo,
+        tiempo_restante_minutos: scheduleInfo.tiempo_restante_minutos,
+        es_super_admin: scheduleInfo.es_super_admin,
+        shouldShowAlert: shouldShowScheduleAlert
+      });
+    }
+  }, [scheduleInfo, shouldShowScheduleAlert]);
+
+  // Efectos existentes (sin cambios)
   useEffect(() => {
     console.log('🎨 Sidebar - Estado del tema:', {
       themeIsLoading,
@@ -205,9 +328,7 @@ const Sidebar = memo(({
       showThemeLoading
     });
 
-    // Si el tema está inicializado, ocultar la pantalla de carga
     if (themeIsInitialized && !themeIsLoading) {
-      // Agregar un pequeño delay para una transición suave
       const timer = setTimeout(() => {
         setShowThemeLoading(false);
       }, 500);
@@ -215,22 +336,18 @@ const Sidebar = memo(({
       return () => clearTimeout(timer);
     }
     
-    // Si el tema está cargando, mostrar la pantalla de carga
     if (themeIsLoading || !themeIsInitialized) {
       setShowThemeLoading(true);
     }
   }, [themeIsLoading, themeIsInitialized]);
 
-  // ✅ Detectar cuando se recarga la página
   useEffect(() => {
     const handleBeforeUnload = () => {
-      // Marcaremos que la página se está recargando
       sessionStorage.setItem('theme-reloading', 'true');
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     
-    // Al cargar la página, verificar si viene de un reload
     const wasReloading = sessionStorage.getItem('theme-reloading');
     if (wasReloading) {
       console.log('🔄 Sidebar - Detectada recarga de página, mostrando carga de tema');
@@ -243,7 +360,6 @@ const Sidebar = memo(({
     };
   }, []);
 
-  // ✅ NUEVO: Log para debug del logo
   useEffect(() => {
     console.log('🖼️ Sidebar - Estado del logo:', {
       logoLoading,
@@ -252,7 +368,6 @@ const Sidebar = memo(({
     });
   }, [logoLoading, sidebarLogoUrl]);
 
-  // Cargar menús del contexto de autenticación
   useEffect(() => {
     console.log('🔄 Sidebar - Cargando permisos desde AuthContext...');
     
@@ -267,7 +382,6 @@ const Sidebar = memo(({
     }
   }, [permissions]);
 
-  // Logs de información del usuario
   useEffect(() => {
     if (isReady && userInfo) {
       console.log('✅ Sidebar - Información del usuario lista:', {
@@ -366,10 +480,16 @@ const Sidebar = memo(({
     });
   };
 
-  // ✅ NUEVO: Handler para error de logo
   const handleLogoError = (e) => {
     console.log('❌ Sidebar - Error al cargar logo:', e.target.src);
     e.target.style.display = 'none';
+  };
+
+  // ✅ NUEVO: Handler para el logout forzado
+  const handleForceLogout = () => {
+    if (forceLogout) {
+      forceLogout('Tiempo de sesión agotado');
+    }
   };
 
   // Estilos (sin cambios)
@@ -446,17 +566,14 @@ const Sidebar = memo(({
     color: "rgba(255, 255, 255, 0.9)",
   };
 
-  // ✅ Mostrar pantalla de carga de temas
   if (showThemeLoading) {
     return <ThemeLoadingOverlay />;
   }
 
-  // Renderizar pantalla de carga normal para menús
   if (loading) {
     return (
       <div style={sidebarStyle} className={`${getThemeClasses('sidebar')} sidebar-themed theme-transition`}>
         <div style={headerStyle} className="header-themed theme-transition">
-          {/* ✅ NUEVO: Logo personalizado en pantalla de carga */}
           <div className="flex flex-col items-center mb-2">
             {logoLoading ? (
               <div className="animate-pulse h-14 w-44 bg-white bg-opacity-10 rounded mb-2"></div>
@@ -489,7 +606,6 @@ const Sidebar = memo(({
   return (
     <div style={sidebarStyle} className={`${getThemeClasses('sidebar')} sidebar-themed theme-transition`}>
       <div style={headerStyle} className="header-themed theme-transition">
-        {/* ✅ NUEVO: Logo personalizado */}
         <div className="flex flex-col items-center mb-2">
           {logoLoading ? (
             <div className="animate-pulse h-14 w-44 bg-white bg-opacity-10 rounded mb-2"></div>
@@ -504,10 +620,17 @@ const Sidebar = memo(({
           ) : null}
         </div>
         
-        {/* Título y fecha */}
         <div style={logoStyle}>COAC PRINCIPAL</div>
         <div style={dateStyle}>{currentDate}</div>
       </div>
+
+      {/* ✅ NUEVA SECCIÓN: Alerta de horario integrada */}
+      {shouldShowScheduleAlert && (
+        <ScheduleAlert
+          scheduleInfo={scheduleInfo}
+          onForceLogout={handleForceLogout}
+        />
+      )}
 
       {/* Información de ubicación del usuario */}
       {isReady && userInfo && (
@@ -527,11 +650,31 @@ const Sidebar = memo(({
               </span>
             </div>
             
+            {/* ✅ NUEVO: Mostrar información de horario si está disponible */}
+            {scheduleInfo && !scheduleInfo.es_super_admin && (
+              <div className="flex items-center">
+                <Clock size={12} className="mr-2 text-yellow-300" />
+                <span className="text-white text-xs">
+                  {scheduleInfo.horario ? 
+                    `${scheduleInfo.horario.formato_visual}` : 
+                    'Sin horario hoy'
+                  }
+                </span>
+              </div>
+            )}
+            
             <div className="flex items-center justify-between pt-1 border-t border-white border-opacity-20">
               <div className="flex items-center">
-                <div className={`w-2 h-2 rounded-full mr-2 ${hasOffice ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
+                <div className={`w-2 h-2 rounded-full mr-2 ${
+                  hasOffice ? 
+                    (scheduleInfo?.alerta_cierre_proximo ? 'bg-red-400 animate-pulse' : 'bg-green-400') : 
+                    'bg-yellow-400'
+                }`}></div>
                 <span className="text-xs text-white text-opacity-80">
-                  {hasOffice ? 'Ubicación definida' : 'Sin ubicación'}
+                  {scheduleInfo?.alerta_cierre_proximo ? 
+                    `Cierra en ${scheduleInfo.tiempo_restante_minutos || 0}min` :
+                    (hasOffice ? 'Ubicación definida' : 'Sin ubicación')
+                  }
                 </span>
               </div>
               {userInfoError && (
@@ -615,113 +758,118 @@ const Sidebar = memo(({
                           className="text-white mr-2" 
                         />
                         <span className="text-sm text-white">{submenu.nombre}</span>
-                        {submenu.opciones && submenu.opciones.length > 0 && (
-                          <div className="ml-auto">
-                            {expandedSubmenus.has(submenu.id) ? (
-                              <ChevronDown size={14} className="text-white" />
-                            ) : (
-                              <ChevronRight size={14} className="text-white" />
-                            )}
-                          </div>
-                        )}
-                      </div>
+                       {submenu.opciones && submenu.opciones.length > 0 && (
+                         <div className="ml-auto">
+                           {expandedSubmenus.has(submenu.id) ? (
+                             <ChevronDown size={14} className="text-white" />
+                           ) : (
+                             <ChevronRight size={14} className="text-white" />
+                           )}
+                         </div>
+                       )}
+                     </div>
 
-                      {expandedSubmenus.has(submenu.id) && submenu.opciones && (
-                        <ul className="pl-8 mt-1 space-y-1">
-                          {submenu.opciones.map((option) => (
-                            <li key={option.id}>
-                              <div
-                                className="flex items-center p-1 rounded-md cursor-pointer transition-all duration-150 hover:bg-[#3b82f620] text-gray-300"
-                                onClick={() => handleOptionClick(option, submenu, menu)}
-                              >
-                                <Icon 
-                                  name={option.icon_nombre || 'Circle'} 
-                                  size={12} 
-                                  className="mr-2 text-gray-300" 
-                                />
-                                <span className="text-xs">{option.nombre}</span>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))}
-        </ul>
+                     {expandedSubmenus.has(submenu.id) && submenu.opciones && (
+                       <ul className="pl-8 mt-1 space-y-1">
+                         {submenu.opciones.map((option) => (
+                           <li key={option.id}>
+                             <div
+                               className="flex items-center p-1 rounded-md cursor-pointer transition-all duration-150 hover:bg-[#3b82f620] text-gray-300"
+                               onClick={() => handleOptionClick(option, submenu, menu)}
+                             >
+                               <Icon 
+                                 name={option.icon_nombre || 'Circle'} 
+                                 size={12} 
+                                 className="mr-2 text-gray-300" 
+                               />
+                               <span className="text-xs">{option.nombre}</span>
+                             </div>
+                           </li>
+                         ))}
+                       </ul>
+                     )}
+                   </li>
+                 ))}
+               </ul>
+             )}
+           </li>
+         ))}
+       </ul>
 
-        {menuData.length === 0 && !loading && (
-          <div className="px-4 py-8 text-center">
-            <Icon name="AlertCircle" size={32} className="mx-auto mb-2 text-gray-400" />
-            <p className="text-sm text-gray-400">No hay módulos disponibles</p>
-            <p className="text-xs text-gray-500 mt-1">Contacte al administrador para asignar permisos</p>
-          </div>
-        )}
+       {menuData.length === 0 && !loading && (
+         <div className="px-4 py-8 text-center">
+           <Icon name="AlertCircle" size={32} className="mx-auto mb-2 text-gray-400" />
+           <p className="text-sm text-gray-400">No hay módulos disponibles</p>
+           <p className="text-xs text-gray-500 mt-1">Contacte al administrador para asignar permisos</p>
+         </div>
+       )}
 
-        {/* Sección de información */}
-        <div style={sectionTitleStyle}>
-          Información
-        </div>
-        <ul className="mt-2 space-y-1 px-2">
-          <li className="flex items-center p-2 rounded-md cursor-pointer hover:bg-white hover:bg-opacity-10 transition-all duration-150 text-white">
-            <div className="p-1.5 rounded-md bg-coop-primary bg-opacity-30">
-              <HelpCircle size={18} className="text-white" />
-            </div>
-            <span className="ml-3 text-sm font-medium">Ayuda</span>
-          </li>
-          <li className="flex items-center p-2 rounded-md cursor-pointer hover:bg-white hover:bg-opacity-10 transition-all duration-150 text-white">
-            <div className="p-1.5 rounded-md bg-coop-primary bg-opacity-30">
-              <Info size={18} className="text-white" />
-            </div>
-            <span className="ml-3 text-sm font-medium">Acerca de</span>
-          </li>
-        </ul>
-      </div>
+       {/* Sección de información */}
+       <div style={sectionTitleStyle}>
+         Información
+       </div>
+       <ul className="mt-2 space-y-1 px-2">
+         <li className="flex items-center p-2 rounded-md cursor-pointer hover:bg-white hover:bg-opacity-10 transition-all duration-150 text-white">
+           <div className="p-1.5 rounded-md bg-coop-primary bg-opacity-30">
+             <HelpCircle size={18} className="text-white" />
+           </div>
+           <span className="ml-3 text-sm font-medium">Ayuda</span>
+         </li>
+         <li className="flex items-center p-2 rounded-md cursor-pointer hover:bg-white hover:bg-opacity-10 transition-all duration-150 text-white">
+           <div className="p-1.5 rounded-md bg-coop-primary bg-opacity-30">
+             <Info size={18} className="text-white" />
+           </div>
+           <span className="ml-3 text-sm font-medium">Acerca de</span>
+         </li>
+       </ul>
+     </div>
 
-      {/* Perfil de usuario */}
-      <div style={profileContainerStyle} className="sidebar-themed theme-transition">
-        <div className="flex items-center p-2">
-          <div style={profileAvatarStyle}>
-            {userInitials || (user?.fullName 
-              ? user.fullName.split(' ').map(n => n[0]).join('').toUpperCase() 
-              : user?.email?.substring(0, 2).toUpperCase() || 'UA')}
-          </div>
-          <div className="ml-3 flex-1">
-            <div className="font-medium text-sm text-white">
-              {displayName || user?.fullName || user?.email || 'Usuario Admin'}
-            </div>
-            
-            <div className="text-xs text-white text-opacity-90 flex items-center">
-              <div className="w-2 h-2 rounded-full bg-green-500 mr-1.5"></div>
-              Conectado - {userInfo?.perfil || user?.perfil || 'Sin perfil'}
-            </div>
+     {/* Perfil de usuario */}
+     <div style={profileContainerStyle} className="sidebar-themed theme-transition">
+       <div className="flex items-center p-2">
+         <div style={profileAvatarStyle}>
+           {userInitials || (user?.fullName 
+             ? user.fullName.split(' ').map(n => n[0]).join('').toUpperCase() 
+             : user?.email?.substring(0, 2).toUpperCase() || 'UA')}
+         </div>
+         <div className="ml-3 flex-1">
+           <div className="font-medium text-sm text-white">
+             {displayName || user?.fullName || user?.email || 'Usuario Admin'}
+           </div>
+           
+           <div className="text-xs text-white text-opacity-90 flex items-center">
+             <div className={`w-2 h-2 rounded-full mr-1.5 ${
+               scheduleInfo?.alerta_cierre_proximo ? 'bg-red-500 animate-pulse' : 'bg-green-500'
+             }`}></div>
+             {scheduleInfo?.alerta_cierre_proximo ? 
+               `Sesión expira - ${scheduleInfo.tiempo_restante_minutos || 0}min` :
+               `Conectado - ${userInfo?.perfil || user?.perfil || 'Sin perfil'}`
+             }
+           </div>
 
-            {isReady && userInfo && (
-              <div className="text-xs text-white text-opacity-75 mt-1 flex items-center">
-                <User size={10} className="mr-1" />
-                <span className="truncate">
-                  {hasOffice ? oficina.tipo || 'Oficina' : 'Sin ubicación'}
-                </span>
-              </div>
-            )}
+           {isReady && userInfo && (
+             <div className="text-xs text-white text-opacity-75 mt-1 flex items-center">
+               <User size={10} className="mr-1" />
+               <span className="truncate">
+                 {hasOffice ? oficina.tipo || 'Oficina' : 'Sin ubicación'}
+               </span>
+             </div>
+           )}
 
-            {userInfoError && (
-              <div className="text-xs text-red-300 mt-1 flex items-center">
-                <span className="mr-1">⚠</span>
-                Error al cargar ubicación
-              </div>
-            )}
-          </div>
-          <div className="ml-auto">
-            <LogoutButton iconOnly={true} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+           {userInfoError && (
+             <div className="text-xs text-red-300 mt-1 flex items-center">
+               <span className="mr-1">⚠</span>
+               Error al cargar ubicación
+             </div>
+           )}
+         </div>
+         <div className="ml-auto">
+           <LogoutButton iconOnly={true} />
+         </div>
+       </div>
+     </div>
+   </div>
+ );
 });
 
 Sidebar.displayName = 'Sidebar';

@@ -62,21 +62,21 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
         per_page: 1000,
         solo_activas: true
       });
-      
+
       if (response?.status === "success" && response?.data) {
         let oficinasData = [];
-        
+
         if (response.data.data && Array.isArray(response.data.data)) {
           oficinasData = response.data.data;
         } else if (Array.isArray(response.data)) {
           oficinasData = response.data;
         }
-        
+
         const oficinasFormateadas = oficinasData.map(oficina => ({
           value: oficina.oficin_codigo,
           label: `${oficina.oficin_codigo} - ${oficina.oficin_nombre}`
         }));
-        
+
         setOficinasDisponibles(oficinasFormateadas);
         console.log('✅ Oficinas disponibles cargadas:', oficinasFormateadas.length);
       } else {
@@ -103,9 +103,9 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await adminService.horariosOficinas.getHorarios(oficinaId);
-      
+
       if (response.status === 'success') {
         setOficina(response.data.oficina);
         setHorarios(response.data.horarios_por_dia || []);
@@ -157,26 +157,40 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
   };
 
   // Función para guardar horario
+  // Función para guardar horario (versión simplificada para pruebas)
   const guardarHorario = async () => {
     try {
       setSaving(true);
       setError(null);
 
+      // Validar datos básicos
       if (!formData.dia_codigo || !formData.hora_inicio || !formData.hora_fin) {
         throw new Error('Todos los campos son requeridos');
       }
 
-      const validacion = adminService.horariosOficinas.validarFormatoHorario(
-        formData.hora_inicio, 
-        formData.hora_fin
-      );
-      
-      if (!validacion.valido) {
-        throw new Error(validacion.error);
+      // ✅ VALIDACIÓN MÍNIMA SOLO PARA FORMATO (sin validar duración)
+      const validarFormatoHora = (hora) => {
+        const horaRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+        return horaRegex.test(hora);
+      };
+
+      // Solo validar formato, no duración
+      if (!validarFormatoHora(formData.hora_inicio)) {
+        throw new Error('Formato de hora de inicio inválido (debe ser HH:MM)');
       }
 
+      if (!validarFormatoHora(formData.hora_fin)) {
+        throw new Error('Formato de hora de fin inválido (debe ser HH:MM)');
+      }
+
+      console.log('✅ Guardando horario:', {
+        oficinaId,
+        formData,
+        esEdicion: !!selectedDay
+      });
+
       const response = await adminService.horariosOficinas.crearHorario(oficinaId, formData);
-      
+
       if (response.status === 'success') {
         setSuccess('Horario guardado correctamente');
         setShowForm(false);
@@ -204,7 +218,7 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
     try {
       setLoading(true);
       const response = await adminService.horariosOficinas.eliminarHorario(oficinaId, diaId);
-      
+
       if (response.status === 'success') {
         setSuccess('Horario eliminado correctamente');
         await cargarHorarios();
@@ -227,7 +241,7 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
     try {
       setLoading(true);
       const response = await adminService.horariosOficinas.toggleHorario(oficinaId, diaId);
-      
+
       if (response.status === 'success') {
         setSuccess('Estado del horario cambiado correctamente');
         await cargarHorarios();
@@ -259,11 +273,11 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
     try {
       setLoading(true);
       const response = await adminService.horariosOficinas.aplicarPlantilla(
-        oficinaId, 
-        selectedPlantilla, 
+        oficinaId,
+        selectedPlantilla,
         true
       );
-      
+
       if (response.status === 'success') {
         setSuccess('Plantilla aplicada correctamente');
         setShowPlantillas(false);
@@ -296,11 +310,11 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
     try {
       setLoading(true);
       const response = await adminService.horariosOficinas.copiarHorarios(
-        oficinaOrigen, 
-        oficinaId, 
+        oficinaOrigen,
+        oficinaId,
         { sobrescribir: true }
       );
-      
+
       if (response.status === 'success') {
         setSuccess('Horarios copiados correctamente');
         setShowCopiarHorarios(false);
@@ -346,8 +360,8 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
           <Icon name="Calendar" size={48} className="mx-auto mb-4 text-gray-400" />
           <h2 className="text-xl font-semibold text-gray-700 mb-2">No hay oficina seleccionada</h2>
           <p className="text-gray-500 mb-6">Seleccione una oficina de la lista para gestionar sus horarios</p>
-          <button 
-            onClick={handleCancel} 
+          <button
+            onClick={handleCancel}
             className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
           >
             Volver a la Lista
@@ -444,9 +458,8 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
                           <span className="font-mono">{dia.formato_visual}</span>
                         </div>
                         <div className="flex items-center gap-2 text-xs">
-                          <span className={`px-2 py-1 rounded-full ${
-                            dia.activo ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
-                          }`}>
+                          <span className={`px-2 py-1 rounded-full ${dia.activo ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
+                            }`}>
                             {dia.activo ? 'Activo' : 'Inactivo'}
                           </span>
                           {dia.jornada && (
@@ -518,7 +531,7 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
               <h3 className="text-lg font-bold mb-4">
                 {selectedDay ? 'Editar Horario' : 'Nuevo Horario'}
               </h3>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -526,7 +539,7 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
                   </label>
                   <select
                     value={formData.dia_codigo}
-                    onChange={(e) => setFormData({...formData, dia_codigo: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, dia_codigo: e.target.value })}
                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     disabled={selectedDay}
                   >
@@ -547,8 +560,11 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
                     <input
                       type="time"
                       value={formData.hora_inicio}
-                      onChange={(e) => setFormData({...formData, hora_inicio: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, hora_inicio: e.target.value })}
                       className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      step="60" // ✅ Solo permitir selección por horas
+                      min="00:00"
+                      max="23:59"
                     />
                   </div>
                   <div>
@@ -558,8 +574,11 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
                     <input
                       type="time"
                       value={formData.hora_fin}
-                      onChange={(e) => setFormData({...formData, hora_fin: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, hora_fin: e.target.value })}
                       className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      step="60" // ✅ Solo permitir selección por horas
+                      min="00:00"
+                      max="23:59"
                     />
                   </div>
                 </div>
@@ -569,7 +588,7 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
                     type="checkbox"
                     id="activo"
                     checked={formData.activo}
-                    onChange={(e) => setFormData({...formData, activo: e.target.checked})}
+                    onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                   />
                   <label htmlFor="activo" className="text-sm font-medium text-gray-700">
@@ -604,7 +623,7 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
             <div className="p-6">
               <h3 className="text-lg font-bold mb-4">Aplicar Plantilla</h3>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -662,7 +681,7 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
             <div className="p-6">
               <h3 className="text-lg font-bold mb-4">Copiar Horarios</h3>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -693,23 +712,23 @@ const CalendarioOficinaForm = ({ oficinaId, onCancel, showMessage, loading: exte
                 <button
                   onClick={() => setShowCopiarHorarios(false)}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-               >
-                 Cancelar
-               </button>
-               <button
-                 onClick={copiarHorarios}
-                 disabled={!oficinaOrigen || loading}
-                 className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
-               >
-                 {loading ? 'Copiando...' : 'Copiar'}
-               </button>
-             </div>
-           </div>
-         </div>
-       </div>
-     )}
-   </div>
- );
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={copiarHorarios}
+                  disabled={!oficinaOrigen || loading}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Copiando...' : 'Copiar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default CalendarioOficinaForm;

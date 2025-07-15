@@ -618,8 +618,9 @@ const OficinasWindow = ({
         {currentView === "calendario" && (
           <CrearCalendarWindow
             oficinaId={calendarioOficina?.oficin_codigo}
-            onClose={handleFormCancel}
+            onCancel={handleFormCancel}
             showMessage={showMessage}
+            loading={loading}
           />
         )}
         {/* =============== VISTA DE LISTA DE OFICINAS =============== */}
