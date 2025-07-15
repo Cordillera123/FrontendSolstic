@@ -21,7 +21,7 @@ import TiOficinWindow from "../Windows/TiOficinWindow";
 import OficinasWindow from "../Windows/OficinasWindow";
 import { useTheme } from '../../context/ThemeContext';
 import ThemeConfigWindow from "../Windows/ThemeConfigWindow";
-import LogoConfigWindow from "../Windows/LogoConfigWindow"; // ← AGREGAR ESTA LÍNEA
+import LogoConfigWindow from "../Windows/LogoConfigWindow";// ← AGREGAR ESTA LÍNEA
 
 const WindowPanel = ({
   window,

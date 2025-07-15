@@ -202,6 +202,13 @@ export const componentConfig = {
     minHeight: 400,
     title: 'Configuración de Logo',
   },
+  'CrearCalendarWindow': {
+    width: 800,
+    height: 600,
+    minWidth: 600,
+    minHeight: 400,
+    title: 'Configuración de Calendario',
+  },
 };
 
 export const getWindowConfig = (componentName) => {

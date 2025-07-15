@@ -8,7 +8,8 @@ import Icon from "../UI/Icon";
 // Importar los componentes separados desde la misma carpeta
 import CrearOficinaForm from "./CrearOficinaForm";
 import EditarOficinaForm from "./EditarOficinaForm";
-import ShowOficinaForm from "./ShowOficinaForm"; // ✅ NUEVO IMPORT
+import ShowOficinaForm from "./ShowOficinaForm";
+import CrearCalendarWindow from "./CalendarioOficinaForm"; // ✅ NUEVO IMPORT
 
 const OficinasWindow = ({
   showMessage: externalShowMessage,
@@ -48,7 +49,7 @@ const OficinasWindow = ({
   const [currentView, setCurrentView] = useState("lista"); // 'lista' | 'crear' | 'editar' | 'mostrar'
   const [editingOficina, setEditingOficina] = useState(null);
   const [viewingOficina, setViewingOficina] = useState(null); // ✅ NUEVO ESTADO
-
+  const [calendarioOficina, setCalendarioOficina] = useState(null);
   // Estados para filtros y búsqueda
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
@@ -326,6 +327,14 @@ const OficinasWindow = ({
     [showMessage, loadOficinas, currentPage, canUpdate, canCreate]
   );
 
+  const handleCalendario = useCallback((oficina) => {
+    console.log("📅 Abriendo calendario para oficina:", oficina.oficin_codigo);
+    setCalendarioOficina(oficina);
+    setEditingOficina(null);
+    setViewingOficina(null);
+    setCurrentView("calendario");
+  }, []);
+
   // ✅ FUNCIÓN PARA INICIAR CREACIÓN
   const handleNewOficina = useCallback(() => {
     if (!canCreate) {
@@ -415,7 +424,8 @@ const OficinasWindow = ({
     console.log("❌ Cancelando formulario - volviendo a lista");
     setCurrentView("lista");
     setEditingOficina(null);
-    setViewingOficina(null); // ✅ LIMPIAR VIEWING
+    setViewingOficina(null);
+    setCalendarioOficina(null); // ✅ LIMPIAR CALENDARIO
   }, []);
 
   // ✅ FUNCIONES DE FILTRADO Y PAGINACIÓN
@@ -604,7 +614,14 @@ const OficinasWindow = ({
             loading={loading}
           />
         )}
-
+        {/* =============== VISTA DE CALENDARIO =============== */}
+        {currentView === "calendario" && (
+          <CrearCalendarWindow
+            oficinaId={calendarioOficina?.oficin_codigo}
+            onClose={handleFormCancel}
+            showMessage={showMessage}
+          />
+        )}
         {/* =============== VISTA DE LISTA DE OFICINAS =============== */}
         {currentView === "lista" && (
           <>
@@ -1288,6 +1305,24 @@ const OficinasWindow = ({
                                     <Icon name="Lock" size={16} />
                                   </div>
                                 )}
+
+                                {/* BOTON CALENDARIO */}
+                                {canRead ? (
+                                  <button
+                                    onClick={() => handleCalendario(oficina)}
+                                    className="p-2 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded-lg transition-all duration-200 transform hover:scale-105"
+                                    title={`Ver calendario de ${oficina.oficin_nombre}`}
+                                  >
+                                    <Icon name="Calendar" size={16} />
+                                  </button>
+                                ) : (
+                                  <div
+                                    className="p-2 text-gray-400 cursor-not-allowed"
+                                    title="Sin permisos para ver calendario"
+                                  >
+                                    <Icon name="Lock" size={16} />
+                                  </div>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -1362,6 +1397,12 @@ const OficinasWindow = ({
                     </div>
                   )}
                 </>
+              )}
+              {/* ✅ Debug info para calendario */}
+              {calendarioOficina && (
+                <div>
+                  Viendo calendario: {calendarioOficina.oficin_codigo} - {calendarioOficina.oficin_nombre}
+                </div>
               )}
             </div>
 
