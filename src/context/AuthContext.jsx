@@ -1,4 +1,4 @@
-// src/context/AuthContext.jsx - EXPANDIDO con validación de horarios
+// src/context/AuthContext.jsx - ACTUALIZADO con validación de horarios individuales
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AuthService from '../services/authService';
 
@@ -11,8 +11,9 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [permissions, setPermissions] = useState([]);
 
-  // ✅ NUEVOS estados para manejo de horarios
+  // ✅ Estados para manejo de horarios individuales
   const [scheduleInfo, setScheduleInfo] = useState(null);
+  const [scheduleStatus, setScheduleStatus] = useState(null);
   const [showTimeoutAlert, setShowTimeoutAlert] = useState(false);
   const [scheduleCheckInterval, setScheduleCheckInterval] = useState(null);
 
@@ -27,9 +28,8 @@ export const AuthProvider = ({ children }) => {
           setUser(currentUser);
           setPermissions(currentUser.permisos || []);
 
-          // ✅ Cargar información de horario
-          const horarioInfo = AuthService.getScheduleInfo();
-          setScheduleInfo(horarioInfo);
+          // ✅ Cargar información de horario individual
+          await loadScheduleInfo();
 
           // ✅ Iniciar verificación periódica de horarios
           startScheduleMonitoring();
@@ -60,27 +60,85 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  // ✅ NUEVA FUNCIÓN: Iniciar monitoreo de horarios
+  // ✅ NUEVA FUNCIÓN: Cargar información de horario del usuario
+  const loadScheduleInfo = useCallback(async () => {
+    try {
+      console.log('🕐 AuthContext: Cargando información de horario del usuario...');
+      
+      // Verificar si es super admin (sin restricciones)
+      if (AuthService.isSuperAdmin()) {
+        setScheduleStatus({
+          estado: 'SUPER_ADMIN',
+          mensaje: 'Sin restricciones de horario',
+          puede_acceder: true,
+          es_super_admin: true
+        });
+        setScheduleInfo(null);
+        return;
+      }
+
+      // Obtener estado actual del horario
+      const status = await AuthService.getScheduleStatus();
+      setScheduleStatus(status);
+
+      // Obtener información detallada del horario
+      const info = await AuthService.getMyScheduleInfo();
+      setScheduleInfo(info);
+
+      console.log('✅ AuthContext: Información de horario cargada:', { status, info });
+
+      // Mostrar alerta si está cerca del cierre
+      if (info?.alerta_cierre_proximo && !showTimeoutAlert) {
+        setShowTimeoutAlert(true);
+      }
+
+    } catch (error) {
+      console.error('❌ AuthContext: Error cargando información de horario:', error);
+      // En caso de error, permitir acceso pero sin información de horario
+      setScheduleStatus({
+        estado: 'ERROR',
+        mensaje: 'Error verificando horario',
+        puede_acceder: true
+      });
+      setScheduleInfo(null);
+    }
+  }, [showTimeoutAlert]);
+
+  // ✅ NUEVA FUNCIÓN: Iniciar monitoreo de horarios individuales
   const startScheduleMonitoring = useCallback(() => {
     // Verificar cada 30 segundos
     const interval = setInterval(async () => {
       try {
+        console.log('🔄 AuthContext: Verificación periódica de horario...');
+        
         const result = await AuthService.verifyActiveSchedule();
 
         if (result.shouldLogout) {
-          console.log('🚪 AuthContext: Forzando logout por horario');
+          console.log('🚪 AuthContext: Forzando logout por horario individual');
           await forceLogout(result.message || 'Horario de acceso finalizado');
           return;
         }
 
-        if (result.success && result.data?.horario_info) {
-          const horarioInfo = result.data.horario_info;
-          setScheduleInfo(horarioInfo);
+        if (result.success && result.data) {
+          // Actualizar información de horario
+          if (result.data.horario_info) {
+            setScheduleInfo(result.data.horario_info);
+            
+            // Actualizar estado
+            const newStatus = {
+              estado: result.data.horario_info.puede_acceder ? 'DENTRO_HORARIO' : 'FUERA_HORARIO',
+              mensaje: result.data.horario_info.mensaje || 'Horario verificado',
+              puede_acceder: result.data.horario_info.puede_acceder || false,
+              tiempo_restante: result.data.horario_info.tiempo_restante_minutos,
+              alerta_cierre: result.data.horario_info.alerta_cierre_proximo || false
+            };
+            setScheduleStatus(newStatus);
 
-          // ✅ Mostrar alerta si queda 1 minuto o menos
-          if (horarioInfo.alerta_cierre_proximo && !showTimeoutAlert) {
-            console.log('⚠️ AuthContext: Mostrando alerta de cierre próximo');
-            setShowTimeoutAlert(true);
+            // ✅ Mostrar alerta si queda poco tiempo
+            if (newStatus.alerta_cierre && !showTimeoutAlert) {
+              console.log('⚠️ AuthContext: Mostrando alerta de cierre próximo');
+              setShowTimeoutAlert(true);
+            }
           }
         }
       } catch (error) {
@@ -113,6 +171,7 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setPermissions([]);
       setScheduleInfo(null);
+      setScheduleStatus(null);
       setShowTimeoutAlert(false);
 
       // Mostrar mensaje al usuario
@@ -128,7 +187,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, [scheduleCheckInterval]);
 
-  // ✅ FUNCIÓN LOGIN actualizada
+  // ✅ FUNCIÓN LOGIN actualizada con horarios individuales
   const login = async (email, password) => {
     console.log('🔐 AuthContext.login iniciado para:', email);
 
@@ -140,15 +199,8 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       setPermissions(userData.permisos || []);
 
-      // ✅ Configurar información de horario si está disponible
-      if (userData.horario_info) {
-        setScheduleInfo(userData.horario_info);
-
-        // Si ya tiene alerta de cierre próximo al hacer login
-        if (userData.horario_info.alerta_cierre_proximo) {
-          setShowTimeoutAlert(true);
-        }
-      }
+      // ✅ Cargar información de horario individual después del login
+      await loadScheduleInfo();
 
       // ✅ Iniciar monitoreo de horarios
       startScheduleMonitoring();
@@ -161,6 +213,7 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setPermissions([]);
       setScheduleInfo(null);
+      setScheduleStatus(null);
       throw error;
     }
   };
@@ -182,6 +235,7 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setPermissions([]);
       setScheduleInfo(null);
+      setScheduleStatus(null);
       setShowTimeoutAlert(false);
 
       console.log('✅ AuthContext: Logout exitoso');
@@ -190,13 +244,75 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setPermissions([]);
       setScheduleInfo(null);
+      setScheduleStatus(null);
       setShowTimeoutAlert(false);
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Resto de funciones existentes (sin cambios)
+  // ✅ NUEVA FUNCIÓN: Refrescar información de horario
+  const refreshScheduleInfo = useCallback(async () => {
+    try {
+      console.log('🔄 AuthContext: Refrescando información de horario...');
+      await loadScheduleInfo();
+      return true;
+    } catch (error) {
+      console.error('❌ AuthContext: Error refrescando horario:', error);
+      return false;
+    }
+  }, [loadScheduleInfo]);
+
+  // ✅ NUEVA FUNCIÓN: Validar acceso para fecha/hora específica
+  const validateScheduleAccess = async (fecha = null, hora = null) => {
+    try {
+      return await AuthService.validateScheduleAccess(fecha, hora);
+    } catch (error) {
+      console.error('❌ AuthContext: Error validando acceso:', error);
+      return {
+        puede_acceder: false,
+        motivo: 'ERROR_VALIDACION'
+      };
+    }
+  };
+
+  // ✅ NUEVA FUNCIÓN: Obtener horario efectivo para una fecha
+  const getEffectiveScheduleForDate = async (fecha) => {
+    try {
+      return await AuthService.getEffectiveScheduleForDate(fecha);
+    } catch (error) {
+      console.error('❌ AuthContext: Error obteniendo horario efectivo:', error);
+      return null;
+    }
+  };
+
+  // ✅ NUEVA FUNCIÓN: Verificar si el usuario puede acceder ahora
+  const canAccessNow = () => {
+    // Super admins siempre pueden acceder
+    if (scheduleStatus?.es_super_admin) {
+      return true;
+    }
+
+    // Verificar estado del horario
+    return scheduleStatus?.puede_acceder || false;
+  };
+
+  // ✅ NUEVA FUNCIÓN: Obtener tiempo restante de sesión
+  const getTimeRemaining = () => {
+    if (scheduleStatus?.es_super_admin) {
+      return null; // Sin límite para super admins
+    }
+
+    return scheduleInfo?.tiempo_restante_minutos || null;
+  };
+
+  // ✅ NUEVA FUNCIÓN: Verificar si debe mostrar alerta de cierre
+  const shouldShowTimeoutAlert = () => {
+    return !scheduleStatus?.es_super_admin && 
+           (showTimeoutAlert || scheduleStatus?.alerta_cierre);
+  };
+
+  // ✅ Resto de funciones existentes (actualizadas)
   const refreshUser = async () => {
     try {
       console.log('🔄 AuthContext: Actualizando datos del usuario...');
@@ -207,9 +323,7 @@ export const AuthProvider = ({ children }) => {
         setPermissions(updatedData.permisos || []);
 
         // Actualizar info de horario
-        if (updatedData.horario_info) {
-          setScheduleInfo(updatedData.horario_info);
-        }
+        await loadScheduleInfo();
 
         console.log('✅ AuthContext: Datos del usuario actualizados');
         return newUserData;
@@ -258,39 +372,67 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setPermissions([]);
       setScheduleInfo(null);
+      setScheduleStatus(null);
       return false;
     }
   };
 
-  // ✅ Valores del contexto expandidos
+  // ✅ Valores del contexto expandidos con horarios individuales
   const contextValue = {
+    // Estados básicos
     user,
     permissions,
-    scheduleInfo,
     isAuthenticated: !!user && !!AuthService.isAuthenticated(),
     loading,
+    
+    // Funciones básicas
     login,
     logout,
     forceLogout,
     refreshUser,
     hasPermission,
     getAllowedMenus,
-    verifyToken
+    verifyToken,
+    
+    // ✅ NUEVOS: Estados y funciones de horarios individuales
+    scheduleInfo,
+    scheduleStatus,
+    showTimeoutAlert,
+    
+    // Funciones de horario
+    refreshScheduleInfo,
+    validateScheduleAccess,
+    getEffectiveScheduleForDate,
+    canAccessNow,
+    getTimeRemaining,
+    shouldShowTimeoutAlert,
+    
+    // Funciones de utilidad
+    isSuperAdmin: () => AuthService.isSuperAdmin(),
+    
+    // Estado del horario
+    isWithinSchedule: () => canAccessNow(),
+    hasScheduleRestrictions: () => !AuthService.isSuperAdmin(),
+    
+    // Información adicional
+    getScheduleSummary: () => ({
+      estado: scheduleStatus?.estado || 'DESCONOCIDO',
+      mensaje: scheduleStatus?.mensaje || 'Sin información',
+      puede_acceder: canAccessNow(),
+      es_super_admin: AuthService.isSuperAdmin(),
+      tiempo_restante: getTimeRemaining(),
+      alerta_activa: shouldShowTimeoutAlert()
+    })
   };
 
   return (
     <AuthContext.Provider value={contextValue}>
       {children}
-      {/* ✅ REMOVIDO: El modal ya está integrado en el sidebar
-    {showTimeoutAlert && scheduleInfo?.alerta_cierre_proximo && (
-      <SessionTimeoutAlert ... />
-    )}
-    */}
     </AuthContext.Provider>
   );
 };
 
-// ✅ Hook personalizado (sin cambios)
+// ✅ Hook personalizado actualizado
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -299,7 +441,30 @@ export const useAuth = () => {
   return context;
 };
 
-// ✅ getCurrentUser (sin cambios)
+// ✅ Hook específico para horarios
+export const useSchedule = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useSchedule debe ser usado dentro de un AuthProvider');
+  }
+  
+  return {
+    scheduleInfo: context.scheduleInfo,
+    scheduleStatus: context.scheduleStatus,
+    canAccessNow: context.canAccessNow,
+    isSuperAdmin: context.isSuperAdmin,
+    isWithinSchedule: context.isWithinSchedule,
+    hasScheduleRestrictions: context.hasScheduleRestrictions,
+    getTimeRemaining: context.getTimeRemaining,
+    shouldShowTimeoutAlert: context.shouldShowTimeoutAlert,
+    refreshScheduleInfo: context.refreshScheduleInfo,
+    validateScheduleAccess: context.validateScheduleAccess,
+    getEffectiveScheduleForDate: context.getEffectiveScheduleForDate,
+    getScheduleSummary: context.getScheduleSummary
+  };
+};
+
+// ✅ getCurrentUser actualizado para incluir horarios
 export const getCurrentUser = () => {
   try {
     const userStr = localStorage.getItem('user_data');
@@ -311,6 +476,9 @@ export const getCurrentUser = () => {
         usu_ape: user.usu_ape || user.apellido || user.lastname,
         usu_cor: user.usu_cor || user.email,
         per_id: user.per_id || user.perfilId || user.profileId,
+        oficina_codigo: user.oficina_codigo,
+        es_super_admin: user.es_super_admin,
+        horario_info: user.horario_info,
         ...user
       };
     }
@@ -319,6 +487,28 @@ export const getCurrentUser = () => {
     console.error('getCurrentUser: Error parsing user data:', error);
     localStorage.removeItem('user_data');
     return null;
+  }
+};
+
+// ✅ NUEVA función para obtener solo información de horario
+export const getCurrentUserSchedule = () => {
+  try {
+    const user = getCurrentUser();
+    return user?.horario_info || null;
+  } catch (error) {
+    console.error('getCurrentUserSchedule: Error getting schedule info:', error);
+    return null;
+  }
+};
+
+// ✅ NUEVA función para verificar si es super admin
+export const isCurrentUserSuperAdmin = () => {
+  try {
+    const user = getCurrentUser();
+    return user?.es_super_admin === true || user?.per_id === 3;
+  } catch (error) {
+    console.error('isCurrentUserSuperAdmin: Error checking super admin:', error);
+    return false;
   }
 };
 

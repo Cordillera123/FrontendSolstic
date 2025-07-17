@@ -85,26 +85,37 @@ export const apiUtils = {
 // ===== SERVICIOS DE AUTENTICACIÓN =====
 export const authService = {
   // ✅ Iniciar sesión usando la API
-  async verifyActiveSchedule() {
+  verifyActiveSchedule: async () => {
     try {
-      console.log("🕐 API - Verificando horario activo");
-      const response = await apiClient.post("/auth/verificar-horario");
-      console.log("📥 API - Respuesta verificar horario:", response.data);
+      console.log('🕐 API: Verificando horario activo del usuario...');
+      
+      const response = await apiClient.get('/auth/verificar-horario-activo');
+      console.log('📥 API: Respuesta de verificación de horario:', response.data);
 
       return {
         success: response.data.status === 'success',
-        status: response.data.status,
         data: response.data,
-        message: response.data.message
+        message: response.data.message,
+        shouldLogout: response.data.debe_cerrar_sesion || false
       };
     } catch (error) {
-      console.error("❌ Error verificando horario activo:", error);
-      const apiError = apiUtils.handleApiError(error);
+      console.error('❌ API: Error verificando horario activo:', error);
+      
+      // Manejo específico de errores de horario
+      if (error.response) {
+        const errorData = error.response.data;
+        return {
+          success: false,
+          data: errorData,
+          message: errorData.message || 'Error verificando horario',
+          shouldLogout: errorData.debe_cerrar_sesion || false
+        };
+      }
+      
       throw {
-        success: false,
-        message: apiError.message,
-        status: 'error',
-        data: error.response?.data
+        status: "error",
+        message: apiUtils.handleApiError(error).message,
+        shouldLogout: false
       };
     }
   },
@@ -318,6 +329,728 @@ export const menuService = {
 
 // ===== SERVICIOS CRUD PARA ADMINISTRACIÓN =====
 export const adminService = {
+
+  horariosUsuarios: {
+    /**
+     * Obtener horarios de un usuario específico
+     * GET /api/usuarios/{usuarioId}/horarios
+     */
+    async getHorarios(usuarioId, params = {}) {
+      try {
+        console.log("🕐 HorariosUsuario API - Obteniendo horarios del usuario:", usuarioId);
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        const queryString = apiUtils.buildQueryParams(params);
+        const url = queryString ? 
+          `/usuarios/${usuarioId}/horarios?${queryString}` : 
+          `/usuarios/${usuarioId}/horarios`;
+
+        const response = await apiClient.get(url);
+        console.log("📥 HorariosUsuario API - Respuesta:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || response.data,
+          message: response.data.message || "Horarios de usuario obtenidos correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.getHorarios:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+          data: null,
+        };
+      }
+    },
+
+    /**
+     * Crear/actualizar horario personalizado para un día específico
+     * POST /api/usuarios/{usuarioId}/horarios
+     */
+    async crearHorario(usuarioId, horarioData) {
+      try {
+        console.log("🕐 HorariosUsuario API - Creando horario:", { usuarioId, horarioData });
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        const response = await apiClient.post(`/usuarios/${usuarioId}/horarios`, horarioData);
+        console.log("📥 HorariosUsuario API - Horario creado:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || response.data,
+          message: response.data.message || "Horario personalizado creado correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.crearHorario:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+        };
+      }
+    },
+
+    /**
+     * Crear/actualizar múltiples horarios de una vez
+     * POST /api/usuarios/{usuarioId}/horarios/batch
+     */
+    async crearHorariosBatch(usuarioId, horariosData) {
+      try {
+        console.log("🕐 HorariosUsuario API - Creando horarios batch:", { usuarioId, horariosData });
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        const response = await apiClient.post(`/usuarios/${usuarioId}/horarios/batch`, {
+          horarios: horariosData.horarios || horariosData,
+          sobrescribir_existentes: horariosData.sobrescribir_existentes !== false,
+          validar_contra_oficina: horariosData.validar_contra_oficina !== false,
+          forzar_creacion: horariosData.forzar_creacion || false
+        });
+
+        console.log("📥 HorariosUsuario API - Horarios batch creados:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || response.data,
+          message: response.data.message || "Horarios personalizados creados correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.crearHorariosBatch:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+        };
+      }
+    },
+
+    /**
+     * Clonar horarios desde la oficina del usuario
+     * POST /api/usuarios/{usuarioId}/horarios/clonar-oficina
+     */
+    async clonarDesdeOficina(usuarioId, opciones = {}) {
+      try {
+        console.log("📋 HorariosUsuario API - Clonando desde oficina:", { usuarioId, opciones });
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        const response = await apiClient.post(`/usuarios/${usuarioId}/horarios/clonar-oficina`, {
+          sobrescribir_existentes: opciones.sobrescribir !== false,
+          solo_dias_activos: opciones.soloActivos !== false,
+          ajuste_minutos_entrada: opciones.ajusteEntrada || 0,
+          ajuste_minutos_salida: opciones.ajusteSalida || 0
+        });
+
+        console.log("📥 HorariosUsuario API - Horarios clonados:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || response.data,
+          message: response.data.message || "Horarios clonados desde oficina correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.clonarDesdeOficina:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+        };
+      }
+    },
+
+    /**
+     * Validar si un usuario puede acceder en un momento específico
+     * GET /api/usuarios/{usuarioId}/validar-acceso?fecha=YYYY-MM-DD&hora=HH:MM
+     */
+    async validarAcceso(usuarioId, fecha, hora) {
+      try {
+        console.log("🕐 HorariosUsuario API - Validando acceso:", { usuarioId, fecha, hora });
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        const params = { fecha, hora };
+        const queryString = apiUtils.buildQueryParams(params);
+        const response = await apiClient.get(`/usuarios/${usuarioId}/validar-acceso?${queryString}`);
+
+        console.log("📥 HorariosUsuario API - Validación:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || response.data,
+          message: response.data.message || "Validación completada",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.validarAcceso:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+          data: null,
+        };
+      }
+    },
+
+    /**
+     * Obtener horario actual efectivo del usuario
+     * GET /api/usuarios/{usuarioId}/horario-actual
+     */
+    async getHorarioActual(usuarioId) {
+      try {
+        console.log("🕐 HorariosUsuario API - Obteniendo horario actual:", usuarioId);
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        const response = await apiClient.get(`/usuarios/${usuarioId}/horario-actual`);
+        console.log("📥 HorariosUsuario API - Horario actual:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || response.data,
+          message: response.data.message || "Horario actual obtenido correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.getHorarioActual:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+          data: null,
+        };
+      }
+    },
+
+    /**
+     * Obtener horarios de mi usuario autenticado
+     * GET /api/usuarios/me/horarios
+     */
+    async getMisHorarios(params = {}) {
+      try {
+        console.log("🕐 HorariosUsuario API - Obteniendo mis horarios");
+
+        const queryString = apiUtils.buildQueryParams(params);
+        const url = queryString ? 
+          `/usuarios/me/horarios?${queryString}` : 
+          `/usuarios/me/horarios`;
+
+        const response = await apiClient.get(url);
+        console.log("📥 HorariosUsuario API - Mis horarios:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || response.data,
+          message: response.data.message || "Mis horarios obtenidos correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.getMisHorarios:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+          data: null,
+        };
+      }
+    },
+
+    /**
+     * Obtener mi horario actual
+     * GET /api/usuarios/me/horario-actual
+     */
+    async getMiHorarioActual() {
+      try {
+        console.log("🕐 HorariosUsuario API - Obteniendo mi horario actual");
+
+        const response = await apiClient.get("/usuarios/me/horario-actual");
+        console.log("📥 HorariosUsuario API - Mi horario actual:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || response.data,
+          message: response.data.message || "Mi horario actual obtenido correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.getMiHorarioActual:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+          data: null,
+        };
+      }
+    },
+
+    /**
+     * Eliminar horario personalizado de un día específico
+     * DELETE /api/usuarios/{usuarioId}/horarios/{diaId}
+     */
+    async eliminarHorario(usuarioId, diaId) {
+      try {
+        console.log("🗑️ HorariosUsuario API - Eliminando horario:", { usuarioId, diaId });
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        if (!diaId || isNaN(diaId) || diaId < 1 || diaId > 7) {
+          throw new Error("ID de día inválido (debe ser 1-7)");
+        }
+
+        const response = await apiClient.delete(`/usuarios/${usuarioId}/horarios/${diaId}`);
+        console.log("📥 HorariosUsuario API - Horario eliminado:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || null,
+          message: response.data.message || "Horario personalizado eliminado correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.eliminarHorario:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+        };
+      }
+    },
+
+    /**
+     * Eliminar todos los horarios personalizados de un usuario
+     * DELETE /api/usuarios/{usuarioId}/horarios
+     */
+    async eliminarTodosLosHorarios(usuarioId) {
+      try {
+        console.log("🗑️ HorariosUsuario API - Eliminando todos los horarios:", usuarioId);
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        const response = await apiClient.delete(`/usuarios/${usuarioId}/horarios`);
+        console.log("📥 HorariosUsuario API - Todos los horarios eliminados:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || null,
+          message: response.data.message || "Todos los horarios personalizados eliminados correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.eliminarTodosLosHorarios:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+        };
+      }
+    },
+
+    /**
+     * Transferir usuario a nueva oficina y reasignar horarios
+     * POST /api/usuarios/{usuarioId}/transferir-oficina
+     */
+    async transferirOficina(usuarioId, transferData) {
+      try {
+        console.log("🏢 HorariosUsuario API - Transfiriendo oficina:", { usuarioId, transferData });
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        const response = await apiClient.post(`/usuarios/${usuarioId}/transferir-oficina`, transferData);
+        console.log("📥 HorariosUsuario API - Transferencia completada:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || response.data,
+          message: response.data.message || "Usuario transferido correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.transferirOficina:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+        };
+      }
+    },
+
+    /**
+     * Copiar horarios de un usuario a otro
+     * POST /api/usuarios/{usuarioOrigenId}/horarios/copiar/{usuarioDestinoId}
+     */
+    async copiarHorarios(usuarioOrigenId, usuarioDestinoId, opciones = {}) {
+      try {
+        console.log("📋 HorariosUsuario API - Copiando horarios:", {
+          usuarioOrigenId,
+          usuarioDestinoId,
+          opciones
+        });
+
+        if (!usuarioOrigenId || isNaN(usuarioOrigenId)) {
+          throw new Error("ID de usuario origen inválido");
+        }
+
+        if (!usuarioDestinoId || isNaN(usuarioDestinoId)) {
+          throw new Error("ID de usuario destino inválido");
+        }
+
+        const response = await apiClient.post(
+          `/usuarios/${usuarioOrigenId}/horarios/copiar/${usuarioDestinoId}`,
+          {
+            sobrescribir_existentes: opciones.sobrescribir !== false,
+            validar_contra_oficina_destino: opciones.validarOficina !== false
+          }
+        );
+
+        console.log("📥 HorariosUsuario API - Horarios copiados:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || response.data,
+          message: response.data.message || "Horarios copiados correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.copiarHorarios:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+        };
+      }
+    },
+
+    /**
+     * ===== HORARIOS TEMPORALES =====
+     */
+
+    /**
+     * Crear horario temporal para un usuario
+     * POST /api/usuarios/{usuarioId}/horarios/temporal
+     */
+    async crearHorarioTemporal(usuarioId, horarioTemporalData) {
+      try {
+        console.log("⏰ HorariosUsuario API - Creando horario temporal:", { usuarioId, horarioTemporalData });
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        const response = await apiClient.post(`/usuarios/${usuarioId}/horarios/temporal`, horarioTemporalData);
+        console.log("📥 HorariosUsuario API - Horario temporal creado:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || response.data,
+          message: response.data.message || "Horario temporal creado correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.crearHorarioTemporal:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+        };
+      }
+    },
+
+    /**
+     * Obtener horarios temporales de un usuario
+     * GET /api/usuarios/{usuarioId}/horarios/temporales
+     */
+    async getHorariosTemporales(usuarioId, params = {}) {
+      try {
+        console.log("📅 HorariosUsuario API - Obteniendo horarios temporales:", { usuarioId, params });
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        const queryString = apiUtils.buildQueryParams(params);
+        const url = queryString ? 
+          `/usuarios/${usuarioId}/horarios/temporales?${queryString}` : 
+          `/usuarios/${usuarioId}/horarios/temporales`;
+
+        const response = await apiClient.get(url);
+        console.log("📥 HorariosUsuario API - Horarios temporales:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || response.data,
+          message: response.data.message || "Horarios temporales obtenidos correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.getHorariosTemporales:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+          data: null,
+        };
+      }
+    },
+
+    /**
+     * Eliminar horario temporal específico
+     * DELETE /api/usuarios/{usuarioId}/horarios/temporal/{temporalId}
+     */
+    async eliminarHorarioTemporal(usuarioId, temporalId, eliminarTodoPeriodo = false) {
+      try {
+        console.log("🗑️ HorariosUsuario API - Eliminando horario temporal:", { usuarioId, temporalId, eliminarTodoPeriodo });
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        if (!temporalId || isNaN(temporalId)) {
+          throw new Error("ID de horario temporal inválido");
+        }
+
+        const response = await apiClient.delete(`/usuarios/${usuarioId}/horarios/temporal/${temporalId}`, {
+          data: { eliminar_todo_periodo: eliminarTodoPeriodo }
+        });
+
+        console.log("📥 HorariosUsuario API - Horario temporal eliminado:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || null,
+          message: response.data.message || "Horario temporal eliminado correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.eliminarHorarioTemporal:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+        };
+      }
+    },
+
+    /**
+     * Obtener horario efectivo para una fecha específica (incluye temporales)
+     * GET /api/usuarios/{usuarioId}/horario-efectivo?fecha=YYYY-MM-DD
+     */
+    async getHorarioEfectivoFecha(usuarioId, fecha) {
+      try {
+        console.log("🕐 HorariosUsuario API - Obteniendo horario efectivo:", { usuarioId, fecha });
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        const params = { fecha };
+        const queryString = apiUtils.buildQueryParams(params);
+        const response = await apiClient.get(`/usuarios/${usuarioId}/horario-efectivo?${queryString}`);
+
+        console.log("📥 HorariosUsuario API - Horario efectivo:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || response.data,
+          message: response.data.message || "Horario efectivo obtenido correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.getHorarioEfectivoFecha:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+          data: null,
+        };
+      }
+    },
+
+    /**
+     * ===== ESTADÍSTICAS Y UTILIDADES =====
+     */
+
+    /**
+     * Obtener estadísticas de horarios personalizados
+     * GET /api/horarios/usuarios/estadisticas
+     */
+    async getEstadisticasUsuarios(params = {}) {
+      try {
+        console.log("📊 HorariosUsuario API - Obteniendo estadísticas");
+
+        const queryString = apiUtils.buildQueryParams(params);
+        const url = queryString ? 
+          `/horarios/usuarios/estadisticas?${queryString}` : 
+          `/horarios/usuarios/estadisticas`;
+
+        const response = await apiClient.get(url);
+        console.log("📥 HorariosUsuario API - Estadísticas:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || response.data,
+          message: response.data.message || "Estadísticas obtenidas correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.getEstadisticasUsuarios:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+          data: null,
+        };
+      }
+    },
+
+    /**
+     * Limpiar horarios temporales vencidos
+     * DELETE /api/usuarios/horarios/temporales/limpiar-vencidos
+     */
+    async limpiarHorariosVencidos(diasVencimiento = 30) {
+      try {
+        console.log("🧹 HorariosUsuario API - Limpiando horarios vencidos:", diasVencimiento);
+
+        const response = await apiClient.delete("/usuarios/horarios/temporales/limpiar-vencidos", {
+          data: { dias_vencimiento: diasVencimiento }
+        });
+
+        console.log("📥 HorariosUsuario API - Horarios vencidos limpiados:", response.data);
+
+        return {
+          status: "success",
+          data: response.data.data || response.data,
+          message: response.data.message || "Horarios vencidos limpiados correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.limpiarHorariosVencidos:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+        };
+      }
+    },
+
+    /**
+     * ===== MÉTODOS DE UTILIDAD =====
+     */
+
+    /**
+     * Formatear horarios para componentes de calendario
+     */
+    formatHorariosParaCalendario(horariosPorDia) {
+      const eventos = [];
+      const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+      horariosPorDia.forEach(dia => {
+        if (dia.horario_efectivo) {
+          const color = dia.origen_horario === 'TEMPORAL' ? '#f59e0b' : 
+                       dia.origen_horario === 'PERSONALIZADO' ? '#10b981' : '#6b7280';
+
+          eventos.push({
+            id: `horario-usuario-${dia.dia_codigo}`,
+            title: `${diasSemana[dia.dia_codigo]} - ${dia.horario_efectivo.hora_entrada} - ${dia.horario_efectivo.hora_salida}`,
+            daysOfWeek: [dia.dia_codigo === 7 ? 0 : dia.dia_codigo],
+            startTime: dia.horario_efectivo.hora_entrada,
+            endTime: dia.horario_efectivo.hora_salida,
+            backgroundColor: color,
+            borderColor: color,
+            textColor: '#ffffff',
+            extendedProps: {
+              diaData: dia,
+              origen: dia.origen_horario,
+              esTemporalActivo: dia.es_temporal_activo,
+              prioridad: dia.prioridad_horario
+            }
+          });
+        }
+      });
+
+      return eventos;
+    },
+
+    /**
+     * Validar formato de horario temporal
+     */
+    validarHorarioTemporal(horarioData) {
+      const errores = [];
+
+      // Validar fechas
+      if (!horarioData.fecha_inicio) {
+        errores.push('Fecha de inicio es requerida');
+      }
+
+      if (!horarioData.fecha_fin) {
+        errores.push('Fecha de fin es requerida');
+      }
+
+      if (horarioData.fecha_inicio && horarioData.fecha_fin) {
+        const fechaInicio = new Date(horarioData.fecha_inicio);
+        const fechaFin = new Date(horarioData.fecha_fin);
+        
+        if (fechaFin < fechaInicio) {
+          errores.push('La fecha de fin debe ser posterior a la fecha de inicio');
+        }
+      }
+
+      // Validar horarios
+      if (!horarioData.horarios || horarioData.horarios.length === 0) {
+        errores.push('Debe especificar al menos un día con horario');
+      }
+
+      // Validar motivo y tipo
+      if (!horarioData.motivo || horarioData.motivo.trim().length === 0) {
+        errores.push('El motivo del horario temporal es requerido');
+      }
+
+      if (!horarioData.tipo_temporal) {
+        errores.push('El tipo de horario temporal es requerido');
+      }
+
+      return {
+        valido: errores.length === 0,
+        errores: errores
+      };
+    },
+
+    /**
+     * Obtener tipos de horarios temporales disponibles
+     */
+    getTiposTemporales() {
+      return [
+        { value: 'VACACIONES', label: 'Vacaciones', color: '#10b981' },
+        { value: 'PERMISO_MEDICO', label: 'Permiso Médico', color: '#ef4444' },
+        { value: 'PROYECTO_ESPECIAL', label: 'Proyecto Especial', color: '#3b82f6' },
+        { value: 'CAPACITACION', label: 'Capacitación', color: '#8b5cf6' },
+        { value: 'OTRO', label: 'Otro', color: '#6b7280' }
+      ];
+    }
+  },
 
   horariosOficinas: {
     // ✅ OBTENER HORARIOS DE UNA OFICINA
