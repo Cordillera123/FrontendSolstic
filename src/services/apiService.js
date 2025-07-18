@@ -327,10 +327,18 @@ export const menuService = {
   },
 };
 
-// ===== SERVICIOS CRUD PARA ADMINISTRACIÓN =====
+// services/apiService.js - adminService.horariosUsuarios COMPLETO
+
+// Actualización completa de adminService.horariosUsuarios con todos los endpoints
+
 export const adminService = {
+  // ... otros servicios ...
 
   horariosUsuarios: {
+    /**
+     * ===== SERVICIOS BÁSICOS EXISTENTES (ACTUALIZADOS) =====
+     */
+
     /**
      * Obtener horarios de un usuario específico
      * GET /api/usuarios/{usuarioId}/horarios
@@ -745,7 +753,7 @@ export const adminService = {
     },
 
     /**
-     * ===== HORARIOS TEMPORALES =====
+     * ===== SERVICIOS DE HORARIOS TEMPORALES =====
      */
 
     /**
@@ -890,7 +898,7 @@ export const adminService = {
     },
 
     /**
-     * ===== ESTADÍSTICAS Y UTILIDADES =====
+     * ===== SERVICIOS NUEVOS AGREGADOS =====
      */
 
     /**
@@ -899,7 +907,7 @@ export const adminService = {
      */
     async getEstadisticasUsuarios(params = {}) {
       try {
-        console.log("📊 HorariosUsuario API - Obteniendo estadísticas");
+        console.log("📊 HorariosUsuario API - Obteniendo estadísticas de usuarios");
 
         const queryString = apiUtils.buildQueryParams(params);
         const url = queryString ? 
@@ -932,18 +940,18 @@ export const adminService = {
      */
     async limpiarHorariosVencidos(diasVencimiento = 30) {
       try {
-        console.log("🧹 HorariosUsuario API - Limpiando horarios vencidos:", diasVencimiento);
+        console.log("🧹 HorariosUsuario API - Limpiando horarios vencidos");
 
-        const response = await apiClient.delete("/usuarios/horarios/temporales/limpiar-vencidos", {
+        const response = await apiClient.delete(`/usuarios/horarios/temporales/limpiar-vencidos`, {
           data: { dias_vencimiento: diasVencimiento }
         });
 
-        console.log("📥 HorariosUsuario API - Horarios vencidos limpiados:", response.data);
+        console.log("📥 HorariosUsuario API - Limpieza completada:", response.data);
 
         return {
           status: "success",
           data: response.data.data || response.data,
-          message: response.data.message || "Horarios vencidos limpiados correctamente",
+          message: response.data.message || "Horarios vencidos eliminados correctamente",
         };
       } catch (error) {
         console.error("❌ Error en horariosUsuarios.limpiarHorariosVencidos:", error);
@@ -957,79 +965,505 @@ export const adminService = {
     },
 
     /**
-     * ===== MÉTODOS DE UTILIDAD =====
+     * ===== SERVICIOS AUXILIARES Y UTILIDADES =====
      */
 
     /**
-     * Formatear horarios para componentes de calendario
+     * Obtener horarios temporales activos para fecha específica
      */
-    formatHorariosParaCalendario(horariosPorDia) {
-      const eventos = [];
-      const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    async getHorariosTemporalesActivos(usuarioId, fecha = null) {
+      try {
+        console.log("⏰ HorariosUsuario API - Obteniendo horarios temporales activos:", { usuarioId, fecha });
 
-      horariosPorDia.forEach(dia => {
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        const params = { incluir_vencidos: false };
+        if (fecha) {
+          params.fecha_inicio = fecha;
+          params.fecha_fin = fecha;
+        }
+
+        return await this.getHorariosTemporales(usuarioId, params);
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.getHorariosTemporalesActivos:", error);
+        throw error;
+      }
+    },
+
+    /**
+     * Obtener resumen semanal de horarios
+     */
+    async getResumenSemanal(usuarioId, fechaInicio = null) {
+      try {
+        console.log("📊 HorariosUsuario API - Obteniendo resumen semanal:", { usuarioId, fechaInicio });
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        const params = {};
+        if (fechaInicio) {
+          params.fecha = fechaInicio;
+        }
+
+        const horariosResponse = await this.getHorarios(usuarioId, params);
+        
+        if (horariosResponse.status === 'success') {
+          const horarios = horariosResponse.data;
+          const resumen = this.calcularResumenSemanal(horarios);
+          
+          return {
+            status: "success",
+            data: resumen,
+            message: "Resumen semanal obtenido correctamente",
+          };
+        } else {
+          throw new Error(horariosResponse.message);
+        }
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.getResumenSemanal:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+          data: null,
+        };
+      }
+    },
+
+    /**
+     * Obtener conflictos de horarios
+     */
+    async getConflictosHorarios(usuarioId) {
+      try {
+        console.log("⚠️ HorariosUsuario API - Obteniendo conflictos:", usuarioId);
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        // Por ahora simulamos conflictos basados en los datos disponibles
+        const horariosResponse = await this.getHorarios(usuarioId);
+        const horariosTemporalesResponse = await this.getHorariosTemporales(usuarioId);
+
+        const conflictos = this.detectarConflictos(
+          horariosResponse.data,
+          horariosTemporalesResponse.data
+        );
+
+        return {
+          status: "success",
+          data: conflictos,
+          message: "Conflictos de horarios obtenidos correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.getConflictosHorarios:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+          data: null,
+        };
+      }
+    },
+
+    /**
+     * Validar horario antes de crear
+     */
+    async validarHorario(usuarioId, horarioData) {
+      try {
+        console.log("✅ HorariosUsuario API - Validando horario:", { usuarioId, horarioData });
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        // Validaciones básicas del lado cliente
+        const validacionCliente = this.validarFormatoHorario(
+          horarioData.hora_entrada,
+          horarioData.hora_salida
+        );
+
+        if (!validacionCliente.valido) {
+          throw new Error(validacionCliente.error);
+        }
+
+        // Simulamos validación exitosa por ahora
+        return {
+          status: "success",
+          data: {
+            valido: true,
+            horario_validado: horarioData,
+            sugerencias: []
+          },
+          message: "Horario validado correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.validarHorario:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+          data: null,
+        };
+      }
+    },
+
+    /**
+     * Obtener próximos horarios (calendario)
+     */
+    async getProximosHorarios(usuarioId, dias = 7) {
+      try {
+        console.log("📅 HorariosUsuario API - Obteniendo próximos horarios:", { usuarioId, dias });
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        const fechaInicio = new Date().toISOString().split('T')[0];
+        const fechaFin = new Date(Date.now() + (dias * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
+
+        return await this.getHorariosRango(usuarioId, fechaInicio, fechaFin);
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.getProximosHorarios:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+          data: null,
+        };
+      }
+    },
+
+    /**
+     * Obtener horarios para rango de fechas (para calendario)
+     */
+    async getHorariosRango(usuarioId, fechaInicio, fechaFin) {
+      try {
+        console.log("📅 HorariosUsuario API - Obteniendo horarios en rango:", { usuarioId, fechaInicio, fechaFin });
+
+        if (!usuarioId || isNaN(usuarioId)) {
+          throw new Error("ID de usuario inválido");
+        }
+
+        // Obtener horarios base
+        const horariosResponse = await this.getHorarios(usuarioId);
+        
+        // Obtener horarios temporales en el rango
+        const horariosTemporalesResponse = await this.getHorariosTemporales(usuarioId, {
+          fecha_inicio: fechaInicio,
+          fecha_fin: fechaFin
+        });
+
+        const eventos = this.generarEventosCalendario(
+          horariosResponse.data,
+          horariosTemporalesResponse.data,
+          fechaInicio,
+          fechaFin
+        );
+
+        return {
+          status: "success",
+          data: eventos,
+          message: "Horarios en rango obtenidos correctamente",
+        };
+      } catch (error) {
+        console.error("❌ Error en horariosUsuarios.getHorariosRango:", error);
+        const apiError = apiUtils.handleApiError(error);
+        throw {
+          status: "error",
+          message: apiError.message,
+          errors: apiError.errors,
+          data: null,
+        };
+      }
+    },
+
+    /**
+     * ===== MÉTODOS HELPER Y UTILIDADES =====
+     */
+
+    /**
+     * Validar formato de horario
+     */
+    validarFormatoHorario(horaInicio, horaFin) {
+      const horaRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      
+      if (!horaRegex.test(horaInicio)) {
+        return { valido: false, error: 'Formato de hora de inicio inválido (debe ser HH:MM)' };
+      }
+      
+      if (!horaRegex.test(horaFin)) {
+        return { valido: false, error: 'Formato de hora de fin inválido (debe ser HH:MM)' };
+      }
+
+      // Convertir a minutos para comparar
+      const convertirAMinutos = (hora) => {
+        const [horas, minutos] = hora.split(':').map(Number);
+        return horas * 60 + minutos;
+      };
+
+      const minutosInicio = convertirAMinutos(horaInicio);
+      const minutosFin = convertirAMinutos(horaFin);
+
+      // Permitir horarios que cruzan medianoche
+      if (minutosInicio >= minutosFin) {
+        const diferenciaMinutos = (24 * 60 - minutosInicio) + minutosFin;
+        if (diferenciaMinutos < 60) {
+          return { valido: false, error: 'El horario debe tener al menos 1 hora de duración' };
+        }
+        if (diferenciaMinutos > 18 * 60) {
+          return { valido: false, error: 'El horario no puede exceder 18 horas de duración' };
+        }
+      } else {
+        const diferenciaMinutos = minutosFin - minutosInicio;
+        if (diferenciaMinutos < 60) {
+          return { valido: false, error: 'El horario debe tener al menos 1 hora de duración' };
+        }
+        if (diferenciaMinutos > 18 * 60) {
+          return { valido: false, error: 'El horario no puede exceder 18 horas de duración' };
+        }
+      }
+
+      return { valido: true };
+    },
+
+    /**
+     * Calcular resumen semanal
+     */
+    calcularResumenSemanal(horariosData) {
+      if (!horariosData || !horariosData.horarios_por_dia) {
+        return null;
+      }
+
+      const diasOperativos = horariosData.horarios_por_dia.filter(dia => dia.puede_acceder);
+      const totalHoras = diasOperativos.reduce((total, dia) => {
         if (dia.horario_efectivo) {
-          const color = dia.origen_horario === 'TEMPORAL' ? '#f59e0b' : 
-                       dia.origen_horario === 'PERSONALIZADO' ? '#10b981' : '#6b7280';
+          const entrada = new Date(`2000-01-01T${dia.horario_efectivo.hora_entrada}:00`);
+          const salida = new Date(`2000-01-01T${dia.horario_efectivo.hora_salida}:00`);
+          
+          if (salida < entrada) {
+            salida.setDate(salida.getDate() + 1);
+          }
+          
+          const horas = (salida - entrada) / (1000 * 60 * 60);
+          return total + horas;
+        }
+        return total;
+      }, 0);
 
-          eventos.push({
-            id: `horario-usuario-${dia.dia_codigo}`,
-            title: `${diasSemana[dia.dia_codigo]} - ${dia.horario_efectivo.hora_entrada} - ${dia.horario_efectivo.hora_salida}`,
-            daysOfWeek: [dia.dia_codigo === 7 ? 0 : dia.dia_codigo],
-            startTime: dia.horario_efectivo.hora_entrada,
-            endTime: dia.horario_efectivo.hora_salida,
-            backgroundColor: color,
-            borderColor: color,
-            textColor: '#ffffff',
-            extendedProps: {
-              diaData: dia,
-              origen: dia.origen_horario,
-              esTemporalActivo: dia.es_temporal_activo,
-              prioridad: dia.prioridad_horario
-            }
+      return {
+        dias_operativos: diasOperativos.length,
+        total_horas_semanales: Math.round(totalHoras * 100) / 100,
+        promedio_horas_dia: diasOperativos.length > 0 ? 
+          Math.round((totalHoras / diasOperativos.length) * 100) / 100 : 0,
+        dias_personalizados: horariosData.estadisticas?.horarios_personalizados || 0,
+        dias_temporales: horariosData.estadisticas?.total_dias_temporales || 0,
+        independencia: horariosData.estadisticas?.independencia_oficina || false
+      };
+    },
+
+    /**
+     * Detectar conflictos de horarios
+     */
+    detectarConflictos(horariosData, horariosTemporales) {
+      const conflictos = [];
+
+      if (!horariosData || !horariosData.horarios_por_dia) {
+        return conflictos;
+      }
+
+      // Verificar días sin horario
+      const diasSinHorario = horariosData.horarios_por_dia.filter(dia => !dia.puede_acceder);
+      if (diasSinHorario.length > 0) {
+        conflictos.push({
+          tipo: 'DIAS_SIN_HORARIO',
+          severidad: 'MEDIA',
+          descripcion: `${diasSinHorario.length} días sin horario configurado`,
+          afectados: diasSinHorario.map(dia => dia.dia_nombre),
+          sugerencia: 'Configure horarios para estos días o use los horarios de oficina'
+        });
+      }
+
+      // Verificar solapamientos de temporales (si hubiera múltiples)
+      if (horariosTemporales && horariosTemporales.periodos_temporales) {
+        const periodosActivos = horariosTemporales.periodos_temporales.filter(p => p.esta_vigente);
+        if (periodosActivos.length > 1) {
+          conflictos.push({
+            tipo: 'TEMPORALES_SOLAPADOS',
+            severidad: 'ALTA',
+            descripcion: 'Múltiples horarios temporales activos simultáneamente',
+            afectados: periodosActivos.map(p => p.tipo_temporal),
+            sugerencia: 'Revise las fechas de los horarios temporales'
           });
         }
-      });
+      }
+
+      return conflictos;
+    },
+
+    /**
+     * Generar eventos para calendario
+     */
+    generarEventosCalendario(horariosData, horariosTemporales, fechaInicio, fechaFin) {
+      const eventos = [];
+      
+      if (!horariosData || !horariosData.horarios_por_dia) {
+        return eventos;
+      }
+
+      const startDate = new Date(fechaInicio);
+      const endDate = new Date(fechaFin);
+      
+      // Generar eventos para cada día en el rango
+      for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
+        const dayOfWeek = date.getDay() === 0 ? 7 : date.getDay(); // Convertir domingo (0) a 7
+        const fechaStr = date.toISOString().split('T')[0];
+        
+        const diaData = horariosData.horarios_por_dia.find(d => d.dia_codigo === dayOfWeek);
+        
+        if (diaData && diaData.puede_acceder && diaData.horario_efectivo) {
+          eventos.push({
+            id: `${horariosData.usuario.usu_id}-${fechaStr}-${dayOfWeek}`,
+            title: `${diaData.horario_efectivo.hora_entrada} - ${diaData.horario_efectivo.hora_salida}`,
+            start: `${fechaStr}T${diaData.horario_efectivo.hora_entrada}:00`,
+            end: `${fechaStr}T${diaData.horario_efectivo.hora_salida}:00`,
+            extendedProps: {
+              diaData: diaData,
+              origen: diaData.origen_horario,
+              usuarioId: horariosData.usuario.usu_id
+            },
+            className: this.getClassNameForEvent(diaData.origen_horario),
+            backgroundColor: this.getColorForEvent(diaData.origen_horario),
+            borderColor: this.getBorderColorForEvent(diaData.origen_horario)
+          });
+        }
+      }
 
       return eventos;
     },
 
     /**
-     * Validar formato de horario temporal
+     * Obtener clase CSS para evento de calendario
      */
-    validarHorarioTemporal(horarioData) {
+    getClassNameForEvent(origen) {
+      switch (origen) {
+        case 'TEMPORAL':
+          return 'horario-temporal';
+        case 'PERSONALIZADO':
+          return 'horario-personalizado';
+        case 'HEREDADO_OFICINA':
+          return 'horario-oficina';
+        default:
+          return 'horario-default';
+      }
+    },
+
+    /**
+     * Obtener color para evento de calendario
+     */
+    getColorForEvent(origen) {
+      switch (origen) {
+        case 'TEMPORAL':
+          return '#f97316'; // orange-500
+        case 'PERSONALIZADO':
+          return '#10b981'; // emerald-500
+        case 'HEREDADO_OFICINA':
+          return '#3b82f6'; // blue-500
+        default:
+          return '#6b7280'; // gray-500
+      }
+    },
+
+    /**
+     * Obtener color de borde para evento de calendario
+     */
+    getBorderColorForEvent(origen) {
+      switch (origen) {
+        case 'TEMPORAL':
+          return '#ea580c'; // orange-600
+        case 'PERSONALIZADO':
+          return '#059669'; // emerald-600
+        case 'HEREDADO_OFICINA':
+          return '#2563eb'; // blue-600
+        default:
+          return '#4b5563'; // gray-600
+      }
+    },
+
+    /**
+     * Formatear horarios para FullCalendar
+     */
+    formatHorariosParaCalendar(horariosData) {
+      if (!horariosData || !horariosData.horarios_por_dia) {
+        return [];
+      }
+
+      return horariosData.horarios_por_dia
+        .filter(dia => dia.puede_acceder && dia.horario_efectivo)
+        .map(dia => ({
+          id: `user-${horariosData.usuario?.usu_id || 'unknown'}-day-${dia.dia_codigo}`,
+          title: `${dia.dia_abreviatura}: ${dia.horario_efectivo.hora_entrada} - ${dia.horario_efectivo.hora_salida}`,
+          daysOfWeek: [dia.dia_codigo === 7 ? 0 : dia.dia_codigo], // Convertir domingo
+          startTime: dia.horario_efectivo.hora_entrada,
+          endTime: dia.horario_efectivo.hora_salida,
+          extendedProps: {
+            diaData: dia,
+            origen: dia.origen_horario,
+            usuarioId: horariosData.usuario?.usu_id
+          },
+          backgroundColor: this.getColorForEvent(dia.origen_horario),
+          borderColor: this.getBorderColorForEvent(dia.origen_horario),
+          textColor: '#ffffff'
+        }));
+    },
+
+    /**
+     * Validar datos de horario temporal antes de enviar
+     */
+    validarDatosHorarioTemporal(horarioTemporalData) {
       const errores = [];
 
-      // Validar fechas
-      if (!horarioData.fecha_inicio) {
-        errores.push('Fecha de inicio es requerida');
+      if (!horarioTemporalData.fecha_inicio) {
+        errores.push('La fecha de inicio es requerida');
       }
 
-      if (!horarioData.fecha_fin) {
-        errores.push('Fecha de fin es requerida');
+      if (!horarioTemporalData.fecha_fin) {
+        errores.push('La fecha de fin es requerida');
       }
 
-      if (horarioData.fecha_inicio && horarioData.fecha_fin) {
-        const fechaInicio = new Date(horarioData.fecha_inicio);
-        const fechaFin = new Date(horarioData.fecha_fin);
+      if (horarioTemporalData.fecha_inicio && horarioTemporalData.fecha_fin) {
+        const fechaInicio = new Date(horarioTemporalData.fecha_inicio);
+        const fechaFin = new Date(horarioTemporalData.fecha_fin);
         
         if (fechaFin < fechaInicio) {
           errores.push('La fecha de fin debe ser posterior a la fecha de inicio');
         }
       }
 
-      // Validar horarios
-      if (!horarioData.horarios || horarioData.horarios.length === 0) {
-        errores.push('Debe especificar al menos un día con horario');
+      if (!horarioTemporalData.motivo || horarioTemporalData.motivo.trim().length === 0) {
+        errores.push('El motivo es requerido');
       }
 
-      // Validar motivo y tipo
-      if (!horarioData.motivo || horarioData.motivo.trim().length === 0) {
-        errores.push('El motivo del horario temporal es requerido');
-      }
-
-      if (!horarioData.tipo_temporal) {
+      if (!horarioTemporalData.tipo_temporal) {
         errores.push('El tipo de horario temporal es requerido');
+      }
+
+      if (!horarioTemporalData.horarios || horarioTemporalData.horarios.length === 0) {
+        errores.push('Debe configurar al menos un día');
+      } else {
+        horarioTemporalData.horarios.forEach((horario, index) => {
+          const validacion = this.validarFormatoHorario(horario.hora_entrada, horario.hora_salida);
+          if (!validacion.valido) {
+            errores.push(`Día ${index + 1}: ${validacion.error}`);
+          }
+        });
       }
 
       return {
@@ -1039,16 +1473,29 @@ export const adminService = {
     },
 
     /**
-     * Obtener tipos de horarios temporales disponibles
+     * Calcular estadísticas de horarios
      */
-    getTiposTemporales() {
-      return [
-        { value: 'VACACIONES', label: 'Vacaciones', color: '#10b981' },
-        { value: 'PERMISO_MEDICO', label: 'Permiso Médico', color: '#ef4444' },
-        { value: 'PROYECTO_ESPECIAL', label: 'Proyecto Especial', color: '#3b82f6' },
-        { value: 'CAPACITACION', label: 'Capacitación', color: '#8b5cf6' },
-        { value: 'OTRO', label: 'Otro', color: '#6b7280' }
-      ];
+    calcularEstadisticas(horariosData) {
+      if (!horariosData || !horariosData.horarios_por_dia) {
+        return null;
+      }
+
+      const diasConHorario = horariosData.horarios_por_dia.filter(dia => dia.puede_acceder);
+      const diasPersonalizados = horariosData.horarios_por_dia.filter(dia => dia.origen_horario === 'PERSONALIZADO');
+      const diasTemporales = horariosData.horarios_por_dia.filter(dia => dia.origen_horario === 'TEMPORAL');
+      const diasOficina = horariosData.horarios_por_dia.filter(dia => dia.origen_horario === 'HEREDADO_OFICINA');
+
+      return {
+        dias_con_horario: diasConHorario.length,
+        total_dias: 7,
+        porcentaje_cobertura: Math.round((diasConHorario.length / 7) * 100),
+        horarios_personalizados: diasPersonalizados.length,
+        horarios_temporales: diasTemporales.length,
+        horarios_oficina: diasOficina.length,
+        dias_sin_horario: 7 - diasConHorario.length,
+        usuario_operativo: diasConHorario.length > 0,
+        independencia_oficina: diasPersonalizados.length > 0 || diasTemporales.length > 0
+      };
     }
   },
 
@@ -3627,6 +4074,7 @@ export const adminService = {
      * ✅ MÉTODO OPTIMIZADO: Obtener resumen rápido del usuario (solo lo esencial para UI)
      * Este método procesa los datos que ya vienen del backend correctamente
      */
+    
     async getMeResumen() {
       try {
         console.log("🔍 Usuario API - Obteniendo resumen del usuario");

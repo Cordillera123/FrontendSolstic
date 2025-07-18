@@ -5,6 +5,7 @@ import Icon from "../UI/Icon";
 import PerParamWindow from "./PerParamWindow";
 import UsuParamWindowCrear from "./UsuParamWindowCrear";
 import UsuParamWindowEditar from "./UsuParamWindowEditar";
+import UsuarioHorarioWindow from "./UsuarioHorarioWindow";
 
 // Componente principal para gestión de usuarios con paginación y scroll
 const UsuParamWindow = ({
@@ -24,6 +25,8 @@ const UsuParamWindow = ({
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingUsuario, setEditingUsuario] = useState(null);
   const [selectedPerfil, setSelectedPerfil] = useState("");
+  const [showHorarioForm, setShowHorarioForm] = useState(false);
+const [selectedUsuarioForHorario, setSelectedUsuarioForHorario] = useState(null);
 
   // ✅ ESTADOS PARA PAGINACIÓN
   const [currentPage, setCurrentPage] = useState(1);
@@ -785,6 +788,19 @@ const UsuParamWindow = ({
     setEditingUsuario(null);
   }, []);
 
+  // 🆕 AGREGAR AQUÍ:
+const handleHorarioUsuario = useCallback((usuario) => {
+  console.log("📅 Abriendo horarios para usuario:", usuario.usu_id);
+  setSelectedUsuarioForHorario(usuario);
+  setShowHorarioForm(true);
+}, []);
+
+const handleCancelHorario = useCallback(() => {
+  console.log("❌ Cancelando vista de horarios");
+  setShowHorarioForm(false);
+  setSelectedUsuarioForHorario(null);
+}, []);
+
   const handlePerfilSelect = (perfil) => {
     setActiveTab("usuarios");
     setSelectedPerfil(perfil.per_id.toString());
@@ -879,6 +895,13 @@ const UsuParamWindow = ({
           loading={loading}
           perfiles={perfiles}
         />
+         ) : showHorarioForm ? (
+      <UsuarioHorarioWindow
+        usuarioId={selectedUsuarioForHorario?.usu_id}
+        usuarioNombre={selectedUsuarioForHorario?.usu_nom + ' ' + selectedUsuarioForHorario?.usu_ape}
+        onCancel={handleCancelHorario}
+        showMessage={showMessage}
+      />
       ) : (
         <>
           {/* Header con pestañas */}
@@ -1145,6 +1168,22 @@ const UsuParamWindow = ({
                                         )}
                                       </>
                                     )}
+                                     {canRead ? (
+      <button
+        onClick={() => handleHorarioUsuario(usuario)}
+        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-all duration-200 transform hover:scale-105"
+        title={`Gestionar horarios de ${usuario.usu_nom}`}
+      >
+        <Icon name="Calendar" size={16} />
+      </button>
+    ) : (
+      <div
+        className="p-2 text-gray-400 cursor-not-allowed"
+        title="Sin permisos para gestionar horarios"
+      >
+        <Icon name="Lock" size={16} />
+      </div>
+    )}
                                   </div>
                                 </td>
                               </tr>
