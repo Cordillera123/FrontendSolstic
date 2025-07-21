@@ -1,4 +1,4 @@
-// src/components/Windows/OficinasWindow.jsx - ACTUALIZADO PARA USAR ShowOficinaForm
+// src/components/Windows/OficinasWindow.jsx - CON SINCRONIZACIÓN DE PERMISOS
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useButtonPermissions } from "../../hooks/useButtonPermissions";
 import { adminService } from "../../services/apiService";
@@ -9,23 +9,23 @@ import Icon from "../UI/Icon";
 import CrearOficinaForm from "./CrearOficinaForm";
 import EditarOficinaForm from "./EditarOficinaForm";
 import ShowOficinaForm from "./ShowOficinaForm";
-import CrearCalendarWindow from "./CalendarioOficinaForm"; // ✅ NUEVO IMPORT
+import CrearCalendarWindow from "./CalendarioOficinaForm";
 
 const OficinasWindow = ({
   showMessage: externalShowMessage,
-  menuId = 19,      // ID del submenu "Oficinas"
+  menuId = 19, // ID del submenu "Oficinas"
   title = "Gestión de Oficinas",
 }) => {
   console.log("🏢 OficinasWindow - Iniciando componente", {
     menuId,
-    currentView: "lista"
+    currentView: "lista",
   });
 
   // Obtener usuario actual
   const currentUser = getCurrentUser();
   const currentUserId = currentUser?.usu_id;
 
-  // Hook de permisos
+  // ✅ Hook de permisos con códigos específicos de botones
   const {
     canCreate,
     canRead,
@@ -33,23 +33,35 @@ const OficinasWindow = ({
     canDelete,
     loading: permissionsLoading,
     error: permissionsError,
+    hasButtonPermission,
+    canViewCalendar: initialCanViewCalendar,
+    refreshPermissions, // ✅ NUEVO: Para refrescar permisos
   } = useButtonPermissions(
-    menuId,    // 19 - Submenu "Oficinas" 
-    null,      // No segundo parámetro
-    true,      // autoLoad
-    "submenu"  // Tipo "submenu"
+    menuId, // 19 - Submenu "Oficinas"
+    null, // No segundo parámetro
+    true, // autoLoad
+    "submenu" // Tipo "submenu"
   );
+
+  // ✅ NUEVO: Estado local para controlar el permiso de calendario en tiempo real
+  const [canViewCalendar, setCanViewCalendar] = useState(initialCanViewCalendar);
+
+  // ✅ CRÍTICO: Sincronizar el estado local con el hook cuando cambie
+  useEffect(() => {
+    setCanViewCalendar(initialCanViewCalendar);
+  }, [initialCanViewCalendar]);
 
   // Estados principales del componente
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [oficinas, setOficinas] = useState([]);
 
-  // ✅ Estados para control de vista - ACTUALIZADO
-  const [currentView, setCurrentView] = useState("lista"); // 'lista' | 'crear' | 'editar' | 'mostrar'
+  // Estados para control de vista
+  const [currentView, setCurrentView] = useState("lista");
   const [editingOficina, setEditingOficina] = useState(null);
-  const [viewingOficina, setViewingOficina] = useState(null); // ✅ NUEVO ESTADO
+  const [viewingOficina, setViewingOficina] = useState(null);
   const [calendarioOficina, setCalendarioOficina] = useState(null);
+
   // Estados para filtros y búsqueda
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
@@ -63,73 +75,70 @@ const OficinasWindow = ({
   const [tiposOficinaOptions, setTiposOficinaOptions] = useState([]);
   const [parroquiasOptions, setParroquiasOptions] = useState([]);
 
-  const loadFilterOptions = useCallback(async () => {
-    try {
-      console.log("🔍 Cargando opciones de filtros...");
-
-      // Cargar instituciones
-      try {
-        const institucionesResult = await adminService.instituciones.listar();
-        if (institucionesResult.status === "success") {
-          setInstitucionesOptions(institucionesResult.data);
-          console.log("✅ Instituciones cargadas:", institucionesResult.data.length);
-        }
-      } catch (error) {
-        console.warn("⚠️ Error cargando instituciones:", error);
-        setInstitucionesOptions([
-          { value: 1, label: "Banco Central del Ecuador" },
-          { value: 2, label: "Superintendencia de Bancos" },
-          { value: 3, label: "IESS" },
-        ]);
-      }
-
-      // Cargar tipos de oficina
-      try {
-        const tiposResult = await adminService.tiposOficina.getActivos();
-        if (tiposResult.status === "success") {
-          const tiposFormateados = tiposResult.data.map(tipo => ({
-            value: tipo.tofici_codigo || tipo.value,
-            label: tipo.tofici_descripcion || tipo.label
-          }));
-          setTiposOficinaOptions(tiposFormateados);
-          console.log("✅ Tipos de oficina cargados:", tiposFormateados.length);
-        }
-      } catch (error) {
-        console.warn("⚠️ Error cargando tipos de oficina:", error);
-        setTiposOficinaOptions([
-          { value: 1, label: "Oficina Principal" },
-          { value: 2, label: "Sucursal" },
-          { value: 3, label: "Agencia" },
-        ]);
-      }
-
-      // ✅ REMOVER CARGA DE PARROQUIAS YA QUE NO ESTÁ DISPONIBLE
-      // Las parroquias se cargarán cuando implementes el endpoint
-      console.log("⚠️ Parroquias temporalmente deshabilitadas - endpoint no disponible");
-      setParroquiasOptions([]);
-
-    } catch (error) {
-      console.error("❌ Error cargando opciones de filtros:", error);
-      // Usar valores por defecto
-      setInstitucionesOptions([
-        { value: 1, label: "Banco Central del Ecuador" },
-        { value: 2, label: "Superintendencia de Bancos" },
-        { value: 3, label: "IESS" },
-      ]);
-      setTiposOficinaOptions([
-        { value: 1, label: "Oficina Principal" },
-        { value: 2, label: "Sucursal" },
-        { value: 3, label: "Agencia" },
-      ]);
-      setParroquiasOptions([]);
-    }
-  }, []);
-
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(15);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
+
+  // ✅ CRÍTICO: LISTENER PARA SINCRONIZACIÓN DE PERMISOS EN TIEMPO REAL
+  useEffect(() => {
+    // Verificar que el notificador global existe
+    if (!window.permissionChangeNotifier) {
+      console.warn("⚠️ PermissionChangeNotifier no disponible");
+      return;
+    }
+
+    console.log("🔔 OficinasWindow - Suscribiéndose a cambios de permisos");
+
+    const handlePermissionChange = (changeData) => {
+      console.log("🔄 OficinasWindow - Cambio de permiso recibido:", changeData);
+
+      // Solo reaccionar si es el usuario actual
+      if (changeData.userId !== currentUserId) {
+        console.log("ℹ️ Cambio no es para el usuario actual, ignorando");
+        return;
+      }
+
+      // ✅ CRÍTICO: Verificar si el cambio afecta al botón de calendario
+      const calendarCodes = ['CALENDARIO', 'calendario', 'CALENDAR', 'calendar', 'agenda', 'AGENDA'];
+      const isCalendarButton = calendarCodes.includes(changeData.buttonCode);
+
+      if (isCalendarButton) {
+        console.log("📅 Cambio afecta al botón de calendario, actualizando estado");
+
+        if (changeData.type === 'permission_changed') {
+          // El usuario recibió o perdió el permiso específico
+          setCanViewCalendar(changeData.newPermission);
+          
+          const message = changeData.newPermission 
+            ? "✅ Acceso al calendario concedido"
+            : "❌ Acceso al calendario retirado";
+          
+          showMessage("info", message);
+        } else if (changeData.type === 'customization_removed') {
+          // Se removió la personalización, volver al permiso del perfil
+          console.log("🔄 Personalización removida, refrescando permisos...");
+          refreshPermissions();
+        } else if (changeData.type === 'full_reset') {
+          // Reset completo de permisos
+          console.log("🔄 Reset completo detectado, refrescando permisos...");
+          refreshPermissions();
+        }
+      } else {
+        console.log("ℹ️ Cambio no afecta al botón de calendario:", changeData.buttonCode);
+      }
+    };
+
+    // Suscribirse al notificador global
+    const unsubscribe = window.permissionChangeNotifier.subscribe(handlePermissionChange);
+
+    // Limpieza al desmontar
+    return () => {
+      console.log("🔔 OficinasWindow - Desuscribiéndose de cambios de permisos");
+      unsubscribe();
+    };
+  }, [currentUserId, refreshPermissions]);
 
   // ✅ FUNCIÓN PARA MOSTRAR MENSAJES
   const showMessage = useCallback(
@@ -145,20 +154,125 @@ const OficinasWindow = ({
     [externalShowMessage]
   );
 
-  // Debug de permisos
+  // ✅ FUNCIÓN MEJORADA PARA MANEJAR CALENDARIO CON PERMISOS SINCRONIZADOS
+  const handleCalendario = useCallback(
+    (oficina) => {
+      console.log("📅 Intentando abrir calendario:", {
+        oficina: oficina.oficin_codigo,
+        canViewCalendar,
+        currentUserId
+      });
+
+      if (!canViewCalendar) {
+        console.log("❌ Sin permisos para calendario");
+        showMessage(
+          "error",
+          "No tienes permisos para ver el calendario de oficinas"
+        );
+        return;
+      }
+
+      console.log("✅ Abriendo calendario para oficina:", oficina.oficin_codigo);
+      setCalendarioOficina(oficina);
+      setEditingOficina(null);
+      setViewingOficina(null);
+      setCurrentView("calendario");
+    },
+    [canViewCalendar, showMessage, currentUserId]
+  );
+
+  // ✅ Debug mejorado de permisos
   useEffect(() => {
-    console.log("🔍 OficinasWindow - Estado de permisos:", {
+    console.log("🔍 OficinasWindow - Estado actual de permisos:", {
       menuId,
+      currentUserId,
       canCreate,
       canRead,
       canUpdate,
       canDelete,
+      initialCanViewCalendar,
+      canViewCalendar, // ✅ Estado sincronizado
       permissionsLoading,
-      permissionsError: permissionsError?.message
+      permissionsError: permissionsError?.message,
+      timestamp: new Date().toISOString()
     });
-  }, [menuId, canCreate, canRead, canUpdate, canDelete, permissionsLoading, permissionsError]);
+  }, [
+    menuId,
+    currentUserId,
+    canCreate,
+    canRead,
+    canUpdate,
+    canDelete,
+    initialCanViewCalendar,
+    canViewCalendar,
+    permissionsLoading,
+    permissionsError,
+  ]);
 
-  // ✅ FUNCIÓN PARA CARGAR OFICINAS
+  // RESTO DE FUNCIONES...
+  const loadFilterOptions = useCallback(async () => {
+    try {
+      console.log("🔍 Cargando opciones de filtros...");
+
+      // Cargar instituciones
+      try {
+        const institucionesResult = await adminService.instituciones.listar();
+        if (institucionesResult.status === "success") {
+          setInstitucionesOptions(institucionesResult.data);
+          console.log(
+            "✅ Instituciones cargadas:",
+            institucionesResult.data.length
+          );
+        }
+      } catch (error) {
+        console.warn("⚠️ Error cargando instituciones:", error);
+        setInstitucionesOptions([
+          { value: 1, label: "Banco Central del Ecuador" },
+          { value: 2, label: "Superintendencia de Bancos" },
+          { value: 3, label: "IESS" },
+        ]);
+      }
+
+      // Cargar tipos de oficina
+      try {
+        const tiposResult = await adminService.tiposOficina.getActivos();
+        if (tiposResult.status === "success") {
+          const tiposFormateados = tiposResult.data.map((tipo) => ({
+            value: tipo.tofici_codigo || tipo.value,
+            label: tipo.tofici_descripcion || tipo.label,
+          }));
+          setTiposOficinaOptions(tiposFormateados);
+          console.log("✅ Tipos de oficina cargados:", tiposFormateados.length);
+        }
+      } catch (error) {
+        console.warn("⚠️ Error cargando tipos de oficina:", error);
+        setTiposOficinaOptions([
+          { value: 1, label: "Oficina Principal" },
+          { value: 2, label: "Sucursal" },
+          { value: 3, label: "Agencia" },
+        ]);
+      }
+
+      console.log(
+        "⚠️ Parroquias temporalmente deshabilitadas - endpoint no disponible"
+      );
+      setParroquiasOptions([]);
+    } catch (error) {
+      console.error("❌ Error cargando opciones de filtros:", error);
+      setInstitucionesOptions([
+        { value: 1, label: "Banco Central del Ecuador" },
+        { value: 2, label: "Superintendencia de Bancos" },
+        { value: 3, label: "IESS" },
+      ]);
+      setTiposOficinaOptions([
+        { value: 1, label: "Oficina Principal" },
+        { value: 2, label: "Sucursal" },
+        { value: 3, label: "Agencia" },
+      ]);
+      setParroquiasOptions([]);
+    }
+  }, []);
+
   const loadOficinas = useCallback(
     async (page = 1, customFilters = {}) => {
       console.log("🔍 Cargando oficinas - página:", page);
@@ -243,7 +357,6 @@ const OficinasWindow = ({
     [canRead, showMessage, perPage, searchTerm, filters]
   );
 
-  // ✅ FUNCIÓN PARA MANEJAR GUARDADO (CREAR/EDITAR)
   const handleOficinaSave = useCallback(
     async (formData, editingOficina = null) => {
       console.log("💾 Guardando oficina:", {
@@ -263,8 +376,14 @@ const OficinasWindow = ({
         let result;
 
         if (editingOficina) {
-          console.log("🔄 Actualizando oficina ID:", editingOficina.oficin_codigo);
-          result = await adminService.oficinas.update(editingOficina.oficin_codigo, formData);
+          console.log(
+            "🔄 Actualizando oficina ID:",
+            editingOficina.oficin_codigo
+          );
+          result = await adminService.oficinas.update(
+            editingOficina.oficin_codigo,
+            formData
+          );
           showMessage("success", "Oficina actualizada correctamente");
         } else {
           console.log("➕ Creando nueva oficina");
@@ -272,7 +391,6 @@ const OficinasWindow = ({
           showMessage("success", "Oficina creada correctamente");
         }
 
-        // Recargar datos y volver a la lista
         await loadOficinas(currentPage);
         setCurrentView("lista");
         setEditingOficina(null);
@@ -281,7 +399,6 @@ const OficinasWindow = ({
       } catch (error) {
         console.error("❌ Error guardando oficina:", error);
 
-        // Procesar diferentes tipos de errores
         let errorMessage = "Error al guardar la oficina";
 
         if (error.response?.data?.errors) {
@@ -327,15 +444,6 @@ const OficinasWindow = ({
     [showMessage, loadOficinas, currentPage, canUpdate, canCreate]
   );
 
-  const handleCalendario = useCallback((oficina) => {
-    console.log("📅 Abriendo calendario para oficina:", oficina.oficin_codigo);
-    setCalendarioOficina(oficina);
-    setEditingOficina(null);
-    setViewingOficina(null);
-    setCurrentView("calendario");
-  }, []);
-
-  // ✅ FUNCIÓN PARA INICIAR CREACIÓN
   const handleNewOficina = useCallback(() => {
     if (!canCreate) {
       showMessage("error", "No tienes permisos para crear oficinas");
@@ -344,11 +452,10 @@ const OficinasWindow = ({
 
     console.log("➕ Iniciando creación de oficina");
     setEditingOficina(null);
-    setViewingOficina(null); // ✅ LIMPIAR VIEWING
+    setViewingOficina(null);
     setCurrentView("crear");
   }, [canCreate, showMessage]);
 
-  // ✅ FUNCIÓN PARA INICIAR EDICIÓN
   const handleEditOficina = useCallback(
     (oficina) => {
       if (!canUpdate) {
@@ -358,21 +465,19 @@ const OficinasWindow = ({
 
       console.log("✏️ Iniciando edición de oficina:", oficina.oficin_codigo);
       setEditingOficina(oficina);
-      setViewingOficina(null); // ✅ LIMPIAR VIEWING
+      setViewingOficina(null);
       setCurrentView("editar");
     },
     [canUpdate, showMessage]
   );
 
-  // ✅ NUEVA FUNCIÓN PARA MOSTRAR DETALLES DE OFICINA
   const handleShowOficina = useCallback((oficina) => {
     console.log("👁️ Mostrando detalles de oficina:", oficina.oficin_codigo);
     setViewingOficina(oficina);
-    setEditingOficina(null); // ✅ LIMPIAR EDITING
+    setEditingOficina(null);
     setCurrentView("mostrar");
   }, []);
 
-  // ✅ FUNCIÓN PARA ELIMINAR OFICINA
   const handleDeleteOficina = useCallback(
     async (oficina) => {
       if (!canDelete) {
@@ -390,10 +495,15 @@ const OficinasWindow = ({
         setLoading(true);
         console.log("🗑️ Eliminando oficina:", oficina.oficin_codigo);
 
-        const result = await adminService.oficinas.delete(oficina.oficin_codigo);
+        const result = await adminService.oficinas.delete(
+          oficina.oficin_codigo
+        );
 
         if (result?.status === "success") {
-          showMessage("success", result.message || "Oficina eliminada correctamente");
+          showMessage(
+            "success",
+            result.message || "Oficina eliminada correctamente"
+          );
         } else {
           showMessage("error", result?.message || "Error al eliminar oficina");
         }
@@ -419,16 +529,14 @@ const OficinasWindow = ({
     [canDelete, showMessage, loadOficinas, currentPage]
   );
 
-  // ✅ FUNCIÓN PARA CANCELAR FORMULARIOS - ACTUALIZADA
   const handleFormCancel = useCallback(() => {
     console.log("❌ Cancelando formulario - volviendo a lista");
     setCurrentView("lista");
     setEditingOficina(null);
     setViewingOficina(null);
-    setCalendarioOficina(null); // ✅ LIMPIAR CALENDARIO
+    setCalendarioOficina(null);
   }, []);
 
-  // ✅ FUNCIONES DE FILTRADO Y PAGINACIÓN
   const handleFilterChange = useCallback((filterKey, value) => {
     console.log(`🔍 Cambiando filtro ${filterKey}:`, value);
     setFilters((prev) => {
@@ -439,7 +547,7 @@ const OficinasWindow = ({
       console.log("🔍 Nuevos filtros:", newFilters);
       return newFilters;
     });
-    setCurrentPage(1); // Resetear a página 1 cuando cambian los filtros
+    setCurrentPage(1);
   }, []);
 
   const clearFilters = useCallback(() => {
@@ -456,7 +564,7 @@ const OficinasWindow = ({
 
   const applyFilters = useCallback(() => {
     console.log("🔍 Aplicando filtros manualmente");
-    loadOficinas(1); // Cargar primera página con filtros actuales
+    loadOficinas(1);
   }, [loadOficinas]);
 
   const handlePageChange = useCallback(
@@ -488,10 +596,8 @@ const OficinasWindow = ({
     });
   }, [oficinas, sortConfig]);
 
-  // Función para ver usuarios de una oficina (mantenida para compatibilidad)
   const handleVerUsuarios = useCallback(
     async (oficina) => {
-      // Ahora simplemente abre la vista de detalles
       handleShowOficina(oficina);
     },
     [handleShowOficina]
@@ -501,8 +607,8 @@ const OficinasWindow = ({
   useEffect(() => {
     console.log("🔄 OficinasWindow - useEffect mount");
     if (canRead && currentView === "lista") {
-      loadFilterOptions(); // Cargar opciones primero
-      loadOficinas(); // Luego cargar oficinas
+      loadFilterOptions();
+      loadOficinas();
     }
   }, [loadFilterOptions, loadOficinas, canRead, currentView]);
 
@@ -579,11 +685,11 @@ const OficinasWindow = ({
     );
   }
 
-  // ✅ RENDERIZADO CONDICIONAL SEGÚN LA VISTA ACTUAL - ACTUALIZADO
+  // RENDERIZADO CONDICIONAL SEGÚN LA VISTA ACTUAL
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
-        {/* =============== VISTA DE CREAR OFICINA =============== */}
+        {/* VISTA DE CREAR OFICINA */}
         {currentView === "crear" && (
           <CrearOficinaForm
             onSave={handleOficinaSave}
@@ -593,7 +699,7 @@ const OficinasWindow = ({
           />
         )}
 
-        {/* =============== VISTA DE EDITAR OFICINA =============== */}
+        {/* VISTA DE EDITAR OFICINA */}
         {currentView === "editar" && (
           <EditarOficinaForm
             oficina={editingOficina}
@@ -604,7 +710,7 @@ const OficinasWindow = ({
           />
         )}
 
-        {/* =============== NUEVA VISTA DE MOSTRAR OFICINA =============== */}
+        {/* VISTA DE MOSTRAR OFICINA */}
         {currentView === "mostrar" && (
           <ShowOficinaForm
             oficinaId={viewingOficina?.oficin_codigo}
@@ -614,7 +720,8 @@ const OficinasWindow = ({
             loading={loading}
           />
         )}
-        {/* =============== VISTA DE CALENDARIO =============== */}
+
+        {/* VISTA DE CALENDARIO */}
         {currentView === "calendario" && (
           <CrearCalendarWindow
             oficinaId={calendarioOficina?.oficin_codigo}
@@ -623,7 +730,8 @@ const OficinasWindow = ({
             loading={loading}
           />
         )}
-        {/* =============== VISTA DE LISTA DE OFICINAS =============== */}
+
+        {/* VISTA DE LISTA DE OFICINAS */}
         {currentView === "lista" && (
           <>
             {/* Header Principal */}
@@ -647,7 +755,7 @@ const OficinasWindow = ({
                   </div>
                 </div>
 
-                {/* Indicadores de permisos */}
+                {/* ✅ INDICADORES DE PERMISOS INCLUYENDO CALENDARIO SINCRONIZADO */}
                 <div className="flex items-center space-x-2">
                   {canCreate && (
                     <div className="flex items-center px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm">
@@ -665,6 +773,13 @@ const OficinasWindow = ({
                     <div className="flex items-center px-3 py-1 bg-red-50 text-red-700 rounded-full text-sm">
                       <Icon name="Trash2" size={14} className="mr-1" />
                       Eliminar
+                    </div>
+                  )}
+                  {/* ✅ CRÍTICO: Indicador de permiso de calendario sincronizado */}
+                  {canViewCalendar && (
+                    <div className="flex items-center px-3 py-1 bg-yellow-50 text-yellow-700 rounded-full text-sm">
+                      <Icon name="Calendar" size={14} className="mr-1" />
+                      Calendario
                     </div>
                   )}
                 </div>
@@ -762,14 +877,15 @@ const OficinasWindow = ({
             {/* Mensaje de notificación */}
             {message.text && (
               <div
-                className={`mb-6 p-4 rounded-lg border-l-4 transition-all duration-300 ${message.type === "success"
-                  ? "bg-green-50 border-green-400 text-green-700"
-                  : message.type === "error"
+                className={`mb-6 p-4 rounded-lg border-l-4 transition-all duration-300 ${
+                  message.type === "success"
+                    ? "bg-green-50 border-green-400 text-green-700"
+                    : message.type === "error"
                     ? "bg-red-50 border-red-400 text-red-700"
                     : message.type === "warning"
-                      ? "bg-yellow-50 border-yellow-400 text-yellow-700"
-                      : "bg-blue-50 border-blue-400 text-blue-700"
-                  }`}
+                    ? "bg-yellow-50 border-yellow-400 text-yellow-700"
+                    : "bg-blue-50 border-blue-400 text-blue-700"
+                }`}
               >
                 <div className="flex items-center">
                   <Icon
@@ -777,10 +893,10 @@ const OficinasWindow = ({
                       message.type === "success"
                         ? "CheckCircle"
                         : message.type === "error"
-                          ? "AlertCircle"
-                          : message.type === "warning"
-                            ? "AlertTriangle"
-                            : "Info"
+                        ? "AlertCircle"
+                        : message.type === "warning"
+                        ? "AlertTriangle"
+                        : "Info"
                     }
                     size={20}
                     className="mr-2"
@@ -800,7 +916,6 @@ const OficinasWindow = ({
               </div>
 
               <div className="p-4">
-                {/* ✅ CAMBIO: Grid de 4 columnas en lugar de 5 (removimos parroquias) */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   {/* Búsqueda general */}
                   <div className="space-y-2">
@@ -865,7 +980,10 @@ const OficinasWindow = ({
                     >
                       <option value="">Todas las instituciones</option>
                       {institucionesOptions.map((institucion) => (
-                        <option key={institucion.value} value={institucion.value}>
+                        <option
+                          key={institucion.value}
+                          value={institucion.value}
+                        >
                           {institucion.label}
                         </option>
                       ))}
@@ -892,11 +1010,9 @@ const OficinasWindow = ({
                       ))}
                     </select>
                   </div>
-                  {/* ✅ REMOVIDO: Filtro de parroquias temporalmente */}
-                  {/* Será agregado cuando implementes el endpoint */}
                 </div>
 
-                {/* Botones de acción - MOVIDOS FUERA DEL GRID */}
+                {/* Botones de acción */}
                 <div className="mt-4 flex justify-end gap-3">
                   <button
                     onClick={clearFilters}
@@ -935,7 +1051,9 @@ const OficinasWindow = ({
                       <Icon name="CheckCircle" size={12} className="mr-1" />
                       Solo activas
                       <button
-                        onClick={() => handleFilterChange("solo_activas", false)}
+                        onClick={() =>
+                          handleFilterChange("solo_activas", false)
+                        }
                         className="ml-2 text-green-600 hover:text-green-800"
                       >
                         <Icon name="X" size={12} />
@@ -945,7 +1063,12 @@ const OficinasWindow = ({
                   {filters.instit_codigo && (
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800">
                       <Icon name="Building" size={12} className="mr-1" />
-                      Institución: {institucionesOptions.find(i => i.value.toString() === filters.instit_codigo.toString())?.label || filters.instit_codigo}
+                      Institución:{" "}
+                      {institucionesOptions.find(
+                        (i) =>
+                          i.value.toString() ===
+                          filters.instit_codigo.toString()
+                      )?.label || filters.instit_codigo}
                       <button
                         onClick={() => handleFilterChange("instit_codigo", "")}
                         className="ml-2 text-purple-600 hover:text-purple-800"
@@ -957,7 +1080,12 @@ const OficinasWindow = ({
                   {filters.tofici_codigo && (
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-orange-100 text-orange-800">
                       <Icon name="Building2" size={12} className="mr-1" />
-                      Tipo: {tiposOficinaOptions.find(t => t.value.toString() === filters.tofici_codigo.toString())?.label || filters.tofici_codigo}
+                      Tipo:{" "}
+                      {tiposOficinaOptions.find(
+                        (t) =>
+                          t.value.toString() ===
+                          filters.tofici_codigo.toString()
+                      )?.label || filters.tofici_codigo}
                       <button
                         onClick={() => handleFilterChange("tofici_codigo", "")}
                         className="ml-2 text-orange-600 hover:text-orange-800"
@@ -969,6 +1097,7 @@ const OficinasWindow = ({
                 </div>
               </div>
             </div>
+
             {/* Lista de Oficinas */}
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
               <div className="flex justify-between items-center p-4 border-b border-gray-200">
@@ -1126,16 +1255,18 @@ const OficinasWindow = ({
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
                                 <div
-                                  className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${oficina.oficin_ctractual === 1
-                                    ? "bg-green-100"
-                                    : "bg-red-100"
-                                    }`}
+                                  className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                    oficina.oficin_ctractual === 1
+                                      ? "bg-green-100"
+                                      : "bg-red-100"
+                                  }`}
                                 >
                                   <span
-                                    className={`font-medium text-sm ${oficina.oficin_ctractual === 1
-                                      ? "text-green-600"
-                                      : "text-red-600"
-                                      }`}
+                                    className={`font-medium text-sm ${
+                                      oficina.oficin_ctractual === 1
+                                        ? "text-green-600"
+                                        : "text-red-600"
+                                    }`}
                                   >
                                     {oficina.oficin_codigo}
                                   </span>
@@ -1230,10 +1361,11 @@ const OficinasWindow = ({
                             {/* COLUMNA ESTADO */}
                             <td className="px-6 py-4 whitespace-nowrap text-center">
                               <span
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${oficina.oficin_ctractual === 1
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
-                                  }`}
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  oficina.oficin_ctractual === 1
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
                               >
                                 <Icon
                                   name={
@@ -1250,10 +1382,10 @@ const OficinasWindow = ({
                               </span>
                             </td>
 
-                            {/* COLUMNA ACCIONES */}
+                            {/* ✅ COLUMNA ACCIONES - CRÍTICA: CON BOTÓN CALENDARIO SINCRONIZADO */}
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex items-center justify-end space-x-2">
-                                {/* ✅ Botón VER - ACTUALIZADO para usar handleShowOficina */}
+                                {/* Botón VER */}
                                 <button
                                   onClick={() => handleShowOficina(oficina)}
                                   className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-all duration-200 transform hover:scale-105"
@@ -1307,8 +1439,8 @@ const OficinasWindow = ({
                                   </div>
                                 )}
 
-                                {/* BOTON CALENDARIO */}
-                                {canRead ? (
+                                {/* ✅ BOTÓN CALENDARIO - AHORA COMPLETAMENTE SINCRONIZADO */}
+                                {canViewCalendar ? (
                                   <button
                                     onClick={() => handleCalendario(oficina)}
                                     className="p-2 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded-lg transition-all duration-200 transform hover:scale-105"
@@ -1374,10 +1506,11 @@ const OficinasWindow = ({
                                   key={pageNum}
                                   onClick={() => handlePageChange(pageNum)}
                                   disabled={loading}
-                                  className={`px-3 py-1 border rounded-md text-sm font-medium transition-colors ${currentPage === pageNum
-                                    ? "border-blue-500 bg-blue-50 text-blue-600"
-                                    : "border-gray-300 text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                  className={`px-3 py-1 border rounded-md text-sm font-medium transition-colors ${
+                                    currentPage === pageNum
+                                      ? "border-blue-500 bg-blue-50 text-blue-600"
+                                      : "border-gray-300 text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                                  } disabled:opacity-50 disabled:cursor-not-allowed`}
                                 >
                                   {pageNum}
                                 </button>
@@ -1399,12 +1532,6 @@ const OficinasWindow = ({
                   )}
                 </>
               )}
-              {/* ✅ Debug info para calendario */}
-              {calendarioOficina && (
-                <div>
-                  Viendo calendario: {calendarioOficina.oficin_codigo} - {calendarioOficina.oficin_nombre}
-                </div>
-              )}
             </div>
 
             {/* Footer con información de depuración */}
@@ -1419,6 +1546,12 @@ const OficinasWindow = ({
                   <div>
                     Permisos: C:{canCreate ? "✓" : "✗"} R:{canRead ? "✓" : "✗"}{" "}
                     U:{canUpdate ? "✓" : "✗"} D:{canDelete ? "✓" : "✗"}
+                  </div>
+                  {/* ✅ CRÍTICO: Debug del permiso de calendario sincronizado */}
+                  <div>
+                    Calendario: {canViewCalendar ? "✓ PERMITIDO" : "✗ DENEGADO"} 
+                    (inicial: {initialCanViewCalendar ? "✓" : "✗"}, 
+                    sincronizado: {canViewCalendar ? "✓" : "✗"})
                   </div>
                   <div>Oficinas cargadas: {oficinas.length}</div>
                   <div>Total registros: {totalRecords}</div>
@@ -1437,12 +1570,22 @@ const OficinasWindow = ({
                       {editingOficina.oficin_nombre}
                     </div>
                   )}
-                  {/* ✅ Debug info para Show Oficina */}
                   {viewingOficina && (
                     <div>
-                      Viendo oficina: {viewingOficina.oficin_codigo} - {viewingOficina.oficin_nombre}
+                      Viendo oficina: {viewingOficina.oficin_codigo} -{" "}
+                      {viewingOficina.oficin_nombre}
                     </div>
                   )}
+                  {/* ✅ CRÍTICO: Debug info para calendario sincronizado */}
+                  {calendarioOficina && (
+                    <div>
+                      Viendo calendario: {calendarioOficina.oficin_codigo} -{" "}
+                      {calendarioOficina.oficin_nombre}
+                    </div>
+                  )}
+                  <div>
+                    Timestamp: {new Date().toISOString()}
+                  </div>
                 </div>
               </div>
             )}

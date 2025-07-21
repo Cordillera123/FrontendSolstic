@@ -1,24 +1,51 @@
-// src/components/Windows/AsigPerBotUserWindow.jsx - VERSIÓN CON ICONOS CRUD
+// src/components/Windows/AsigPerBotUserWindow.jsx - VERSIÓN CORREGIDA CON SINCRONIZACIÓN
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { adminService } from '../../services/apiService';
 import Icon from '../UI/Icon';
+
+// ===== EVENTOS GLOBALES PARA SINCRONIZACIÓN =====
+class PermissionChangeNotifier {
+  constructor() {
+    this.listeners = new Set();
+  }
+
+  subscribe(callback) {
+    this.listeners.add(callback);
+    return () => this.listeners.delete(callback);
+  }
+
+  notify(data) {
+    console.log('🔄 PermissionChangeNotifier - Notificando cambio:', data);
+    this.listeners.forEach(callback => {
+      try {
+        callback(data);
+      } catch (error) {
+        console.error('Error en listener de permisos:', error);
+      }
+    });
+  }
+}
+
+// Instancia global del notificador
+window.permissionChangeNotifier = window.permissionChangeNotifier || new PermissionChangeNotifier();
 
 // ===== UTILIDADES PARA ICONOS CRUD =====
 const getCrudIconInfo = (buttonCode, buttonName) => {
   const code = buttonCode?.toLowerCase() || '';
   const name = buttonName?.toLowerCase() || '';
-  
-  // Mapeo específico por código de botón
+
   const codeMapping = {
     // Operaciones CRUD principales
     'crear': { icon: 'Plus', color: '#10b981', bgColor: 'bg-green-100', textColor: 'text-green-800', tooltip: 'Crear nuevo registro' },
     'nuevo': { icon: 'Plus', color: '#10b981', bgColor: 'bg-green-100', textColor: 'text-green-800', tooltip: 'Crear nuevo registro' },
     'agregar': { icon: 'Plus', color: '#10b981', bgColor: 'bg-green-100', textColor: 'text-green-800', tooltip: 'Agregar registro' },
     'add': { icon: 'Plus', color: '#10b981', bgColor: 'bg-green-100', textColor: 'text-green-800', tooltip: 'Agregar' },
+    'create': { icon: 'Plus', color: '#10b981', bgColor: 'bg-green-100', textColor: 'text-green-800', tooltip: 'Crear' },
     
     'editar': { icon: 'Edit3', color: '#f59e0b', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Editar registro' },
     'modificar': { icon: 'Edit3', color: '#f59e0b', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Modificar registro' },
     'edit': { icon: 'Edit3', color: '#f59e0b', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Editar' },
+    'update': { icon: 'Edit3', color: '#f59e0b', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Actualizar' },
     'actualizar': { icon: 'Edit3', color: '#f59e0b', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Actualizar' },
     
     'eliminar': { icon: 'Trash2', color: '#ef4444', bgColor: 'bg-red-100', textColor: 'text-red-800', tooltip: 'Eliminar registro' },
@@ -26,11 +53,24 @@ const getCrudIconInfo = (buttonCode, buttonName) => {
     'delete': { icon: 'Trash2', color: '#ef4444', bgColor: 'bg-red-100', textColor: 'text-red-800', tooltip: 'Eliminar' },
     'remove': { icon: 'Trash2', color: '#ef4444', bgColor: 'bg-red-100', textColor: 'text-red-800', tooltip: 'Remover' },
     
+    'read': { icon: 'Eye', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Leer' },
+    'leer': { icon: 'Eye', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Leer' },
+    
     'guardar': { icon: 'Save', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Guardar cambios' },
     'save': { icon: 'Save', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Guardar' },
     
     'cancelar': { icon: 'X', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Cancelar operación' },
     'cancel': { icon: 'X', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Cancelar' },
+    
+    // ✅ CRÍTICO: Operaciones de calendario - CÓDIGOS ACTUALIZADOS
+    'calendario': { icon: 'Calendar', color: '#eab308', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Ver calendario' },
+    'CALENDARIO': { icon: 'Calendar', color: '#eab308', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Ver calendario' },
+    'calendar': { icon: 'Calendar', color: '#eab308', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Calendario' },
+    'CALENDAR': { icon: 'Calendar', color: '#eab308', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Calendario' },
+    'agenda': { icon: 'Calendar', color: '#eab308', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Ver agenda' },
+    'AGENDA': { icon: 'Calendar', color: '#eab308', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Ver agenda' },
+    'fechas': { icon: 'CalendarDays', color: '#eab308', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Gestionar fechas' },
+    'programar': { icon: 'CalendarPlus', color: '#eab308', bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', tooltip: 'Programar evento' },
     
     // Operaciones de visualización
     'ver': { icon: 'Eye', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Ver detalles' },
@@ -61,25 +101,13 @@ const getCrudIconInfo = (buttonCode, buttonName) => {
     'config': { icon: 'Settings', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Configuración' },
     'ajustes': { icon: 'Settings', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Ajustes' },
     
-    // Operaciones de navegación
-    'anterior': { icon: 'ChevronLeft', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Anterior' },
-    'siguiente': { icon: 'ChevronRight', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Siguiente' },
-    'primero': { icon: 'ChevronsLeft', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Primero' },
-    'ultimo': { icon: 'ChevronsRight', color: '#6b7280', bgColor: 'bg-gray-100', textColor: 'text-gray-800', tooltip: 'Último' },
-    
     // Operaciones de refrescar/actualizar
     'refrescar': { icon: 'RefreshCw', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Refrescar datos' },
     'refresh': { icon: 'RefreshCw', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Refrescar' },
-    'actualizar': { icon: 'RefreshCw', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Actualizar' },
     
     // Operaciones de ayuda
     'ayuda': { icon: 'HelpCircle', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Ayuda' },
     'help': { icon: 'HelpCircle', color: '#8b5cf6', bgColor: 'bg-purple-100', textColor: 'text-purple-800', tooltip: 'Ayuda' },
-    
-    // Operaciones de correo/comunicación
-    'enviar': { icon: 'Send', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Enviar' },
-    'email': { icon: 'Mail', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Enviar email' },
-    'correo': { icon: 'Mail', color: '#3b82f6', bgColor: 'bg-blue-100', textColor: 'text-blue-800', tooltip: 'Correo electrónico' },
   };
   
   // Buscar por código exacto primero
@@ -734,7 +762,7 @@ const AsigPerBotUserWindow = ({ showMessage }) => {
     }
   }, [showMessage]);
 
-  // ===== MANEJO DE PERMISOS =====
+  // ===== MANEJO DE PERMISOS CON NOTIFICACIÓN GLOBAL =====
   const toggleButtonPermission = useCallback(async (menId, subId, opcId, botId, permTipo) => {
     if (!selectedUser) return;
 
@@ -762,6 +790,39 @@ const AsigPerBotUserWindow = ({ showMessage }) => {
       if (result.status === 'success') {
         console.log('✅ Permiso actualizado correctamente');
 
+        // ✅ CRÍTICO: Notificar cambio global para sincronización
+        const changedButton = menuStructure
+          .flatMap(menu => [
+            ...(menu.botones || []),
+            ...(menu.submenus || []).flatMap(submenu => [
+              ...(submenu.botones || []),
+              ...(submenu.opciones || []).flatMap(opcion => opcion.botones || [])
+            ])
+          ])
+          .find(btn => btn.bot_id === botId);
+
+        if (changedButton) {
+          console.log('🔔 Notificando cambio de permiso:', {
+            buttonCode: changedButton.bot_codigo,
+            buttonName: changedButton.bot_nom,
+            userId: selectedUser.usu_id,
+            newPermission: permTipo === 'C',
+            actionType: 'permission_changed'
+          });
+
+          // ✅ SINCRONIZACIÓN GLOBAL
+          window.permissionChangeNotifier.notify({
+            type: 'permission_changed',
+            userId: selectedUser.usu_id,
+            buttonCode: changedButton.bot_codigo,
+            buttonName: changedButton.bot_nom,
+            newPermission: permTipo === 'C',
+            isCustomized: true,
+            customizationType: permTipo,
+            timestamp: Date.now()
+          });
+        }
+
         await loadUserButtonPermissions(selectedUser.usu_id);
 
         if (selectedProfile) {
@@ -778,7 +839,7 @@ const AsigPerBotUserWindow = ({ showMessage }) => {
     } finally {
       setSavingPermissions(false);
     }
-  }, [selectedUser, selectedProfile, loadUserButtonPermissions, loadUsersByProfile, showMessage]);
+  }, [selectedUser, selectedProfile, loadUserButtonPermissions, loadUsersByProfile, showMessage, menuStructure]);
 
   const removeCustomization = useCallback(async (menId, subId, opcId, botId) => {
     if (!selectedUser) return;
@@ -794,6 +855,39 @@ const AsigPerBotUserWindow = ({ showMessage }) => {
       });
 
       if (result.status === 'success') {
+        console.log('✅ Personalización removida correctamente');
+
+        // ✅ CRÍTICO: Notificar eliminación de personalización
+        const changedButton = menuStructure
+          .flatMap(menu => [
+            ...(menu.botones || []),
+            ...(menu.submenus || []).flatMap(submenu => [
+              ...(submenu.botones || []),
+              ...(submenu.opciones || []).flatMap(opcion => opcion.botones || [])
+            ])
+          ])
+          .find(btn => btn.bot_id === botId);
+
+        if (changedButton) {
+          console.log('🔔 Notificando eliminación de personalización:', {
+            buttonCode: changedButton.bot_codigo,
+            userId: selectedUser.usu_id,
+            actionType: 'customization_removed'
+          });
+
+          // ✅ SINCRONIZACIÓN GLOBAL
+          window.permissionChangeNotifier.notify({
+            type: 'customization_removed',
+            userId: selectedUser.usu_id,
+            buttonCode: changedButton.bot_codigo,
+            buttonName: changedButton.bot_nom,
+            newPermission: changedButton.profile_permission, // Vuelve al permiso del perfil
+            isCustomized: false,
+            customizationType: null,
+            timestamp: Date.now()
+          });
+        }
+
         await loadUserButtonPermissions(selectedUser.usu_id);
         showMessage('success', result.message);
       }
@@ -803,7 +897,7 @@ const AsigPerBotUserWindow = ({ showMessage }) => {
     } finally {
       setSavingPermissions(false);
     }
-  }, [selectedUser, loadUserButtonPermissions, showMessage]);
+  }, [selectedUser, loadUserButtonPermissions, showMessage, menuStructure]);
 
   // ===== ACCIONES ADICIONALES =====
   const resetAllCustomizations = useCallback(async () => {
@@ -821,6 +915,22 @@ const AsigPerBotUserWindow = ({ showMessage }) => {
       const result = await adminService.userButtonPermissions.resetUserCustomizations(selectedUser.usu_id);
 
       if (result.status === 'success') {
+        console.log('✅ Todas las personalizaciones reseteadas');
+
+        // ✅ CRÍTICO: Notificar reset completo
+        console.log('🔔 Notificando reset completo de permisos:', {
+          userId: selectedUser.usu_id,
+          actionType: 'full_reset'
+        });
+
+        // ✅ SINCRONIZACIÓN GLOBAL - RESET COMPLETO
+        window.permissionChangeNotifier.notify({
+          type: 'full_reset',
+          userId: selectedUser.usu_id,
+          userName: `${selectedUser.usu_nom} ${selectedUser.usu_ape}`,
+          timestamp: Date.now()
+        });
+
         await loadUserButtonPermissions(selectedUser.usu_id);
         await loadUsersByProfile(selectedProfile.per_id);
         showMessage('success', result.message);

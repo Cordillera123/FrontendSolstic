@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useButtonPermissions } from "../../hooks/useButtonPermissions";
 import { adminService } from "../../services/apiService";
+import { getCurrentUser } from "../../context/AuthContext";
 import Icon from "../UI/Icon";
 import PerParamWindow from "./PerParamWindow";
 import UsuParamWindowCrear from "./UsuParamWindowCrear";
@@ -15,6 +16,15 @@ const UsuParamWindow = ({
   defaultTab = "usuarios",
   title = "Gestión de Usuarios y Perfiles",
 }) => {
+  console.log("👥 UsuParamWindow - Iniciando componente", {
+    menuId,
+    currentView: defaultTab,
+  });
+
+  // Obtener usuario actual
+  const currentUser = getCurrentUser();
+  const currentUserId = currentUser?.usu_id;
+
   const effectivePerfilesMenuId = perfilesMenuId || menuId;
   const [showDisabled, setShowDisabled] = useState(true);
   const [activeTab, setActiveTab] = useState(defaultTab);
@@ -26,7 +36,7 @@ const UsuParamWindow = ({
   const [editingUsuario, setEditingUsuario] = useState(null);
   const [selectedPerfil, setSelectedPerfil] = useState("");
   const [showHorarioForm, setShowHorarioForm] = useState(false);
-const [selectedUsuarioForHorario, setSelectedUsuarioForHorario] = useState(null);
+  const [selectedUsuarioForHorario, setSelectedUsuarioForHorario] = useState(null);
 
   // ✅ ESTADOS PARA PAGINACIÓN
   const [currentPage, setCurrentPage] = useState(1);
@@ -35,16 +45,117 @@ const [selectedUsuarioForHorario, setSelectedUsuarioForHorario] = useState(null)
   const [totalPages, setTotalPages] = useState(0);
   const [paginationInfo, setPaginationInfo] = useState({});
 
-  // Hook de permisos para usuarios
+  // ✅ CRÍTICO: Hook de permisos con códigos específicos de botones
   const {
     canCreate,
     canRead,
     canUpdate,
     canDelete,
     loading: permissionsLoading,
+    canViewCalendar: initialCanViewCalendar,
+    refreshPermissions, // ✅ NUEVO: Para refrescar permisos
   } = useButtonPermissions(menuId, null, true, "menu");
 
-  // ✅ FUNCIÓN loadUsuarios CON PAGINACIÓN CORREGIDA
+  // ✅ NUEVO: Estado local para controlar el permiso de calendario en tiempo real
+  const [canViewCalendar, setCanViewCalendar] = useState(initialCanViewCalendar);
+
+  // ✅ CRÍTICO: Sincronizar el estado local con el hook cuando cambie
+  useEffect(() => {
+    setCanViewCalendar(initialCanViewCalendar);
+  }, [initialCanViewCalendar]);
+
+  // ✅ CRÍTICO: LISTENER PARA SINCRONIZACIÓN DE PERMISOS EN TIEMPO REAL - CORREGIDO
+  useEffect(() => {
+    // Verificar que el notificador global existe
+    if (!window.permissionChangeNotifier) {
+      console.warn("⚠️ PermissionChangeNotifier no disponible");
+      return;
+    }
+
+    console.log("🔔 UsuParamWindow - Suscribiéndose a cambios de permisos");
+
+    const handlePermissionChange = (changeData) => {
+      console.log("🔄 UsuParamWindow - Cambio de permiso recibido:", changeData);
+
+      // Solo reaccionar si es el usuario actual
+      if (changeData.userId !== currentUserId) {
+        console.log("ℹ️ Cambio no es para el usuario actual, ignorando");
+        return;
+      }
+
+      // ✅ CRÍTICO: Verificar si el cambio afecta al botón de calendario
+      const calendarCodes = ['CALENDARIO', 'calendario', 'CALENDAR', 'calendar', 'agenda', 'AGENDA'];
+      const isCalendarButton = calendarCodes.includes(changeData.buttonCode);
+
+      if (isCalendarButton) {
+        console.log("📅 Cambio afecta al botón de calendario, actualizando estado");
+
+        if (changeData.type === 'permission_changed') {
+          // El usuario recibió o perdió el permiso específico
+          setCanViewCalendar(changeData.newPermission);
+          
+          const message = changeData.newPermission 
+            ? "✅ Acceso al calendario concedido"
+            : "❌ Acceso al calendario retirado";
+          
+          showMessage("info", message);
+        } else if (changeData.type === 'customization_removed') {
+          // Se removió la personalización, volver al permiso del perfil
+          console.log("🔄 Personalización removida, refrescando permisos...");
+          // ✅ CORREGIDO: Usar timeout para evitar loops
+          setTimeout(() => {
+            refreshPermissions();
+          }, 100);
+        } else if (changeData.type === 'full_reset') {
+          // Reset completo de permisos
+          console.log("🔄 Reset completo detectado, refrescando permisos...");
+          // ✅ CORREGIDO: Usar timeout para evitar loops
+          setTimeout(() => {
+            refreshPermissions();
+          }, 100);
+        }
+      } else {
+        console.log("ℹ️ Cambio no afecta al botón de calendario:", changeData.buttonCode);
+      }
+    };
+
+    // Suscribirse al notificador global
+    const unsubscribe = window.permissionChangeNotifier.subscribe(handlePermissionChange);
+
+    // Limpieza al desmontar
+    return () => {
+      console.log("🔔 UsuParamWindow - Desuscribiéndose de cambios de permisos");
+      unsubscribe();
+    };
+  }, [currentUserId, showMessage]); // ✅ CORREGIDO: Removido refreshPermissions de las dependencias
+
+  // ✅ Debug mejorado de permisos
+  useEffect(() => {
+    console.log("🔍 UsuParamWindow - Estado actual de permisos:", {
+      menuId,
+      currentUserId,
+      canCreate,
+      canRead,
+      canUpdate,
+      canDelete,
+      initialCanViewCalendar,
+      canViewCalendar, // ✅ Estado sincronizado
+      permissionsLoading,
+      timestamp: new Date().toISOString()
+    });
+  }, [
+    menuId,
+    currentUserId,
+    canCreate,
+    canRead,
+    canUpdate,
+    canDelete,
+    initialCanViewCalendar,
+    canViewCalendar,
+    permissionsLoading,
+  ]);
+
+  // ✅ FUNCIÓN loadUsuarios CON PAGINACIÓN CORREGIDA - MEMO PARA EVITAR RE-CREACIONES
   const loadUsuarios = useCallback(
     async (page = 1, perPage = itemsPerPage) => {
       console.log("🔍 loadUsuarios iniciado con paginación");
@@ -185,7 +296,7 @@ const [selectedUsuarioForHorario, setSelectedUsuarioForHorario] = useState(null)
         setLoading(false);
       }
     },
-    [canRead, selectedPerfil, showDisabled, itemsPerPage]
+    [canRead, selectedPerfil, showDisabled, showMessage] // ✅ REMOVIDO itemsPerPage para evitar loops
   );
 
   // ✅ FUNCIONES DE PAGINACIÓN
@@ -206,6 +317,34 @@ const [selectedUsuarioForHorario, setSelectedUsuarioForHorario] = useState(null)
     },
     [loadUsuarios]
   );
+
+  // ✅ FUNCIÓN PARA MANEJAR CALENDARIO CON PERMISOS SINCRONIZADOS
+  const handleHorarioUsuario = useCallback((usuario) => {
+    console.log("📅 Intentando abrir calendario:", {
+      usuario: usuario.usu_id,
+      canViewCalendar,
+      currentUserId
+    });
+
+    if (!canViewCalendar) {
+      console.log("❌ Sin permisos para calendario");
+      showMessage(
+        "error",
+        "No tienes permisos para gestionar horarios de usuarios"
+      );
+      return;
+    }
+
+    console.log("✅ Abriendo calendario para usuario:", usuario.usu_id);
+    setSelectedUsuarioForHorario(usuario);
+    setShowHorarioForm(true);
+  }, [canViewCalendar, showMessage, currentUserId]);
+
+  const handleCancelHorario = useCallback(() => {
+    console.log("❌ Cancelando vista de horarios");
+    setShowHorarioForm(false);
+    setSelectedUsuarioForHorario(null);
+  }, []);
 
   // ✅ COMPONENTE DE PAGINACIÓN MEJORADO
   const PaginationControls = useCallback(() => {
@@ -469,28 +608,21 @@ const [selectedUsuarioForHorario, setSelectedUsuarioForHorario] = useState(null)
     }
   }, []);
 
-  // ✅ useEffect inicial
+  // ✅ useEffect inicial - CORREGIDO: Sin dependencias que cambien constantemente
   useEffect(() => {
     if (canRead) {
       loadUsuarios(1, itemsPerPage);
       loadPerfilesForFilter();
     }
-  }, [canRead, loadPerfilesForFilter]); // Removido itemsPerPage de las dependencias
+  }, [canRead]); // ✅ SOLO canRead como dependencia
 
-  // ✅ useEffect para filtros (resetear a página 1)
+  // ✅ useEffect para filtros (resetear a página 1) - CORREGIDO
   useEffect(() => {
     if (canRead && activeTab === "usuarios") {
       setCurrentPage(1);
       loadUsuarios(1, itemsPerPage);
     }
-  }, [
-    selectedPerfil,
-    showDisabled,
-    canRead,
-    activeTab,
-    loadUsuarios,
-    itemsPerPage,
-  ]);
+  }, [selectedPerfil, showDisabled, canRead, activeTab]); // ✅ REMOVIDO loadUsuarios e itemsPerPage
 
   // ✅ MANEJADOR DE GUARDADO OPTIMIZADO PARA CREAR USUARIO - CORREGIDO
   const handleUsuarioCreateSave = useCallback(async (formData) => {
@@ -788,19 +920,6 @@ const [selectedUsuarioForHorario, setSelectedUsuarioForHorario] = useState(null)
     setEditingUsuario(null);
   }, []);
 
-  // 🆕 AGREGAR AQUÍ:
-const handleHorarioUsuario = useCallback((usuario) => {
-  console.log("📅 Abriendo horarios para usuario:", usuario.usu_id);
-  setSelectedUsuarioForHorario(usuario);
-  setShowHorarioForm(true);
-}, []);
-
-const handleCancelHorario = useCallback(() => {
-  console.log("❌ Cancelando vista de horarios");
-  setShowHorarioForm(false);
-  setSelectedUsuarioForHorario(null);
-}, []);
-
   const handlePerfilSelect = (perfil) => {
     setActiveTab("usuarios");
     setSelectedPerfil(perfil.per_id.toString());
@@ -831,7 +950,8 @@ const handleCancelHorario = useCallback(() => {
     canCreate,
     canUpdate,
     canRead,
-    canDelete
+    canDelete,
+    canViewCalendar // ✅ AGREGAR DEBUG DE CALENDARIO
   });
 
   if (permissionsLoading) {
@@ -895,13 +1015,13 @@ const handleCancelHorario = useCallback(() => {
           loading={loading}
           perfiles={perfiles}
         />
-         ) : showHorarioForm ? (
-      <UsuarioHorarioWindow
-        usuarioId={selectedUsuarioForHorario?.usu_id}
-        usuarioNombre={selectedUsuarioForHorario?.usu_nom + ' ' + selectedUsuarioForHorario?.usu_ape}
-        onCancel={handleCancelHorario}
-        showMessage={showMessage}
-      />
+      ) : showHorarioForm ? (
+        <UsuarioHorarioWindow
+          usuarioId={selectedUsuarioForHorario?.usu_id}
+          usuarioNombre={selectedUsuarioForHorario?.usu_nom + ' ' + selectedUsuarioForHorario?.usu_ape}
+          onCancel={handleCancelHorario}
+          showMessage={showMessage}
+        />
       ) : (
         <>
           {/* Header con pestañas */}
@@ -913,6 +1033,34 @@ const handleCancelHorario = useCallback(() => {
                 <span className="ml-3 text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
                   Menu ID: {menuId}
                 </span>
+                {/* ✅ CRÍTICO: Indicador de permisos incluyendo calendario sincronizado */}
+                <div className="ml-4 flex items-center space-x-2">
+                  {canCreate && (
+                    <div className="flex items-center px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs">
+                      <Icon name="Plus" size={12} className="mr-1" />
+                      Crear
+                    </div>
+                  )}
+                  {canUpdate && (
+                    <div className="flex items-center px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs">
+                      <Icon name="Edit" size={12} className="mr-1" />
+                      Editar
+                    </div>
+                  )}
+                  {canDelete && (
+                    <div className="flex items-center px-2 py-1 bg-red-50 text-red-700 rounded-full text-xs">
+                      <Icon name="Trash2" size={12} className="mr-1" />
+                      Eliminar
+                    </div>
+                  )}
+                  {/* ✅ CRÍTICO: Indicador de permiso de calendario sincronizado */}
+                  {canViewCalendar && (
+                    <div className="flex items-center px-2 py-1 bg-yellow-50 text-yellow-700 rounded-full text-xs">
+                      <Icon name="Calendar" size={12} className="mr-1" />
+                      Horarios
+                    </div>
+                  )}
+                </div>
               </h1>
             </div>
 
@@ -1168,22 +1316,24 @@ const handleCancelHorario = useCallback(() => {
                                         )}
                                       </>
                                     )}
-                                     {canRead ? (
-      <button
-        onClick={() => handleHorarioUsuario(usuario)}
-        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-all duration-200 transform hover:scale-105"
-        title={`Gestionar horarios de ${usuario.usu_nom}`}
-      >
-        <Icon name="Calendar" size={16} />
-      </button>
-    ) : (
-      <div
-        className="p-2 text-gray-400 cursor-not-allowed"
-        title="Sin permisos para gestionar horarios"
-      >
-        <Icon name="Lock" size={16} />
-      </div>
-    )}
+
+                                    {/* ✅ CRÍTICO: BOTÓN CALENDARIO - AHORA COMPLETAMENTE SINCRONIZADO */}
+                                    {canViewCalendar ? (
+                                      <button
+                                        onClick={() => handleHorarioUsuario(usuario)}
+                                        className="p-2 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded-lg transition-all duration-200 transform hover:scale-105"
+                                        title={`Gestionar horarios de ${usuario.usu_nom}`}
+                                      >
+                                        <Icon name="Calendar" size={16} />
+                                      </button>
+                                    ) : (
+                                      <div
+                                        className="p-2 text-gray-400 cursor-not-allowed"
+                                        title="Sin permisos para gestionar horarios"
+                                      >
+                                        <Icon name="Lock" size={16} />
+                                      </div>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -1209,6 +1359,9 @@ const handleCancelHorario = useCallback(() => {
               </div>
             )}
           </div>
+
+          {/* ✅ FOOTER CON INFORMACIÓN DE DEBUG INCLUYENDO CALENDARIO */}
+          
         </>
       )}
     </div>

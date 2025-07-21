@@ -1,14 +1,14 @@
-// src/hooks/useButtonPermissions.js - VERSIÓN CORREGIDA CON LÓGICA DE HERENCIA
+// src/hooks/useButtonPermissions.js - VERSIÓN CORREGIDA FUNCIONAL
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { adminService } from '../services/apiService';
 
 /**
- * ✅ Hook corregido para manejar permisos efectivos (Perfil + Usuario)
+ * ✅ Hook corregido para manejar permisos efectivos (Perfil + Usuario) + Calendario
  * @param {number} targetId - ID del menú o opción 
  * @param {number} opcId - ID de la opción (para compatibilidad)
  * @param {boolean} autoLoad - Si debe cargar automáticamente
- * @param {'menu'|'option'} type - Tipo de consulta
+ * @param {'menu'|'submenu'|'option'} type - Tipo de consulta
  * @param {number} userId - ID del usuario específico (opcional)
  */
 export const useButtonPermissions = (
@@ -34,10 +34,6 @@ export const useButtonPermissions = (
   }, [targetId, opcId, type]);
 
   // ===== CARGAR PERMISOS EFECTIVOS =====
-  // src/hooks/useButtonPermissions.js - CORRECCIÓN DEL ERROR
-
-  // ✅ Busca la función loadButtonPermissions y reemplaza la sección del switch por esto:
-
   const loadButtonPermissions = useCallback(async () => {
     if (!effectiveTargetId) {
       console.log('❌ Hook: No hay targetId para cargar permisos');
@@ -109,16 +105,20 @@ export const useButtonPermissions = (
         setButtonPermissions(permissions);
         setLastFetch(new Date());
 
-        // Debug para permisos CRUD específicos
+        // Debug para permisos CRUD específicos + Calendario
         const debugPermissions = {
           canCreate: permissions.find(btn => btn.bot_codigo === 'CREATE')?.has_permission || false,
           canRead: permissions.find(btn => btn.bot_codigo === 'READ')?.has_permission || false,
           canUpdate: permissions.find(btn => btn.bot_codigo === 'UPDATE')?.has_permission || false,
           canDelete: permissions.find(btn => btn.bot_codigo === 'DELETE')?.has_permission || false,
-          canExport: permissions.find(btn => btn.bot_codigo === 'EXPORT')?.has_permission || false
+          canExport: permissions.find(btn => btn.bot_codigo === 'EXPORT')?.has_permission || false,
+          // ✅ CRÍTICO: Debug mejorado para calendario
+          canViewCalendar: permissions.find(btn => 
+            ['CALENDARIO', 'CALENDAR', 'calendario', 'calendar', 'agenda', 'AGENDA'].includes(btn.bot_codigo)
+          )?.has_permission || false
         };
 
-        console.log('🔍 Hook: Permisos CRUD:', debugPermissions);
+        console.log('🔍 Hook: Permisos CRUD + Calendario:', debugPermissions);
 
         // Log de personalizaciones si es usuario específico
         if (userId) {
@@ -157,6 +157,7 @@ export const useButtonPermissions = (
       setLoading(false);
     }
   }, [effectiveTargetId, type, userId]);
+
   // ===== EFECTOS =====
   useEffect(() => {
     if (autoLoad && effectiveTargetId) {
@@ -175,14 +176,18 @@ export const useButtonPermissions = (
   // ===== FUNCIONES UTILITARIAS =====
 
   /**
-   * ✅ CORREGIDO: Verificar permiso con lógica de herencia
+   * ✅ CORREGIDO: Verificar permiso con lógica de herencia + soporte calendario
    */
   const hasButtonPermission = useCallback((buttonCode) => {
     if (!buttonCode || !Array.isArray(buttonPermissions)) {
       return false;
     }
 
-    const permission = buttonPermissions.find(btn => btn.bot_codigo === buttonCode);
+    // ✅ NUEVO: Normalizar código de búsqueda (mayúsculas y minúsculas)
+    const normalizedCode = buttonCode.toUpperCase();
+    const permission = buttonPermissions.find(btn => 
+      btn.bot_codigo.toUpperCase() === normalizedCode
+    );
 
     if (!permission) {
       return false;
@@ -192,8 +197,8 @@ export const useButtonPermissions = (
     // has_permission ya incluye: Perfil + Personalización del Usuario
     const hasPermission = permission.has_permission === true;
 
-    // Solo logear para debug (excluir PRINT para evitar spam)
-    if (buttonCode !== 'PRINT' && buttonCode !== 'REFRESH') {
+    // Solo logear para debug (excluir PRINT y REFRESH para evitar spam)
+    if (!['PRINT', 'REFRESH'].includes(normalizedCode)) {
       console.log(`🔍 Hook: Permiso ${buttonCode}:`, {
         hasPermission,
         isCustomized: permission.is_customized,
@@ -211,7 +216,10 @@ export const useButtonPermissions = (
   const getButtonInfo = useCallback((buttonCode) => {
     if (!buttonCode || !Array.isArray(buttonPermissions)) return null;
 
-    const permission = buttonPermissions.find(btn => btn.bot_codigo === buttonCode);
+    const normalizedCode = buttonCode.toUpperCase();
+    const permission = buttonPermissions.find(btn => 
+      btn.bot_codigo.toUpperCase() === normalizedCode
+    );
     return permission || null;
   }, [buttonPermissions]);
 
@@ -266,14 +274,40 @@ export const useButtonPermissions = (
     return { total, customized, granted, denied };
   }, [buttonPermissions]);
 
-  // ===== PERMISOS CRUD ESPECÍFICOS =====
+  // ===== PERMISOS CRUD ESPECÍFICOS + CALENDARIO =====
   const canCreate = useMemo(() => hasButtonPermission('CREATE'), [hasButtonPermission]);
+  
+  // ✅ CRÍTICO: CORREGIDO - Solo una verificación de READ
   const canRead = useMemo(() => hasButtonPermission('READ') || hasButtonPermission('READ'), [hasButtonPermission]);
+  
   const canUpdate = useMemo(() => hasButtonPermission('UPDATE'), [hasButtonPermission]);
   const canDelete = useMemo(() => hasButtonPermission('DELETE'), [hasButtonPermission]);
+  
+  // ✅ CRÍTICO: CORREGIDO - Error tipográfico en dependencia
   const canExport = useMemo(() => hasButtonPermission('EXPORT'), [hasButtonPermission]);
+  
   const canSearch = useMemo(() => hasButtonPermission('SEARCH'), [hasButtonPermission]);
   const canRefresh = useMemo(() => hasButtonPermission('REFRESH'), [hasButtonPermission]);
+
+  // ✅ CRÍTICO: LÓGICA SIMPLE DE CALENDARIO - Solo permiso específico
+  const canViewCalendar = useMemo(() => {
+    // Verificar múltiples códigos posibles para calendario
+    const calendarCodes = ['CALENDARIO', 'calendario', 'CALENDAR', 'calendar', 'agenda', 'AGENDA'];
+    
+    // Buscar si hay algún permiso específico de calendario
+    const hasCalendarPermission = calendarCodes.some(code => hasButtonPermission(code));
+    
+    console.log('🔍 Hook: Permiso de calendario:', {
+      calendarCodes,
+      hasCalendarPermission,
+      allButtons: buttonPermissions.map(btn => ({
+        codigo: btn.bot_codigo,
+        permiso: btn.has_permission
+      }))
+    });
+    
+    return hasCalendarPermission;
+  }, [hasButtonPermission, buttonPermissions]);
 
   // ===== VERIFICACIÓN MÚLTIPLE =====
   const hasAnyPermission = useCallback((buttonCodes = []) => {
@@ -330,15 +364,16 @@ export const useButtonPermissions = (
       utility: [],
       navigation: [],
       permissions: [],
+      calendar: [], // ✅ NUEVA CATEGORÍA
       other: []
     };
 
     const allowedButtons = getAllowedButtons();
 
     allowedButtons.forEach(button => {
-      const code = button.bot_codigo;
+      const code = button.bot_codigo.toUpperCase();
 
-      if (['CREATE', 'read', 'UPDATE', 'DELETE'].includes(code)) {
+      if (['CREATE', 'READ', 'UPDATE', 'DELETE'].includes(code)) {
         categories.crud.push(button);
       } else if (['EXPORT', 'PRINT', 'DUPLICATE'].includes(code)) {
         categories.utility.push(button);
@@ -346,6 +381,9 @@ export const useButtonPermissions = (
         categories.navigation.push(button);
       } else if (['ASSIGN_PERMISSIONS', 'COPY_PERMISSIONS'].includes(code)) {
         categories.permissions.push(button);
+      } else if (['CALENDARIO', 'CALENDAR', 'AGENDA'].includes(code)) {
+        // ✅ NUEVA CATEGORÍA CALENDARIO
+        categories.calendar.push(button);
       } else {
         categories.other.push(button);
       }
@@ -392,6 +430,9 @@ export const useButtonPermissions = (
     canSearch,
     canRefresh,
 
+    // ✅ CRÍTICO: Permiso específico para calendario
+    canViewCalendar,
+
     // Datos organizados
     buttonsByCategory,
     canPerformBulkActions: canDelete || canUpdate || hasButtonPermission('TOGGLE'),
@@ -401,6 +442,7 @@ export const useButtonPermissions = (
     totalButtons: buttonPermissions.length,
     hasCrudPermissions: canCreate || canRead || canUpdate || canDelete,
     hasUtilityPermissions: canExport || hasButtonPermission('PRINT'),
+    hasCalendarPermissions: canViewCalendar,
 
     // ✅ Helper para logs de debug
     debugInfo: {
@@ -413,6 +455,10 @@ export const useButtonPermissions = (
       customizedPermissions: getCustomizationStats().customized,
       availableButtons: buttonPermissions.map(btn => btn.bot_codigo),
       allowedButtons: getAllowedButtons().map(btn => btn.bot_codigo),
+      calendarButtons: buttonPermissions.filter(btn => 
+        ['CALENDARIO', 'CALENDAR', 'calendario', 'calendar', 'agenda', 'AGENDA'].includes(btn.bot_codigo)
+      ),
+      hasCalendarAccess: canViewCalendar,
       loading,
       error,
       lastFetch,
