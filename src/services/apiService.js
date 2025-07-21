@@ -4,7 +4,6 @@ import { getCurrentUser } from "../context/AuthContext";
 
 // Configuración base de axios
 const API_BASE_URL = "http://127.0.0.1:8000/api";
-
 // Crear instancia de axios
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

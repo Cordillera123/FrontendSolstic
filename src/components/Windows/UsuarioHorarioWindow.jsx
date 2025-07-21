@@ -27,7 +27,7 @@ const UsuarioHorarioWindow = ({
   const [editingDia, setEditingDia] = useState(null);
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [selectedDateRange, setSelectedDateRange] = useState(null);
-
+  const [horariosOficina, setHorariosOficina] = useState(null);
   // Estados del formulario permanente
   const [formData, setFormData] = useState({
     dia_codigo: "",
@@ -71,6 +71,336 @@ const UsuarioHorarioWindow = ({
     { codigo: 7, nombre: "Domingo", abrev: "Dom" },
   ];
 
+  const sumarHora = (hora, horas) => {
+    const [h, m] = hora.split(':').map(Number);
+    const nuevaHora = (h + horas) % 24;
+    return `${nuevaHora.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+  };
+
+  const restarHora = (hora, horas) => {
+    const [h, m] = hora.split(':').map(Number);
+    const nuevaHora = ((h - horas) + 24) % 24;
+    return `${nuevaHora.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+  };
+
+  const validarHorarioBasico = (entrada, salida) => {
+    const [hE, mE] = entrada.split(':').map(Number);
+    const [hS, mS] = salida.split(':').map(Number);
+    const minutosE = hE * 60 + mE;
+    const minutosS = hS * 60 + mS;
+
+    // Permitir horarios normales y nocturnos válidos
+    return minutosS > minutosE || (minutosS < minutosE && hE >= 18 && hS <= 10);
+  };
+
+  const cargarHorariosOficina = useCallback(async (oficinaId) => {
+    if (!oficinaId) {
+      setHorariosOficina(null);
+      return;
+    }
+
+    try {
+      console.log("🏢 Cargando horarios de oficina:", oficinaId);
+
+      // ✅ USAR EL SERVICIO CORRECTO: horariosOficinas.getHorarios (NO oficinas.getHorarios)
+      const response = await adminService.horariosOficinas.getHorarios(oficinaId);
+
+      if (response.status === "success") {
+        setHorariosOficina(response.data);
+        console.log("✅ Horarios de oficina cargados:", response.data);
+      } else {
+        console.warn("⚠️ No se pudieron cargar horarios de oficina:", response.message);
+        setHorariosOficina(null);
+      }
+    } catch (error) {
+      console.error("❌ Error cargando horarios de oficina:", error);
+      setHorariosOficina(null);
+    }
+  }, []);
+
+  // ✅ FUNCIÓN DE VALIDACIÓN EN TIEMPO REAL
+  const validarHorarioEnTiempoReal = (horaEntrada, horaSalida, diaSeleccionado) => {
+    // Si no hay datos suficientes, no mostrar nada
+    if (!horaEntrada || !horaSalida || !diaSeleccionado) {
+      return null;
+    }
+
+    try {
+      console.log("🔍 Validando horario:", { horaEntrada, horaSalida, diaSeleccionado });
+      console.log("🏢 Horarios oficina disponibles:", horariosOficina);
+
+      // ✅ BUSCAR EN LA ESTRUCTURA CORRECTA DE HORARIOS DE OFICINA
+      let horarioOficina = null;
+
+      if (horariosOficina?.horarios_por_dia) {
+        // Buscar el día específico en los horarios de oficina
+        horarioOficina = horariosOficina.horarios_por_dia.find(
+          dia => dia.dia_codigo == diaSeleccionado && dia.tiene_horario && dia.activo
+        );
+      }
+
+      console.log("🔍 Horario oficina encontrado para día", diaSeleccionado, ":", horarioOficina);
+
+      // Si no hay horario de oficina para este día
+      if (!horarioOficina) {
+        return {
+          tipo: "warning",
+          mensaje: "⚠️ La oficina no tiene horario configurado para este día",
+          sugerencia: "Contacte al administrador para configurar horarios de oficina"
+        };
+      }
+
+      // Convertir horas a minutos para facilitar comparación
+      const convertirAMinutos = (hora) => {
+        const [h, m] = hora.split(':').map(Number);
+        return h * 60 + m;
+      };
+
+      const minutosEntradaUsuario = convertirAMinutos(horaEntrada);
+      const minutosSalidaUsuario = convertirAMinutos(horaSalida);
+
+      // ✅ USAR LOS CAMPOS CORRECTOS DE LA RESPUESTA DE LA API
+      const minutosEntradaOficina = convertirAMinutos(horarioOficina.hora_inicio);
+      const minutosSalidaOficina = convertirAMinutos(horarioOficina.hora_fin);
+
+      console.log("⏰ Comparación de minutos:", {
+        usuarioEntrada: minutosEntradaUsuario,
+        usuarioSalida: minutosSalidaUsuario,
+        oficinaEntrada: minutosEntradaOficina,
+        oficinaSalida: minutosSalidaOficina
+      });
+
+      // Validar que la hora de salida sea después de la entrada (o horario nocturno válido)
+      const esHorarioNocturno = minutosSalidaUsuario < minutosEntradaUsuario;
+      const esHorarioOficinaDecturno = minutosSalidaOficina < minutosEntradaOficina;
+
+      if (esHorarioNocturno && !esHorarioOficinaDecturno) {
+        return {
+          tipo: "error",
+          mensaje: "❌ Horario nocturno no permitido",
+          sugerencia: "La oficina no maneja horarios nocturnos"
+        };
+      }
+
+      if (!esHorarioNocturno && minutosSalidaUsuario <= minutosEntradaUsuario) {
+        return {
+          tipo: "error",
+          mensaje: "❌ La hora de salida debe ser posterior a la hora de entrada",
+          sugerencia: "Corrija los horarios para que tengan sentido"
+        };
+      }
+
+      // Validar contra horarios de oficina
+      let validacionResult = { valido: true, problemas: [] };
+
+      if (esHorarioNocturno && esHorarioOficinaDecturno) {
+        // Ambos son nocturnos - validar rangos
+        if (minutosEntradaUsuario < minutosEntradaOficina && minutosEntradaUsuario > minutosSalidaOficina) {
+          validacionResult.valido = false;
+          validacionResult.problemas.push("Hora de entrada fuera del rango nocturno de oficina");
+        }
+        if (minutosSalidaUsuario > minutosSalidaOficina && minutosSalidaUsuario < minutosEntradaOficina) {
+          validacionResult.valido = false;
+          validacionResult.problemas.push("Hora de salida fuera del rango nocturno de oficina");
+        }
+      } else if (!esHorarioNocturno && !esHorarioOficinaDecturno) {
+        // Ambos son horarios normales
+        if (minutosEntradaUsuario < minutosEntradaOficina) {
+          validacionResult.valido = false;
+          validacionResult.problemas.push(`Entrada muy temprana (oficina abre a ${horarioOficina.hora_inicio})`);
+        }
+        if (minutosSalidaUsuario > minutosSalidaOficina) {
+          validacionResult.valido = false;
+          validacionResult.problemas.push(`Salida muy tarde (oficina cierra a ${horarioOficina.hora_fin})`);
+        }
+      }
+
+      // Construir respuesta
+      if (validacionResult.valido) {
+        const tipoHorario = esHorarioNocturno ? "nocturno" : "diurno";
+        const duracion = esHorarioNocturno ?
+          (24 * 60 - minutosEntradaUsuario) + minutosSalidaUsuario :
+          minutosSalidaUsuario - minutosEntradaUsuario;
+
+        return {
+          tipo: "success",
+          mensaje: `✅ Horario ${tipoHorario} válido`,
+          detalles: `Duración: ${Math.floor(duracion / 60)}h ${duracion % 60}m`,
+          horarioOficina: `Oficina: ${horarioOficina.hora_inicio} - ${horarioOficina.hora_fin}`
+        };
+      } else {
+        return {
+          tipo: "error",
+          mensaje: "❌ Horario fuera del rango permitido",
+          problemas: validacionResult.problemas,
+          sugerencia: `Ajuste dentro del rango: ${horarioOficina.hora_inicio} - ${horarioOficina.hora_fin}`
+        };
+      }
+
+    } catch (error) {
+      console.error("Error en validación tiempo real:", error);
+      return {
+        tipo: "error",
+        mensaje: "❌ Error validando horario",
+        sugerencia: "Revise que los datos sean correctos"
+      };
+    }
+  };
+
+  // ✅ FUNCIÓN PARA OBTENER SUGERENCIAS INTELIGENTES
+  const obtenerSugerenciasInteligentes = (diaSeleccionado) => {
+    if (!diaSeleccionado || !horariosOficina?.horarios_por_dia) return [];
+
+    const horarioOficina = horariosOficina.horarios_por_dia.find(
+      dia => dia.dia_codigo == diaSeleccionado && dia.tiene_horario && dia.activo
+    );
+
+    if (!horarioOficina) return [];
+
+    // ✅ USAR LOS CAMPOS CORRECTOS
+    const entrada = horarioOficina.hora_inicio;
+    const salida = horarioOficina.hora_fin;
+
+    return [
+      {
+        label: "Horario completo de oficina",
+        entrada: entrada,
+        salida: salida,
+        descripcion: "Mismo horario que la oficina"
+      },
+      {
+        label: "Entrada 1 hora después",
+        entrada: sumarHora(entrada, 1),
+        salida: salida,
+        descripcion: "Entrada tardía, salida normal"
+      },
+      {
+        label: "Salida 1 hora antes",
+        entrada: entrada,
+        salida: restarHora(salida, 1),
+        descripcion: "Entrada normal, salida temprana"
+      },
+      {
+        label: "Horario reducido",
+        entrada: sumarHora(entrada, 1),
+        salida: restarHora(salida, 1),
+        descripcion: "1 hora menos de entrada y salida"
+      }
+    ].filter(sugerencia =>
+      sugerencia.entrada !== sugerencia.salida &&
+      validarHorarioBasico(sugerencia.entrada, sugerencia.salida)
+    );
+  };
+
+  // ===== 🟢 AHORA AGREGAR LOS COMPONENTES (DESPUÉS DE LAS FUNCIONES) =====
+
+  // ✅ COMPONENTE DE VALIDACIÓN EN TIEMPO REAL
+  const ValidacionTiempoReal = ({ formData, usuario, horariosData }) => {
+    const validacion = validarHorarioEnTiempoReal(
+      formData.hora_entrada,
+      formData.hora_salida,
+      formData.dia_codigo
+    );
+
+    if (!validacion) return null;
+
+    const getStylesForTipo = (tipo) => {
+      switch (tipo) {
+        case "success":
+          return "bg-green-50 border-green-200 text-green-800";
+        case "warning":
+          return "bg-yellow-50 border-yellow-200 text-yellow-800";
+        case "error":
+          return "bg-red-50 border-red-200 text-red-800";
+        default:
+          return "bg-gray-50 border-gray-200 text-gray-800";
+      }
+    };
+
+    const getIconForTipo = (tipo) => {
+      switch (tipo) {
+        case "success":
+          return <Icon name="CheckCircle" size={16} className="text-green-600" />;
+        case "warning":
+          return <Icon name="AlertTriangle" size={16} className="text-yellow-600" />;
+        case "error":
+          return <Icon name="XCircle" size={16} className="text-red-600" />;
+        default:
+          return <Icon name="Info" size={16} className="text-gray-600" />;
+      }
+    };
+
+    return (
+      <div className={`p-3 rounded-lg border transition-all duration-200 ${getStylesForTipo(validacion.tipo)}`}>
+        <div className="flex items-start gap-2">
+          {getIconForTipo(validacion.tipo)}
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-sm mb-1">
+              {validacion.mensaje}
+            </div>
+
+            {validacion.detalles && (
+              <div className="text-xs opacity-80 mb-1">
+                {validacion.detalles}
+              </div>
+            )}
+
+            {validacion.horarioOficina && (
+              <div className="text-xs opacity-80 mb-1">
+                📋 {validacion.horarioOficina}
+              </div>
+            )}
+
+            {validacion.problemas && validacion.problemas.length > 0 && (
+              <div className="text-xs mt-2">
+                <div className="font-medium mb-1">Problemas detectados:</div>
+                <ul className="list-disc list-inside space-y-1">
+                  {validacion.problemas.map((problema, index) => (
+                    <li key={index}>{problema}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {validacion.sugerencia && (
+              <div className="text-xs mt-2 font-medium">
+                💡 {validacion.sugerencia}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ✅ COMPONENTE DE SUGERENCIAS RÁPIDAS
+  const SugerenciasRapidas = ({ diaSeleccionado, horariosData, onSugerenciaClick }) => {
+    const sugerencias = obtenerSugerenciasInteligentes(diaSeleccionado, horariosData);
+
+    if (sugerencias.length === 0) return null;
+
+    return (
+      <div className="mt-3">
+        <div className="text-xs font-medium text-gray-700 mb-2">
+          💡 Sugerencias rápidas:
+        </div>
+        <div className="grid grid-cols-1 gap-2">
+          {sugerencias.map((sugerencia, index) => (
+            <button
+              key={index}
+              type="button"
+              onClick={() => onSugerenciaClick(sugerencia)}
+              className="text-left p-2 text-xs bg-gray-50 hover:bg-gray-100 rounded border transition-colors"
+            >
+              <div className="font-medium text-gray-800">{sugerencia.label}</div>
+              <div className="text-gray-600">{sugerencia.entrada} - {sugerencia.salida}</div>
+              <div className="text-gray-500">{sugerencia.descripcion}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
   // Tipos de horarios temporales
   const tiposTemporales = [
     { value: "VACACIONES", label: "Vacaciones", color: "#10b981" },
@@ -93,9 +423,8 @@ const UsuarioHorarioWindow = ({
     return horariosData.horarios_por_dia
       .filter((dia) => dia.puede_acceder && dia.horario_efectivo)
       .map((dia) => ({
-        id: `user-${horariosData.usuario?.usu_id || "unknown"}-day-${
-          dia.dia_codigo
-        }`,
+        id: `user-${horariosData.usuario?.usu_id || "unknown"}-day-${dia.dia_codigo
+          }`,
         title: `${dia.dia_abreviatura}: ${dia.horario_efectivo.hora_entrada} - ${dia.horario_efectivo.hora_salida}`,
         daysOfWeek: [dia.dia_codigo === 7 ? 0 : dia.dia_codigo], // Convertir domingo
         startTime: dia.horario_efectivo.hora_entrada,
@@ -225,13 +554,16 @@ const UsuarioHorarioWindow = ({
       console.log("🔍 Cargando datos completos para usuario:", usuarioId);
 
       // Cargar horarios principales
-      const horariosResponse = await adminService.horariosUsuarios.getHorarios(
-        usuarioId
-      );
+      const horariosResponse = await adminService.horariosUsuarios.getHorarios(usuarioId);
 
       if (horariosResponse.status === "success") {
         setHorariosData(horariosResponse.data);
         setUsuario(horariosResponse.data.usuario);
+
+        // ✅ AGREGAR ESTA LÍNEA AQUÍ:
+        if (horariosResponse.data.usuario?.oficin_codigo) {
+          await cargarHorariosOficina(horariosResponse.data.usuario.oficin_codigo);
+        }
 
         // Calcular estadísticas usando función local
         const stats = calcularEstadisticas(horariosResponse.data);
@@ -248,12 +580,9 @@ const UsuarioHorarioWindow = ({
 
       // Cargar horarios temporales
       await cargarHorariosTemporales();
-
-      // Cargar conflictos
       await cargarConflictos();
-
-      // Cargar comparación con oficina
       await cargarComparacionOficina();
+
     } catch (error) {
       console.error("❌ Error cargando datos completos:", error);
       setError(error.message || "Error al cargar datos");
@@ -261,7 +590,7 @@ const UsuarioHorarioWindow = ({
     } finally {
       setLoading(false);
     }
-  }, [usuarioId, showMessage]);
+  }, [usuarioId, showMessage, cargarHorariosOficina]);
 
   // ✅ FUNCIÓN PARA CARGAR HORARIOS TEMPORALES
   const cargarHorariosTemporales = useCallback(async () => {
@@ -378,69 +707,111 @@ const UsuarioHorarioWindow = ({
       setSaving(true);
       setError(null);
 
-      // Validar datos básicos
-      if (
-        !formData.dia_codigo ||
-        !formData.hora_entrada ||
-        !formData.hora_salida
-      ) {
+      console.log("🔍 Datos del formulario antes de procesar:", formData);
+
+      // ✅ VALIDACIÓN BÁSICA
+      if (!formData.dia_codigo || !formData.hora_entrada || !formData.hora_salida) {
         throw new Error("Todos los campos son requeridos");
       }
 
-      // Formatear horas correctamente
-      const formatearHora = (hora) => {
+      // ✅ FUNCIÓN MEJORADA PARA FORMATEAR HORAS
+      const formatearHoraParaBackend = (hora) => {
         if (!hora) return "";
 
-        if (typeof hora === "string" && /^\d{2}:\d{2}$/.test(hora)) {
-          return hora;
+        // Limpiar la hora
+        const horaLimpia = hora.trim();
+
+        // Si ya tiene formato HH:MM:SS, devolverla tal como está
+        if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/.test(horaLimpia)) {
+          return horaLimpia;
         }
 
-        if (typeof hora === "string" && /^\d{2}:\d{2}:\d{2}$/.test(hora)) {
-          return hora.substring(0, 5);
+        // Si tiene formato HH:MM, agregar :00
+        if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(horaLimpia)) {
+          return horaLimpia + ":00";
         }
 
-        if (typeof hora === "string") {
-          const partes = hora.split(":");
-          if (partes.length >= 2) {
-            const horas = partes[0].padStart(2, "0");
-            const minutos = partes[1].padStart(2, "0");
-            return `${horas}:${minutos}`;
+        // Si solo tiene números (HHMM), formatear
+        if (/^\d{4}$/.test(horaLimpia)) {
+          return horaLimpia.substring(0, 2) + ":" + horaLimpia.substring(2) + ":00";
+        }
+
+        // En caso de formato inesperado, intentar parsearlo
+        try {
+          const [horas, minutos] = horaLimpia.split(':');
+          const h = parseInt(horas, 10);
+          const m = parseInt(minutos, 10);
+
+          if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:00`;
           }
+        } catch (e) {
+          console.error("Error parseando hora:", e);
         }
 
-        return String(hora);
+        throw new Error(`Formato de hora inválido: ${horaLimpia}`);
       };
 
+      // ✅ FORMATEAR HORAS PARA EL BACKEND
+      let horaEntradaFormateada, horaSalidaFormateada;
+
+      try {
+        horaEntradaFormateada = formatearHoraParaBackend(formData.hora_entrada);
+        horaSalidaFormateada = formatearHoraParaBackend(formData.hora_salida);
+      } catch (formatError) {
+        throw new Error("Error en formato de horas: " + formatError.message);
+      }
+
+      // ✅ VALIDACIÓN ADICIONAL EN FRONTEND
+      const validarRangoHoras = (entrada, salida) => {
+        const [hE, mE] = entrada.split(':').map(Number);
+        const [hS, mS] = salida.split(':').map(Number);
+
+        const minutosEntrada = hE * 60 + mE;
+        const minutosSalida = hS * 60 + mS;
+
+        // Permitir horarios que cruzan medianoche
+        if (minutosSalida < minutosEntrada) {
+          // Horario nocturno válido (ej: 22:00 - 06:00)
+          return (hE >= 18 && hS <= 10); // Restricción razonable para horarios nocturnos
+        }
+
+        // Horario normal
+        return minutosSalida > minutosEntrada;
+      };
+
+      if (!validarRangoHoras(formData.hora_entrada, formData.hora_salida)) {
+        throw new Error("La hora de salida debe ser posterior a la hora de entrada, o debe ser un horario nocturno válido");
+      }
+
+      // ✅ PREPARAR DATOS PARA ENVIAR
       const dataToSend = {
-        dia_codigo: parseInt(formData.dia_codigo),
-        hora_entrada: formatearHora(formData.hora_entrada),
-        hora_salida: formatearHora(formData.hora_salida),
-        forzar_creacion: true,
-        observaciones: formData.observaciones || null,
+        dia_codigo: parseInt(formData.dia_codigo, 10),
+        hora_entrada: horaEntradaFormateada,
+        hora_salida: horaSalidaFormateada,
+        forzar_creacion: false, // ✅ CAMBIAR A false para que valide contra oficina
+        observaciones: formData.observaciones?.trim() || null,
       };
 
-      console.log("🔍 Datos para enviar:", dataToSend);
+      console.log("🚀 Datos formateados para enviar:", dataToSend);
 
-      // Validar formato antes de enviar
-      const horaRegex = /^\d{2}:\d{2}$/;
-      if (!horaRegex.test(dataToSend.hora_entrada)) {
-        throw new Error(
-          `Formato de hora de entrada incorrecto: ${dataToSend.hora_entrada}`
-        );
+      // ✅ VALIDAR FORMATO FINAL
+      const horaRegexCompleta = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/;
+      if (!horaRegexCompleta.test(dataToSend.hora_entrada)) {
+        throw new Error(`Formato de hora de entrada incorrecto: ${dataToSend.hora_entrada}`);
       }
-      if (!horaRegex.test(dataToSend.hora_salida)) {
-        throw new Error(
-          `Formato de hora de salida incorrecto: ${dataToSend.hora_salida}`
-        );
+      if (!horaRegexCompleta.test(dataToSend.hora_salida)) {
+        throw new Error(`Formato de hora de salida incorrecto: ${dataToSend.hora_salida}`);
       }
 
+      // ✅ ENVIAR AL BACKEND
       const response = await adminService.horariosUsuarios.crearHorario(
         usuarioId,
         dataToSend
       );
 
       if (response.status === "success") {
-        showMessage("success", "Horario guardado correctamente");
+        showMessage("success", response.message || "Horario guardado correctamente");
         setShowForm(false);
         setEditingDia(null);
         resetFormData();
@@ -448,34 +819,80 @@ const UsuarioHorarioWindow = ({
       } else {
         throw new Error(response.message || "Error al guardar horario");
       }
+
     } catch (error) {
       console.error("❌ Error guardando horario:", error);
 
-      if (error.status === "error" && error.errors) {
-        console.error("📋 Errores de validación específicos:", error.errors);
+      let mensajeError = error.message || "Error al guardar horario";
 
-        const errorsArray = Object.entries(error.errors).map(
-          ([field, messages]) => {
-            const messageText = Array.isArray(messages)
-              ? messages.join(", ")
-              : messages;
-            return `${field}: ${messageText}`;
+      // ✅ MANEJAR ERRORES ESPECÍFICOS DEL BACKEND
+      if (error.response && error.response.data) {
+        const errorData = error.response.data;
+
+        if (errorData.status === "error") {
+          mensajeError = errorData.message;
+
+          // Mostrar información detallada si está disponible
+          if (errorData.data) {
+            const data = errorData.data;
+
+            if (data.horario_oficina && data.horario_solicitado) {
+              mensajeError += `\n\n📋 Comparación de horarios:`;
+              mensajeError += `\n🏢 Oficina: ${data.horario_oficina.hora_entrada} - ${data.horario_oficina.hora_salida}`;
+              mensajeError += `\n👤 Solicitado: ${data.horario_solicitado.hora_entrada} - ${data.horario_solicitado.hora_salida}`;
+
+              if (data.dia_nombre) {
+                mensajeError += `\n📅 Día: ${data.dia_nombre}`;
+              }
+            }
+
+            // Mostrar errores de validación si existen
+            if (errorData.errors) {
+              const errorsArray = Object.entries(errorData.errors).map(([field, messages]) => {
+                const messageText = Array.isArray(messages) ? messages.join(", ") : messages;
+                return `• ${field}: ${messageText}`;
+              });
+              mensajeError += `\n\n❌ Errores de validación:\n${errorsArray.join("\n")}`;
+            }
           }
-        );
-
-        const detailedMessage = `Errores de validación:\n${errorsArray.join(
-          "\n"
-        )}`;
-        setError(detailedMessage);
-        showMessage("error", detailedMessage);
-      } else {
-        setError(error.message || "Error al guardar horario");
-        showMessage("error", error.message || "Error al guardar horario");
+        }
       }
+
+      setError(mensajeError);
+      showMessage("error", mensajeError);
+
     } finally {
       setSaving(false);
     }
   };
+  const mostrarInfoHorarioOficina = async () => {
+    if (!usuario?.oficin_codigo) {
+      showMessage("warning", "El usuario no tiene oficina asignada");
+      return;
+    }
+
+    try {
+      // Esta función necesitaría implementarse en apiService
+      const response = await adminService.oficinas.getHorarios(usuario.oficin_codigo);
+
+      if (response.status === "success" && response.data.horarios_por_dia) {
+        const horariosOficina = response.data.horarios_por_dia
+          .filter(dia => dia.tiene_horario && dia.activo)
+          .map(dia => `${dia.dia_nombre}: ${dia.formato_visual}`)
+          .join('\n');
+
+        if (horariosOficina) {
+          alert(`📋 Horarios de la oficina:\n\n${horariosOficina}\n\n💡 Los horarios de usuario deben estar dentro de estos rangos.`);
+        } else {
+          showMessage("info", "La oficina no tiene horarios activos configurados");
+        }
+      }
+    } catch (error) {
+      console.error("Error obteniendo horarios de oficina:", error);
+      showMessage("error", "No se pudieron obtener los horarios de la oficina");
+    }
+  };
+
 
   // ✅ FUNCIÓN PARA GUARDAR HORARIO TEMPORAL
   const guardarHorarioTemporal = async () => {
@@ -848,11 +1265,10 @@ const UsuarioHorarioWindow = ({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-4 px-2 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                activeTab === tab.id
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+              className={`py-4 px-2 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === tab.id
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
             >
               <Icon name={tab.icon} size={16} />
               {tab.label}
@@ -980,19 +1396,18 @@ const UsuarioHorarioWindow = ({
                               </div>
                               <div className="flex items-center gap-2 text-xs">
                                 <span
-                                  className={`px-2 py-1 rounded-full ${
-                                    dia.origen_horario === "PERSONALIZADO"
-                                      ? "bg-green-200 text-green-800"
-                                      : dia.origen_horario === "TEMPORAL"
+                                  className={`px-2 py-1 rounded-full ${dia.origen_horario === "PERSONALIZADO"
+                                    ? "bg-green-200 text-green-800"
+                                    : dia.origen_horario === "TEMPORAL"
                                       ? "bg-orange-200 text-orange-800"
                                       : "bg-blue-200 text-blue-800"
-                                  }`}
+                                    }`}
                                 >
                                   {dia.origen_horario === "PERSONALIZADO"
                                     ? "Personalizado"
                                     : dia.origen_horario === "TEMPORAL"
-                                    ? "Temporal"
-                                    : "Oficina"}
+                                      ? "Temporal"
+                                      : "Oficina"}
                                 </span>
                               </div>
                               {dia.horario_temporal && (
@@ -1116,11 +1531,10 @@ const UsuarioHorarioWindow = ({
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-3">
                             <div
-                              className={`w-3 h-3 rounded-full ${
-                                periodo.esta_vigente
-                                  ? "bg-green-500"
-                                  : "bg-gray-400"
-                              }`}
+                              className={`w-3 h-3 rounded-full ${periodo.esta_vigente
+                                ? "bg-green-500"
+                                : "bg-gray-400"
+                                }`}
                             ></div>
                             <div>
                               <h4 className="font-medium text-gray-900">
@@ -1133,11 +1547,10 @@ const UsuarioHorarioWindow = ({
                           </div>
                           <div className="flex items-center gap-2">
                             <span
-                              className={`px-2 py-1 rounded-full text-xs ${
-                                periodo.esta_vigente
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-gray-100 text-gray-600"
-                              }`}
+                              className={`px-2 py-1 rounded-full text-xs ${periodo.esta_vigente
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-100 text-gray-600"
+                                }`}
                             >
                               {periodo.esta_vigente ? "Activo" : "Inactivo"}
                             </span>
@@ -1459,7 +1872,7 @@ const UsuarioHorarioWindow = ({
 
           {/* Contenedor del modal */}
           <div className="fixed inset-0 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full relative z-10">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full relative z-10 max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <h3 className="text-lg font-bold mb-4">
                   {editingDia ? "Editar Horario" : "Nuevo Horario"}
@@ -1502,6 +1915,7 @@ const UsuarioHorarioWindow = ({
                           })
                         }
                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        step="60" // Permitir solo horas exactas
                       />
                     </div>
                     <div>
@@ -1518,9 +1932,30 @@ const UsuarioHorarioWindow = ({
                           })
                         }
                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        step="60" // Permitir solo horas exactas
                       />
                     </div>
                   </div>
+
+                  {/* ✅ VALIDACIÓN EN TIEMPO REAL */}
+                  <ValidacionTiempoReal
+                    formData={formData}
+                    usuario={usuario}
+                    horariosData={horariosData}
+                  />
+
+                  {/* ✅ SUGERENCIAS RÁPIDAS */}
+                  <SugerenciasRapidas
+                    diaSeleccionado={formData.dia_codigo}
+                    horariosData={horariosData}
+                    onSugerenciaClick={(sugerencia) => {
+                      setFormData({
+                        ...formData,
+                        hora_entrada: sugerencia.entrada,
+                        hora_salida: sugerencia.salida
+                      });
+                    }}
+                  />
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1548,14 +1983,33 @@ const UsuarioHorarioWindow = ({
                   >
                     Cancelar
                   </button>
+
                   <button
                     onClick={guardarHorario}
-                    disabled={saving}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    disabled={saving || (formData.hora_entrada && formData.hora_salida && formData.dia_codigo && validarHorarioEnTiempoReal(formData.hora_entrada, formData.hora_salida, formData.dia_codigo)?.tipo === 'error')}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {saving ? "Guardando..." : "Guardar"}
                   </button>
                 </div>
+
+                {/* ✅ INDICADOR DE ESTADO DEL BOTÓN */}
+                {formData.hora_entrada && formData.hora_salida && formData.dia_codigo && (
+                  <div className="mt-2 text-xs text-center">
+                    {(() => {
+                      const validacion = validarHorarioEnTiempoReal(formData.hora_entrada, formData.hora_salida, formData.dia_codigo);
+                      if (!validacion) return null;
+
+                      if (validacion.tipo === 'error') {
+                        return <span className="text-red-600">🚫 Botón deshabilitado: corrija los errores</span>;
+                      } else if (validacion.tipo === 'success') {
+                        return <span className="text-green-600">✅ Listo para guardar</span>;
+                      } else if (validacion.tipo === 'warning') {
+                        return <span className="text-yellow-600">⚠️ Revise la advertencia</span>;
+                      }
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
           </div>

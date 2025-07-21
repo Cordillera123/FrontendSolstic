@@ -169,92 +169,137 @@ const CalendarioOficinaForm = ({
     setShowForm(true);
   };
 
-  // Función para guardar horario
-  // Función para guardar horario (versión simplificada para pruebas)
-  const guardarHorario = async () => {
-    try {
-      setSaving(true);
-      setError(null);
+  // ✅ UNA SOLA FUNCIÓN FUERA DE guardarHorario
+  // ✅ FUNCIÓN CON DEBUG COMPLETO
+// ✅ FUNCIÓN PARA NORMALIZAR HORAS (elimina segundos si existen)
+const normalizarHora = (hora) => {
+  if (!hora || typeof hora !== 'string') return hora;
+  
+  // Si viene con segundos (HH:MM:SS), eliminar los segundos
+  if (hora.length === 8 && hora.split(':').length === 3) {
+    const [horas, minutos] = hora.split(':');
+    return `${horas}:${minutos}`;
+  }
+  
+  return hora; // Si ya está en formato HH:MM, devolverla tal como está
+};
 
-      // Validar datos básicos
-      if (!formData.dia_codigo || !formData.hora_inicio || !formData.hora_fin) {
-        throw new Error("Todos los campos son requeridos");
-      }
+// ✅ FUNCIÓN DE VALIDACIÓN MEJORADA
+const validarFormatoHora = (hora) => {
+  console.log("🔍 DEBUG - Validando hora:", {
+    valor: hora,
+    tipo: typeof hora,
+    longitud: hora?.length,
+    esString: typeof hora === 'string'
+  });
 
-      // ✅ VALIDACIÓN MÍNIMA SOLO PARA FORMATO (sin validar duración)
-      const validarFormatoHora = (hora) => {
-        const horaRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-        return horaRegex.test(hora);
-      };
-
-      // Solo validar formato, no duración
-      if (!validarFormatoHora(formData.hora_inicio)) {
-        throw new Error("Formato de hora de inicio inválido (debe ser HH:MM)");
-      }
-
-      if (!validarFormatoHora(formData.hora_fin)) {
-        throw new Error("Formato de hora de fin inválido (debe ser HH:MM)");
-      }
-
-      console.log("✅ Guardando horario:", {
-        oficinaId,
-        formData,
-        esEdicion: !!selectedDay,
-      });
-
-      const response = await adminService.horariosOficinas.crearHorario(
-        oficinaId,
-        formData
-      );
-
-      if (response.status === "success") {
-        setSuccess("Horario guardado correctamente");
-        setShowForm(false);
-        await cargarHorarios();
-        showMessage("success", "Horario guardado correctamente");
-        setTimeout(() => setSuccess(null), 3000);
-      } else {
-        throw new Error(response.message || "Error al guardar horario");
-      }
-    } catch (error) {
-      console.error("❌ Error guardando horario:", error);
-      setError(error.message || "Error al guardar horario");
-      showMessage("error", error.message || "Error al guardar horario");
-    } finally {
-      setSaving(false);
+  try {
+    if (!hora || typeof hora !== 'string') {
+      console.log("❌ DEBUG - Hora no es string o está vacía");
+      return false;
     }
-  };
+    
+    // ✅ NORMALIZAR LA HORA ANTES DE VALIDAR
+    const horaNormalizada = normalizarHora(hora);
+    console.log("🔍 DEBUG - Hora normalizada:", horaNormalizada);
+    
+    const [horas, minutos] = horaNormalizada.split(':');
+    console.log("🔍 DEBUG - Después de split:", { horas, minutos });
+    
+    if (!horas || !minutos) {
+      console.log("❌ DEBUG - Horas o minutos undefined");
+      return false;
+    }
+    
+    const h = parseInt(horas);
+    const m = parseInt(minutos);
+    console.log("🔍 DEBUG - Valores parseados:", { h, m });
+    
+    const esValido = h >= 0 && h <= 23 && m >= 0 && m <= 59 && horaNormalizada.length === 5;
+    console.log("🔍 DEBUG - Resultado validación:", {
+      horaValida: h >= 0 && h <= 23,
+      minutoValido: m >= 0 && m <= 59,
+      longitudCorrecta: horaNormalizada.length === 5,
+      resultadoFinal: esValido
+    });
+    
+    return esValido;
+  } catch (error) {
+    console.log("❌ DEBUG - Error en validación:", error);
+    return false;
+  }
+};
 
-  // Función para eliminar horario
-  const eliminarHorario = async (diaId) => {
-    if (!confirm("¿Está seguro que desea eliminar este horario?")) {
-      return;
+const guardarHorario = async () => {
+  try {
+    setSaving(true);
+    setError(null);
+
+    // Debug del formData completo
+    console.log("🔍 DEBUG - FormData completo:", formData);
+    console.log("🔍 DEBUG - Hora inicio:", JSON.stringify(formData.hora_inicio));
+    console.log("🔍 DEBUG - Hora fin:", JSON.stringify(formData.hora_fin));
+
+    // Validar datos básicos
+    if (!formData.dia_codigo || !formData.hora_inicio || !formData.hora_fin) {
+      throw new Error("Todos los campos son requeridos");
     }
 
-    try {
-      setLoading(true);
-      const response = await adminService.horariosOficinas.eliminarHorario(
-        oficinaId,
-        diaId
-      );
+    // ✅ NORMALIZAR LAS HORAS ANTES DE ENVIAR
+    const horaInicioNormalizada = normalizarHora(formData.hora_inicio);
+    const horaFinNormalizada = normalizarHora(formData.hora_fin);
+    
+    console.log("🔍 DEBUG - Horas normalizadas:", {
+      inicio: horaInicioNormalizada,
+      fin: horaFinNormalizada
+    });
 
-      if (response.status === "success") {
-        setSuccess("Horario eliminado correctamente");
-        await cargarHorarios();
-        showMessage("success", "Horario eliminado correctamente");
-        setTimeout(() => setSuccess(null), 3000);
-      } else {
-        throw new Error(response.message || "Error al eliminar horario");
-      }
-    } catch (error) {
-      console.error("❌ Error eliminando horario:", error);
-      setError(error.message || "Error al eliminar horario");
-      showMessage("error", error.message || "Error al eliminar horario");
-    } finally {
-      setLoading(false);
+    // Validación con horas normalizadas
+    console.log("🔍 DEBUG - Validando hora de inicio...");
+    if (!validarFormatoHora(horaInicioNormalizada)) {
+      throw new Error("Formato de hora de inicio inválido (debe ser HH:MM)");
     }
-  };
 
+    console.log("🔍 DEBUG - Validando hora de fin...");
+    if (!validarFormatoHora(horaFinNormalizada)) {
+      throw new Error("Formato de hora de fin inválido (debe ser HH:MM)");
+    }
+
+    // ✅ CREAR NUEVO OBJETO CON HORAS NORMALIZADAS
+    const formDataNormalizado = {
+      ...formData,
+      hora_inicio: horaInicioNormalizada,
+      hora_fin: horaFinNormalizada
+    };
+
+    console.log("✅ Guardando horario:", {
+      oficinaId,
+      formData: formDataNormalizado,
+      esEdicion: !!selectedDay,
+    });
+
+    const response = await adminService.horariosOficinas.crearHorario(
+      oficinaId,
+      formDataNormalizado  // ✅ ENVIAR DATOS NORMALIZADOS
+    );
+
+    if (response.status === "success") {
+      setSuccess("Horario guardado correctamente");
+      setShowForm(false);
+      await cargarHorarios();
+      showMessage("success", "Horario guardado correctamente");
+      setTimeout(() => setSuccess(null), 3000);
+    } else {
+      throw new Error(response.message || "Error al guardar horario");
+    }
+  } catch (error) {
+    console.error("❌ Error guardando horario:", error);
+    setError(error.message || "Error al guardar horario");
+    showMessage("error", error.message || "Error al guardar horario");
+  } finally {
+    setSaving(false);
+  }
+};
   // Función para activar/desactivar horario
   const toggleHorario = async (diaId) => {
     try {
@@ -508,11 +553,10 @@ const CalendarioOficinaForm = ({
                         </div>
                         <div className="flex items-center gap-2 text-xs">
                           <span
-                            className={`px-2 py-1 rounded-full ${
-                              dia.activo
-                                ? "bg-green-200 text-green-800"
-                                : "bg-red-200 text-red-800"
-                            }`}
+                            className={`px-2 py-1 rounded-full ${dia.activo
+                              ? "bg-green-200 text-green-800"
+                              : "bg-red-200 text-red-800"
+                              }`}
                           >
                             {dia.activo ? "Activo" : "Inactivo"}
                           </span>
