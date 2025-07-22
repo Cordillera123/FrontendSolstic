@@ -19,7 +19,7 @@ const UsuarioHorarioWindow = ({
   // Estados principales
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("permanentes");
+  const [activeTab, setActiveTab] = useState("calendario");
   const [usuario, setUsuario] = useState(null);
   const [horariosData, setHorariosData] = useState(null);
   const [error, setError] = useState(null);
@@ -53,9 +53,9 @@ const UsuarioHorarioWindow = ({
 
   // Pestañas disponibles
   const tabs = [
-    { id: "permanentes", label: "Horarios Permanentes", icon: "Clock" },
-    { id: "temporales", label: "Horarios Temporales", icon: "Calendar" },
+    
     { id: "calendario", label: "Calendario", icon: "CalendarDays" },
+    { id: "temporales", label: "Horarios Temporales", icon: "Calendar" },
     { id: "estadisticas", label: "Estadísticas", icon: "BarChart3" },
     { id: "conflictos", label: "Conflictos", icon: "AlertTriangle" },
   ];
@@ -1467,144 +1467,7 @@ const UsuarioHorarioWindow = ({
             </div>
           </div>
         ) : (
-          <div className="p-6">
-            {/* ===== PESTAÑA HORARIOS PERMANENTES ===== */}
-            {activeTab === "permanentes" && (
-              <div>
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    Horarios Permanentes
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {horariosData?.horarios_por_dia?.map((dia) => (
-                      <div
-                        key={dia.dia_codigo}
-                        className={`border-2 rounded-lg p-4 transition-all ${getColorDia(
-                          dia
-                        )} hover:shadow-md`}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            {getIconoDia(dia)}
-                            <h4 className="font-medium">{dia.dia_nombre}</h4>
-                          </div>
-                          <span className="text-xs px-2 py-1 rounded-full bg-white bg-opacity-50">
-                            {dia.dia_abreviatura}
-                          </span>
-                        </div>
-
-                        <div className="space-y-2">
-                          {dia.puede_acceder && dia.horario_efectivo ? (
-                            <>
-                              <div className="flex items-center gap-2 text-sm">
-                                <Icon name="Clock" size={14} />
-                                <span className="font-mono">
-                                  {dia.horario_efectivo.hora_entrada} -{" "}
-                                  {dia.horario_efectivo.hora_salida}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs">
-                                <span
-                                  className={`px-2 py-1 rounded-full ${dia.origen_horario === "PERSONALIZADO"
-                                    ? "bg-green-200 text-green-800"
-                                    : dia.origen_horario === "TEMPORAL"
-                                      ? "bg-orange-200 text-orange-800"
-                                      : "bg-blue-200 text-blue-800"
-                                    }`}
-                                >
-                                  {dia.origen_horario === "PERSONALIZADO"
-                                    ? "Personalizado"
-                                    : dia.origen_horario === "TEMPORAL"
-                                      ? "Temporal"
-                                      : "Oficina"}
-                                </span>
-                              </div>
-                              {dia.horario_temporal && (
-                                <div className="text-xs text-gray-600 bg-orange-50 p-2 rounded">
-                                  <div className="font-medium">
-                                    Temporal activo:
-                                  </div>
-                                  <div>Tipo: {dia.horario_temporal.tipo}</div>
-                                  <div>
-                                    Hasta: {dia.horario_temporal.fecha_fin}
-                                  </div>
-                                  <div>
-                                    Días restantes:{" "}
-                                    {dia.horario_temporal.dias_restantes}
-                                  </div>
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <p className="text-sm text-gray-500">
-                              Sin horario configurado
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="flex gap-2 mt-4">
-                          <button
-                            onClick={() => abrirFormulario(dia)}
-                            className="flex-1 px-3 py-1 bg-white bg-opacity-50 rounded text-xs hover:bg-opacity-75 transition-colors"
-                            title="Editar horario"
-                          >
-                            <Icon name="Edit3" size={12} className="mx-auto" />
-                          </button>
-                          {dia.origen_horario === "PERSONALIZADO" && (
-                            <button
-                              onClick={() => eliminarHorario(dia.dia_codigo)}
-                              className="flex-1 px-3 py-1 bg-white bg-opacity-50 rounded text-xs hover:bg-opacity-75 transition-colors"
-                              title="Eliminar horario personalizado"
-                            >
-                              <Icon
-                                name="Trash2"
-                                size={12}
-                                className="mx-auto"
-                              />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Comparación con oficina */}
-                {comparacionOficina && (
-                  <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-medium text-blue-900 mb-2">
-                      Comparación con Oficina
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium text-blue-800">
-                          Días coincidentes:
-                        </span>
-                        <span className="ml-2 text-blue-600">
-                          {comparacionOficina.dias_coincidentes || 0}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-blue-800">
-                          Días diferentes:
-                        </span>
-                        <span className="ml-2 text-blue-600">
-                          {comparacionOficina.dias_diferentes || 0}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-blue-800">
-                          Independencia:
-                        </span>
-                        <span className="ml-2 text-blue-600">
-                          {comparacionOficina.porcentaje_independencia || 0}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+          <div className="p-6 space-y-6">
 
             {/* ===== PESTAÑA HORARIOS TEMPORALES ===== */}
             {activeTab === "temporales" && (
