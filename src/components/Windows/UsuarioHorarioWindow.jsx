@@ -895,20 +895,95 @@ const UsuarioHorarioWindow = ({
 
 
   // ✅ FUNCIÓN PARA GUARDAR HORARIO TEMPORAL
+  // ✅ REEMPLAZAR LA FUNCIÓN guardarHorarioTemporal EN UsuarioHorarioWindow.jsx
+
   const guardarHorarioTemporal = async () => {
     try {
       setSaving(true);
       setError(null);
 
-      // Validar datos usando función local
-      const validacion = validarDatosHorarioTemporal(temporalFormData);
-      if (!validacion.valido) {
-        throw new Error(validacion.errores.join("\n"));
+      console.log("🔍 Datos del formulario temporal antes de procesar:", temporalFormData);
+
+      // ✅ VALIDACIÓN BÁSICA
+      if (!temporalFormData.fecha_inicio || !temporalFormData.fecha_fin) {
+        throw new Error("Las fechas de inicio y fin son requeridas");
       }
 
+      if (!temporalFormData.motivo?.trim()) {
+        throw new Error("El motivo es requerido");
+      }
+
+      if (!temporalFormData.horarios || temporalFormData.horarios.length === 0) {
+        throw new Error("Debe configurar al menos un día");
+      }
+
+      // ✅ FUNCIÓN PARA FORMATEAR HORAS (IGUAL QUE EN HORARIOS NORMALES)
+      const formatearHoraParaBackend = (hora) => {
+        if (!hora) return "";
+
+        // Limpiar la hora
+        const horaLimpia = hora.trim();
+
+        // Si ya tiene formato HH:MM:SS, devolverla tal como está
+        if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/.test(horaLimpia)) {
+          return horaLimpia;
+        }
+
+        // Si tiene formato HH:MM, agregar :00
+        if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(horaLimpia)) {
+          return horaLimpia + ":00";
+        }
+
+        throw new Error(`Formato de hora inválido: ${horaLimpia}`);
+      };
+
+      // ✅ VALIDAR Y FORMATEAR CADA HORARIO
+      const horariosFormateados = [];
+
+      for (let i = 0; i < temporalFormData.horarios.length; i++) {
+        const horario = temporalFormData.horarios[i];
+
+        try {
+          const horaEntradaFormateada = formatearHoraParaBackend(horario.hora_entrada);
+          const horaSalidaFormateada = formatearHoraParaBackend(horario.hora_salida);
+
+          // Validación adicional: hora de salida debe ser después de entrada
+          const [hE, mE] = horario.hora_entrada.split(':').map(Number);
+          const [hS, mS] = horario.hora_salida.split(':').map(Number);
+          const minutosEntrada = hE * 60 + mE;
+          const minutosSalida = hS * 60 + mS;
+
+          // Permitir horarios nocturnos válidos
+          if (minutosSalida <= minutosEntrada && !(hE >= 18 && hS <= 10)) {
+            throw new Error(`Día ${i + 1}: La hora de salida debe ser posterior a la hora de entrada`);
+          }
+
+          horariosFormateados.push({
+            dia_codigo: parseInt(horario.dia_codigo, 10),
+            hora_entrada: horaEntradaFormateada,
+            hora_salida: horaSalidaFormateada
+          });
+
+        } catch (formatError) {
+          throw new Error(`Día ${i + 1}: ${formatError.message}`);
+        }
+      }
+
+      // ✅ PREPARAR DATOS PARA ENVIAR
+      const dataToSend = {
+        fecha_inicio: temporalFormData.fecha_inicio,
+        fecha_fin: temporalFormData.fecha_fin,
+        tipo_temporal: temporalFormData.tipo_temporal,
+        motivo: temporalFormData.motivo.trim(),
+        horarios: horariosFormateados
+      };
+
+      console.log("🚀 Datos temporales formateados para enviar:", dataToSend);
+
+      // ✅ ENVIAR AL BACKEND
       const response = await adminService.horariosUsuarios.crearHorarioTemporal(
         usuarioId,
-        temporalFormData
+        dataToSend
       );
 
       if (response.status === "success") {
@@ -919,10 +994,44 @@ const UsuarioHorarioWindow = ({
       } else {
         throw new Error(response.message || "Error al crear horario temporal");
       }
+
     } catch (error) {
       console.error("❌ Error creando horario temporal:", error);
-      setError(error.message || "Error al crear horario temporal");
-      showMessage("error", error.message || "Error al crear horario temporal");
+
+      let mensajeError = error.message || "Error al crear horario temporal";
+
+      // ✅ MANEJAR ERRORES ESPECÍFICOS DEL BACKEND
+      if (error.response && error.response.data) {
+        const errorData = error.response.data;
+
+        if (errorData.status === "error") {
+          mensajeError = errorData.message;
+
+          // Mostrar información detallada si está disponible
+          if (errorData.data) {
+            const data = errorData.data;
+
+            if (data.horario_oficina && data.horario_solicitado) {
+              mensajeError += `\n\n📋 Comparación de horarios para ${data.dia_nombre}:`;
+              mensajeError += `\n🏢 Oficina: ${data.horario_oficina}`;
+              mensajeError += `\n⏰ Solicitado: ${data.horario_solicitado}`;
+            }
+          }
+
+          // Mostrar errores de validación si existen
+          if (errorData.errors) {
+            const errorsArray = Object.entries(errorData.errors).map(([field, messages]) => {
+              const messageText = Array.isArray(messages) ? messages.join(", ") : messages;
+              return `• ${field}: ${messageText}`;
+            });
+            mensajeError += `\n\n❌ Errores de validación:\n${errorsArray.join("\n")}`;
+          }
+        }
+      }
+
+      setError(mensajeError);
+      showMessage("error", mensajeError);
+
     } finally {
       setSaving(false);
     }
