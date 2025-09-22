@@ -23,6 +23,8 @@ const useWindows = () => {
     return { x, y };
   }, []);
 
+
+
   const openWindow = useCallback(
     (
       moduleId,
@@ -33,21 +35,28 @@ const useWindows = () => {
       component = null
     ) => {
       const windowId = subModuleId ? `${moduleId}-${subModuleId}` : moduleId;
+      
+      console.log(`🪟 openWindow: ${windowId} (${windows.length} ventanas actualmente)`);
+      
       const existingWindow = windows.find((w) => w.id === windowId);
       const isMinimized = minimizedWindows.includes(windowId);
 
       if (existingWindow) {
+        console.log(`♻️ openWindow: ${windowId} ya existe - maximizando`);
         if (isMinimized) {
           setMinimizedWindows((prev) => prev.filter((id) => id !== windowId));
         }
-        setActiveWindowId(windowId);
+        // 🔧 NUEVO: Maximizar la ventana existente al hacer clic en su menú
         setWindows((prev) =>
           prev.map((w) =>
-            w.id === windowId ? { ...w, zIndex: baseZIndex + 1 } : w
+            w.id === windowId 
+              ? { ...w, zIndex: baseZIndex + 1, isMaximized: true }
+              : w
           )
         );
+        setActiveWindowId(windowId);
         setBaseZIndex((prev) => prev + 1);
-        return { success: true };
+        return { success: true, isExisting: true };
       }
 
       if (windows.length >= MAX_WINDOWS) {
@@ -57,6 +66,12 @@ const useWindows = () => {
       }
 
       const position = getInitialPosition(windows.length);
+      // 🔧 NUEVO: Solo la primera ventana se abre maximizada
+      const isFirstWindow = windows.length === 0;
+      const isSecondWindow = windows.length === 1;
+
+      console.log(`✨ openWindow: Nueva ventana ${windowId} ${isFirstWindow ? '(MAXIMIZADA)' : ''}`);
+
       const newWindow = {
         id: windowId,
         moduleId,
@@ -67,7 +82,7 @@ const useWindows = () => {
         position,
         size: { width: DEFAULT_WINDOW_WIDTH, height: DEFAULT_WINDOW_HEIGHT },
         isMinimized: false,
-        isMaximized: false,
+        isMaximized: isFirstWindow, // Solo la primera se maximiza
         zIndex: baseZIndex + 1,
         createdAt: new Date().getTime(),
         // 🔧 AGREGAMOS ESTADO PARA GUARDAR POSICIÓN/TAMAÑO ANTES DE MAXIMIZAR
@@ -76,9 +91,31 @@ const useWindows = () => {
       };
 
       setBaseZIndex((prev) => prev + 1);
-      setWindows((prev) => [...prev, newWindow]);
+      
+      // 🔧 NUEVO: Si es la segunda ventana o más, desmaximizar todas las ventanas
+      setWindows((prev) => {
+        let updatedWindows = [...prev, newWindow];
+        
+        if (updatedWindows.length >= 2) {
+          console.log(`🔄 openWindow: ${updatedWindows.length} ventanas - desmaximizando todas para mosaico`);
+          // Desmaximizar TODAS las ventanas para que entren en el mosaico
+          updatedWindows = updatedWindows.map(w => ({
+            ...w,
+            isMaximized: false
+          }));
+        }
+        
+        return updatedWindows;
+      });
+      
       setActiveWindowId(windowId);
-      return { success: true };
+      return { 
+        success: true, 
+        isExisting: false, 
+        isFirstWindow, 
+        needsTiling: !isFirstWindow, // Siempre reorganizar si no es la primera
+        windowCount: windows.length + 1
+      };
     },
     [windows, minimizedWindows, baseZIndex, getInitialPosition]
   );
@@ -184,7 +221,7 @@ const useWindows = () => {
     [setActiveWindow]
   );
 
-  // 🔧 FUNCIÓN DE MAXIMIZAR COMPLETAMENTE REESCRITA
+  // 🔧 FUNCIÓN DE MAXIMIZAR SIMPLIFICADA
   const toggleMaximize = useCallback((windowId) => {
     console.log("toggleMaximize llamado para ventana:", windowId);
     

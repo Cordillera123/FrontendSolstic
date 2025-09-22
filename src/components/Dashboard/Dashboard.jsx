@@ -32,6 +32,7 @@ const Dashboard = () => {
 
   // Estados para paginación y gestión de ventanas
   const [currentPage, setCurrentPage] = useState(0);
+  const [shouldReorganize, setShouldReorganize] = useState(false);
   const WINDOWS_PER_PAGE = 4;
 
   // Estados para el cierre automático de sesión
@@ -217,17 +218,19 @@ const Dashboard = () => {
     }
   }, [windows.length, currentPage]);
 
-  // Función mejorada para organizar en mosaico - Respeta ventanas maximizadas
+  // 🔧 FUNCIÓN MEJORADA: Organizar en mosaico TODAS las ventanas visibles no maximizadas
   const arrangeTileLayout = useCallback(() => {
-    // Solo organizar ventanas que no estén maximizadas
-    const pageWindows = visibleWindows
-      .slice(currentPage * WINDOWS_PER_PAGE, (currentPage + 1) * WINDOWS_PER_PAGE)
-      .filter(w => !w.isMaximized);
+    // Obtener TODAS las ventanas visibles que no estén maximizadas
+    const tilableWindows = visibleWindows.filter(w => !w.isMaximized);
     
-    if (pageWindows.length === 0) return;
+    console.log(`🎯 arrangeTileLayout: ${tilableWindows.length} ventanas para organizar`);
+    
+    if (tilableWindows.length === 0) {
+      return;
+    }
 
     let cols, rows;
-    switch (pageWindows.length) {
+    switch (tilableWindows.length) {
       case 1:
         cols = 1;
         rows = 1;
@@ -237,40 +240,69 @@ const Dashboard = () => {
         rows = 1;
         break;
       case 3:
-        cols = 3;
-        rows = 1;
+        // 🔧 CORREGIDO: 3 ventanas en 2x2 (2 arriba, 1 abajo centrada)
+        cols = 2;
+        rows = 2;
         break;
       case 4:
       default:
+        // 🔧 CORREGIDO: 4 ventanas en 2x2 perfecto
         cols = 2;
         rows = 2;
         break;
     }
 
     const mainAreaEl = document.querySelector(".main-area");
-    if (!mainAreaEl) return;
+    if (!mainAreaEl) {
+      console.log('❌ arrangeTileLayout: No se encontró main-area');
+      return;
+    }
 
     const mainAreaWidth = mainAreaEl.clientWidth;
     const mainAreaHeight = mainAreaEl.clientHeight;
 
     const margin = 16;
-    const windowWidth = Math.floor(
-      (mainAreaWidth - margin * (cols + 1)) / cols
-    );
-    const windowHeight = Math.floor(
-      (mainAreaHeight - margin * (rows + 1)) / rows
-    );
+    let windowWidth, windowHeight;
+    
+    if (tilableWindows.length === 3) {
+      // 🔧 OPTIMIZADO: Para 3 ventanas, usar todo el ancho disponible
+      windowWidth = Math.floor((mainAreaWidth - margin * 3) / 2);
+      windowHeight = Math.floor((mainAreaHeight - margin * 3) / 2);
+    } else {
+      // 🔧 NORMAL: Para 1, 2 o 4 ventanas
+      windowWidth = Math.floor((mainAreaWidth - margin * (cols + 1)) / cols);
+      windowHeight = Math.floor((mainAreaHeight - margin * (rows + 1)) / rows);
+    }
 
-    pageWindows.forEach((window, index) => {
-      const row = Math.floor(index / cols);
-      const col = index % cols;
-      const x = margin + col * (windowWidth + margin);
-      const y = margin + row * (windowHeight + margin);
+    console.log(`📐 arrangeTileLayout: Organizando ${tilableWindows.length} ventanas ${windowWidth}x${windowHeight}`);
+
+    tilableWindows.forEach((window, index) => {
+      let x, y;
+      
+      if (tilableWindows.length === 3) {
+        // 🔧 CASO ESPECIAL: 3 ventanas (2 arriba, 1 centrada abajo)
+        if (index < 2) {
+          // Primeras dos ventanas: fila superior
+          const col = index;
+          x = margin + col * (windowWidth + margin);
+          y = margin;
+        } else {
+          // Tercera ventana: centrada en la fila inferior
+          x = margin + (windowWidth + margin) / 2;
+          y = margin + (windowHeight + margin);
+        }
+      } else {
+        // 🔧 CASO NORMAL: 1, 2 o 4 ventanas
+        const row = Math.floor(index / cols);
+        const col = index % cols;
+        x = margin + col * (windowWidth + margin);
+        y = margin + row * (windowHeight + margin);
+      }
 
       updateWindowPosition(window.id, x, y);
       updateWindowSize(window.id, windowWidth, windowHeight);
     });
-  }, [visibleWindows, currentPage, updateWindowPosition, updateWindowSize]);
+  }, [visibleWindows, updateWindowPosition, updateWindowSize]);
 
   // Función mejorada de cascada - Respeta ventanas maximizadas
   const arrangeCascadeLayout = useCallback(() => {
@@ -316,54 +348,137 @@ const Dashboard = () => {
       component     // component
     );
 
-    // Organizar en mosaico inmediatamente después de abrir
-    if (result && result.success) {
+    // 🔧 NUEVO: Activar reorganización cuando se abre una nueva ventana
+    if (result && result.success && !result.isExisting && !result.isFirstWindow) {
+      console.log(`🎯 Dashboard: Solicitando reorganización para ventana ${result.windowCount}`);
+      
+      // Activar flag de reorganización para que el useEffect la ejecute
       setTimeout(() => {
-        arrangeTileLayout();
-      }, 100);
+        setShouldReorganize(true);
+      }, 300);
     }
   };
 
   // Restaurar una ventana minimizada y reordenar
   const handleRestoreWindow = (windowId) => {
+    console.log('🔄 Dashboard: Restaurando ventana', windowId);
     restoreWindow(windowId);
     setTimeout(() => {
       // Solo reorganizar si no hay ventanas maximizadas
       const hasMaximizedWindows = windows.some(w => w.isMaximized);
-      if (!hasMaximizedWindows) {
-        arrangeTileLayout();
+      console.log('📊 Dashboard: ¿Hay ventanas maximizadas?', hasMaximizedWindows);
+      if (!hasMaximizedWindows && windows.length > 1) {
+        console.log('🎯 Dashboard: Solicitando reorganización tras restaurar');
+        setShouldReorganize(true);
       }
-    }, 50);
+    }, 100);
   };
 
-  // Efecto mejorado: Solo organizar automáticamente si no hay ventanas maximizadas
+  // 🔧 REORGANIZAR: Solo cuando se solicite explícitamente reorganización
   useEffect(() => {
-    if (visibleWindows.length > 0) {
+    if (shouldReorganize && visibleWindows.length > 1) {
       const hasMaximizedWindows = visibleWindows.some(w => w.isMaximized);
       
-      // Solo organizar automáticamente si no hay ventanas maximizadas
+      console.log(`📊 useEffect: ${visibleWindows.length} ventanas, ¿maximizadas?: ${hasMaximizedWindows}`);
+      
+      // Organizar solo si no hay ventanas maximizadas
       if (!hasMaximizedWindows) {
+        console.log(`🎯 useEffect: FORZANDO reorganización de ${visibleWindows.length} ventanas`);
         const delay = setTimeout(() => {
-          arrangeTileLayout();
-        }, 100);
+          // Llamar directamente a arrangeTileLayout sin usar referencia en dependencias
+          const tilableWindows = visibleWindows.filter(w => !w.isMaximized);
+          
+          if (tilableWindows.length === 0) {
+            setShouldReorganize(false);
+            return;
+          }
+
+          let cols, rows;
+          switch (tilableWindows.length) {
+            case 1:
+              cols = 1;
+              rows = 1;
+              break;
+            case 2:
+              cols = 2;
+              rows = 1;
+              break;
+            case 3:
+              cols = 2;
+              rows = 2;
+              break;
+            case 4:
+            default:
+              cols = 2;
+              rows = 2;
+              break;
+          }
+
+          const mainAreaEl = document.querySelector(".main-area");
+          if (!mainAreaEl) {
+            console.log('❌ useEffect arrangeTileLayout: No se encontró main-area');
+            setShouldReorganize(false);
+            return;
+          }
+
+          const mainAreaWidth = mainAreaEl.clientWidth;
+          const mainAreaHeight = mainAreaEl.clientHeight;
+          const margin = 16;
+
+          let windowWidth, windowHeight;
+
+          if (tilableWindows.length === 3) {
+            windowWidth = Math.floor((mainAreaWidth - margin * 3) / 2);
+            windowHeight = Math.floor((mainAreaHeight - margin * 3) / 2);
+          } else {
+            windowWidth = Math.floor((mainAreaWidth - margin * (cols + 1)) / cols);
+            windowHeight = Math.floor((mainAreaHeight - margin * (rows + 1)) / rows);
+          }
+
+          console.log(`📐 useEffect arrangeTileLayout: Organizando ${tilableWindows.length} ventanas ${windowWidth}x${windowHeight}`);
+
+          tilableWindows.forEach((window, index) => {
+            let x, y;
+
+            if (tilableWindows.length === 3) {
+              if (index < 2) {
+                const col = index;
+                x = margin + col * (windowWidth + margin);
+                y = margin;
+              } else {
+                x = margin + (windowWidth + margin) / 2;
+                y = margin + (windowHeight + margin);
+              }
+            } else {
+              const row = Math.floor(index / cols);
+              const col = index % cols;
+              x = margin + col * (windowWidth + margin);
+              y = margin + row * (windowHeight + margin);
+            }
+
+            updateWindowPosition(window.id, x, y);
+            updateWindowSize(window.id, windowWidth, windowHeight);
+          });
+          
+          setShouldReorganize(false); // Resetear flag para evitar bucles
+        }, 200);
         return () => clearTimeout(delay);
+      } else {
+        // Si hay ventanas maximizadas, resetear el flag sin reorganizar
+        setShouldReorganize(false);
       }
     }
-  }, [visibleWindows.length, currentPage]);
+  }, [shouldReorganize]); // Solo depende del flag, no de funciones que cambian
 
-  // Detectar cambios en el estado de maximización
+  // 🔧 EFECTO ADICIONAL: Detectar cuando cambia el número de ventanas (SIN BUCLES)
   useEffect(() => {
-    const maximizedCount = visibleWindows.filter(w => w.isMaximized).length;
-    console.log("Ventanas maximizadas:", maximizedCount);
-    
-    // Si no hay ventanas maximizadas, reorganizar las demás
-    if (maximizedCount === 0 && visibleWindows.length > 0) {
-      const delay = setTimeout(() => {
-        arrangeTileLayout();
-      }, 200);
-      return () => clearTimeout(delay);
+    const nonMaximizedWindows = visibleWindows.filter(w => !w.isMaximized);
+    // Solo activar si hay cambio real en el número de ventanas Y no está ya programada la reorganización
+    if (nonMaximizedWindows.length > 1 && !shouldReorganize) {
+      console.log(`🔍 Detectadas ${nonMaximizedWindows.length} ventanas sin maximizar - activando reorganización`);
+      setShouldReorganize(true);
     }
-  }, [visibleWindows.map(w => w.isMaximized).join(',')]);
+  }, [visibleWindows.length]); // Solo depender del número de ventanas, no del estado de maximización
 
   // Estilos para la barra de herramientas
   const toolbarStyles = {

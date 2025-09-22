@@ -213,7 +213,10 @@ const handleFileUpload = useCallback(async (file) => {
                   alt="Logo preview"
                   className="max-w-full max-h-32 mx-auto object-contain"
                   onError={(e) => {
-                    e.target.src = '/storage/logos/general/logo-default.png';
+                    // 🔧 CORREGIDO: Evitar bucle de errores con imagen inexistente
+                    console.log('⚠️ Error cargando logo:', e.target.src);
+                    e.target.style.display = 'none'; // Ocultar imagen rota
+                    // No reemplazar con otra URL que pueda fallar
                   }}
                 />
                 <p className="text-xs text-gray-500 mt-2">
