@@ -1,7 +1,7 @@
 // src/components/Auth/Login.jsx - CON SOPORTE PARA LOGO PERSONALIZADO
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, ArrowRight, Lock, Mail, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLogo } from '../../context/LogoContext';
 
@@ -175,104 +175,128 @@ const Login = () => {
   }, [performLogin]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f0f9ff' }}>
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg overflow-hidden">
-        {/* Header con Logo Personalizado */}
-        <div className="py-8 px-6 flex flex-col items-center" style={{ background: 'linear-gradient(to right, #0ea5e9, #0369a1)' }}>
-          {/* Logo Container */}
-          <div className="h-20 mb-4 flex items-center justify-center w-full">
-            {logoLoading ? (
-              // Placeholder mientras carga el logo
-              <div className="animate-pulse">
-                <div className="h-16 w-48 bg-white bg-opacity-20 rounded"></div>
-              </div>
-            ) : (
-              <img
-                src={loginLogoUrl}
-                alt="Logo COAC"
-                className="max-h-16 max-w-full object-contain"
-                // ✅ REMOVIDO: filtro que convertía la imagen a blanco
-                // style={{ filter: 'brightness(0) invert(1)' }}
-                onError={(e) => {
-                  // Fallback a texto si la imagen no carga
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'block';
-                }}
-              />
-            )}
-            {/* Fallback text */}
-            <h1 
-              className="text-2xl font-bold text-white tracking-tight" 
-              style={{ display: 'none' }}
-            >
-              COAC SISTEMA
-            </h1>
+    <div className="min-h-screen flex w-full bg-slate-50">
+      {/* Left Side - Image & Branding (Desktop) */}
+      <div className="hidden lg:flex lg:w-1/2 relative bg-slate-900 overflow-hidden">
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage: 'url(https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=1932&auto=format&fit=crop)',
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 via-blue-900/90 to-slate-900/90" />
+        
+        <div className="relative z-10 flex flex-col h-full justify-between p-12 text-white">
+          <div>
+             <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/10 rounded-lg backdrop-blur-sm border border-white/10">
+                  <Shield className="w-6 h-6 text-blue-200" />
+                </div>
+                <span className="text-lg font-bold tracking-wider text-blue-100">ECONX 2.0</span>
+             </div>
           </div>
           
-          <h2 className="text-white opacity-90 text-sm mt-1">
-            Sistema Financiero Integrado
-          </h2>
+          <div className="space-y-6">
+            <h1 className="text-4xl xl:text-5xl font-bold leading-tight">
+              Cooperativa de <br/>
+              <span className="text-blue-300">Ahorro y Crédito</span>
+            </h1>
+            <p className="text-lg text-slate-300 max-w-md leading-relaxed font-light">
+              Gestionamos su futuro financiero con seguridad, confianza y la tecnología más avanzada del sector.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-4 text-sm text-slate-400">
+            <span>© 2026 Sistema Financiero Integrado</span>
+            <span className="w-1 h-1 rounded-full bg-slate-500" />
+            <span>v2.0.0</span>
+          </div>
         </div>
         
-        {/* Formulario */}
-        <div className="p-6">
-          <h3 className="text-xl font-semibold mb-6" style={{ color: '#0c4a6e' }}>
-            Iniciar Sesión
-          </h3>
+        {/* Decorative elements */}
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 -left-24 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl" />
+      </div>
+
+      {/* Right Side - Login Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 lg:p-12 relative bg-slate-100">
+        <div className="w-full max-w-[480px] bg-white p-8 lg:p-10 rounded-3xl shadow-2xl border border-slate-100 space-y-8">
           
-          {/* Mensaje de error */}
+          {/* Mobile Logo */}
+          <div className="lg:hidden flex justify-center mb-8">
+             {logoLoading ? (
+               <div className="h-16 w-48 bg-gray-100 animate-pulse rounded" />
+             ) : (
+               <img 
+                 src={loginLogoUrl} 
+                 alt="Logo" 
+                 className="h-16 object-contain"
+               />
+             )}
+          </div>
+
+          <div className="text-center lg:text-left space-y-2">
+            <h2 className="text-3xl font-bold text-slate-900">Bienvenido</h2>
+            <p className="text-slate-500">Ingrese sus credenciales para acceder al sistema.</p>
+          </div>
+
           {error && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r-md">
-              <div className="flex items-start">
-                <AlertCircle size={20} className="text-red-500 mt-0.5 mr-3 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-red-800">Error de autenticación</p>
-                  <p className="text-sm text-red-600 mt-1">{error}</p>
-                </div>
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg flex items-start gap-3 animate-fade-in">
+              <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-red-800">Error de autenticación</h3>
+                <p className="text-sm text-red-600 mt-1">{error}</p>
               </div>
             </div>
           )}
-          
-          {/* Formulario */}
-          <form onSubmit={handleSubmit} noValidate>
-            <div className="mb-4">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email *
+
+          <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+            <div className="space-y-2">
+              <label htmlFor="email" className="text-sm font-medium text-slate-700 block">
+                Correo Electrónico
               </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                className={`w-full border rounded-md py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${
-                  error && (error.includes('email') || error.includes('Email')) 
-                    ? 'border-red-300 focus:ring-red-500 bg-red-50' 
-                    : 'border-gray-300 focus:ring-sky-500'
-                }`}
-                placeholder="ejemplo@correo.com"
-                value={formData.email}
-                onChange={handleChange}
-                onKeyPress={handleKeyPress}
-                autoComplete="email"
-                disabled={loading}
-                required
-              />
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+                </div>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  className={`block w-full pl-10 pr-3 py-3 border rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-0 transition-all duration-200 ${
+                    error && (error.includes('email') || error.includes('Email'))
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-200 bg-red-50/30'
+                      : 'border-slate-200 focus:border-blue-600 focus:ring-blue-100 bg-slate-50 focus:bg-white hover:border-slate-300'
+                  }`}
+                  placeholder="ejemplo@cooperativa.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  onKeyPress={handleKeyPress}
+                  autoComplete="email"
+                  disabled={loading}
+                  required
+                />
+              </div>
             </div>
-            
-            <div className="mb-4">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Contraseña *
+
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium text-slate-700 block">
+                Contraseña
               </label>
-              <div className="relative">
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+                </div>
                 <input
                   type={showPassword ? "text" : "password"}
                   id="password"
                   name="password"
-                  className={`w-full border rounded-md py-3 px-4 pr-12 text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${
-                    error && (error.includes('contraseña') || error.includes('password') || error.includes('incorrectos')) 
-                      ? 'border-red-300 focus:ring-red-500 bg-red-50' 
-                      : 'border-gray-300 focus:ring-sky-500'
+                  className={`block w-full pl-10 pr-10 py-3 border rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-0 transition-all duration-200 ${
+                    error && (error.includes('contraseña') || error.includes('password') || error.includes('incorrectos'))
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-200 bg-red-50/30'
+                      : 'border-slate-200 focus:border-blue-600 focus:ring-blue-100 bg-slate-50 focus:bg-white hover:border-slate-300'
                   }`}
-                  placeholder="Ingrese su contraseña"
+                  placeholder="••••••••"
                   value={formData.password}
                   onChange={handleChange}
                   onKeyPress={handleKeyPress}
@@ -282,42 +306,44 @@ const Login = () => {
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={loading}
                 >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
             </div>
 
-            <div className="mb-6 flex items-center">
-              <input
-                type="checkbox"
-                id="rememberMe"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="h-4 w-4 text-sky-600 focus:ring-sky-500 border-gray-300 rounded transition-colors"
-                disabled={loading}
-              />
-              <label htmlFor="rememberMe" className="ml-3 text-sm text-gray-700">
-                Recordar mi email
-              </label>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="rememberMe"
+                  name="rememberMe"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                  disabled={loading}
+                />
+                <label htmlFor="rememberMe" className="ml-2 block text-sm text-slate-600 cursor-pointer select-none">
+                  Recordar usuario
+                </label>
+              </div>
             </div>
-            
-            {/* Botón de submit */}
+
             <button
               type="submit"
-              className={`w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 ${
-                loading 
-                  ? 'bg-sky-400 cursor-not-allowed' 
-                  : 'bg-sky-500 hover:bg-sky-600 transform hover:-translate-y-0.5 hover:shadow-lg'
-              }`}
               disabled={loading}
+              className={`w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white transition-all duration-200 ${
+                loading
+                  ? 'bg-blue-400 cursor-not-allowed'
+                  : 'bg-blue-900 hover:bg-blue-800 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0'
+              }`}
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin h-5 w-5 text-white mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
@@ -325,29 +351,18 @@ const Login = () => {
                 </>
               ) : (
                 <>
-                  Iniciar Sesión
-                  <ArrowRight size={18} className="ml-2" />
+                  Ingresar al Sistema
+                  <ArrowRight className="ml-2 h-5 w-5" />
                 </>
               )}
             </button>
           </form>
           
-          {/* Debug info (solo desarrollo) */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-4 p-2 bg-gray-100 rounded text-xs text-gray-600">
-              <strong>Debug:</strong> Loading: {loading.toString()} | Error: {error ? 'Sí' : 'No'} | Auth: {isAuthenticated ? 'Sí' : 'No'} | Logo: {loginLogoUrl}
-            </div>
-          )}
-        </div>
-        
-        {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 text-center">
-          <p className="text-xs text-gray-500">
-            &copy; {new Date().getFullYear()} Cooperativa de Ahorro y Crédito. Todos los derechos reservados.
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            v2.0.0
-          </p>
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+             <p className="text-xs text-slate-400">
+               Protegido por reCAPTCHA y sujeto a la Política de Privacidad y Términos de Servicio.
+             </p>
+          </div>
         </div>
       </div>
     </div>
